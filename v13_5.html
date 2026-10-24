@@ -1,0 +1,2073 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Яндекс Про — Аналитика дохода (v13.5)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Leaflet для реальной интерактивной карты районов -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+    :root {
+      --bg-outer: #0B0C0E;
+      --bg-shell: #141518;
+      --bg-card: #1C1E23;
+      --bg-elevated: #262930;
+      --bg-pill: #121316;
+      --border-subtle: rgba(255, 255, 255, 0.07);
+      --border-strong: rgba(255, 255, 255, 0.14);
+      --text-main: #F5F6F8;
+      --text-secondary: #9EA3AE;
+      --text-muted: #6E737D;
+      --ya-yellow: #FCE000;
+      --ya-yellow-hover: #F2D600;
+      --ya-yellow-text: #141518;
+      --surface-hover: rgba(255, 255, 255, 0.04);
+      --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.35);
+      --badge-grey-bg: rgba(255, 255, 255, 0.12);
+      --badge-grey-text: #F5F6F8;
+      --badge-grey-border: rgba(255, 255, 255, 0.2);
+      --badge-green-bg: rgba(16, 185, 129, 0.18);
+      --badge-green-text: #34D399;
+      --badge-green-border: rgba(16, 185, 129, 0.32);
+      --badge-red-bg: rgba(244, 63, 94, 0.16);
+      --badge-red-text: #FB7185;
+      --badge-red-border: rgba(244, 63, 94, 0.28);
+    }
+
+    body.light-mode {
+      --bg-outer: #E5E7EB;
+      --bg-shell: #F4F5F7;
+      --bg-card: #FFFFFF;
+      --bg-elevated: #ECEEF2;
+      --bg-pill: #E6E8EC;
+      --border-subtle: rgba(0, 0, 0, 0.06);
+      --border-strong: rgba(0, 0, 0, 0.13);
+      --text-main: #18191C;
+      --text-secondary: #5C616B;
+      --text-muted: #8C919C;
+      --ya-yellow: #FCE000;
+      --ya-yellow-hover: #F0D500;
+      --ya-yellow-text: #18191C;
+      --surface-hover: rgba(0, 0, 0, 0.03);
+      --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.06);
+      --badge-grey-bg: #DADEE6;
+      --badge-grey-text: #18191C;
+      --badge-grey-border: rgba(0, 0, 0, 0.15);
+      --badge-green-bg: rgba(16, 185, 129, 0.16);
+      --badge-green-text: #047857;
+      --badge-green-border: rgba(16, 185, 129, 0.35);
+      --badge-red-bg: rgba(244, 63, 94, 0.14);
+      --badge-red-text: #BE123C;
+      --badge-red-border: rgba(244, 63, 94, 0.3);
+    }
+
+    body.wireframe-mode {
+      --bg-outer: #D1D5DB;
+      --bg-shell: #FFFFFF;
+      --bg-card: #FFFFFF;
+      --bg-elevated: #F3F4F6;
+      --bg-pill: #E5E7EB;
+      --border-subtle: #1F2937;
+      --border-strong: #111827;
+      --text-main: #111827;
+      --text-secondary: #374151;
+      --text-muted: #4B5563;
+      --ya-yellow: #111827;
+      --ya-yellow-text: #FFFFFF;
+      --shadow-card: none;
+      --badge-grey-bg: #E5E7EB;
+      --badge-grey-text: #111827;
+      --badge-grey-border: #111827;
+      --badge-green-bg: #D1FAE5;
+      --badge-green-text: #065F46;
+      --badge-green-border: #065F46;
+      --badge-red-bg: #FFE4E6;
+      --badge-red-text: #9F1239;
+      --badge-red-border: #9F1239;
+    }
+
+    .ya-badge-grey {
+      background-color: var(--badge-grey-bg);
+      color: var(--badge-grey-text);
+      border: 1px solid var(--badge-grey-border);
+    }
+    .ya-badge-green {
+      background-color: var(--badge-green-bg);
+      color: var(--badge-green-text);
+      border: 1px solid var(--badge-green-border);
+    }
+    .ya-badge-red {
+      background-color: var(--badge-red-bg);
+      color: var(--badge-red-text);
+      border: 1px solid var(--badge-red-border);
+    }
+
+    .col-drag-active {
+      outline: 2px solid var(--ya-yellow);
+      background-color: var(--bg-card) !important;
+      transform: scale(1.01);
+      z-index: 20;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg-outer);
+      color: var(--text-main);
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      transition: background-color 0.2s ease, color 0.2s ease;
+    }
+
+    .app-shell {
+      background-color: var(--bg-shell);
+      border: 1px solid var(--border-strong);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    }
+
+    .ya-card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 20px;
+      box-shadow: var(--shadow-card);
+    }
+
+    .ya-subcard {
+      background-color: var(--bg-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: 14px;
+    }
+
+    .ya-nav-btn {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      border-radius: 14px;
+      transition: all 0.15s ease;
+    }
+    .ya-nav-btn:hover {
+      background-color: var(--bg-elevated);
+    }
+
+    .ya-switch-card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      padding: 3px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      cursor: pointer;
+      user-select: none;
+      transition: border-color 0.15s ease, transform 0.1s ease;
+    }
+    .ya-switch-card:hover {
+      border-color: var(--border-strong);
+    }
+    .ya-switch-card:active {
+      transform: scale(0.97);
+    }
+    .ya-switch-opt {
+      display: block;
+      text-align: center;
+      font-size: 10.5px;
+      line-height: 1.2;
+      padding: 4px 2px;
+      border-radius: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      transition: all 0.15s ease;
+    }
+    .ya-switch-opt-active {
+      background-color: var(--ya-yellow);
+      color: var(--ya-yellow-text);
+      font-weight: 700;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+    }
+
+    .ya-segmented {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 14px;
+      padding: 3px;
+    }
+    .ya-seg-btn {
+      border-radius: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      transition: all 0.15s ease;
+    }
+    .ya-seg-btn:hover {
+      color: var(--text-main);
+    }
+    .ya-seg-btn-active {
+      background-color: var(--ya-yellow);
+      color: var(--ya-yellow-text) !important;
+      font-weight: 700;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    }
+
+    .custom-scroll::-webkit-scrollbar {
+      height: 5px;
+      width: 5px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: rgba(156, 163, 175, 0.35);
+      border-radius: 9999px;
+    }
+
+    input[type="range"] {
+      accent-color: #FCE000;
+    }
+    body.wireframe-mode input[type="range"] {
+      accent-color: #111827;
+    }
+
+    .heat-cell {
+      transition: transform 0.12s ease, box-shadow 0.12s ease;
+      cursor: pointer;
+      user-select: none;
+    }
+    .heat-cell:hover {
+      transform: scale(1.04);
+      z-index: 5;
+    }
+    .heat-cell-selected {
+      outline: 2px solid var(--text-main);
+      box-shadow: 0 0 0 2px var(--ya-yellow);
+      z-index: 10;
+    }
+
+    .district-map-tooltip {
+      background: rgba(20, 21, 24, 0.92) !important;
+      border: 1.5px solid #FCE000 !important;
+      border-radius: 10px !important;
+      color: #FFFFFF !important;
+      font-family: 'Inter', sans-serif !important;
+      padding: 4px 8px !important;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.45) !important;
+    }
+    .district-map-tooltip::before {
+      display: none !important;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col items-center py-3 px-2 sm:px-4">
+
+  <!-- ВЕРХНЯЯ СЕРВИСНАЯ ПЛАШКА СТЕНДА (вне экрана приложения) -->
+  <div class="w-full max-w-[430px] mb-3 flex flex-wrap items-center justify-between gap-2 px-3.5 py-2 rounded-2xl bg-[#181A20] border border-white/10 text-xs text-gray-300 shadow-lg">
+    <div class="flex items-center gap-2">
+      <span class="px-2 py-0.5 rounded-md bg-[#FCE000] text-[#141518] font-extrabold">Этап 13.5</span>
+      <span class="font-semibold text-white">Аналитика Яндекс Про</span>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      <button onclick="toggleWireframeTheme()" id="btnWireTheme" class="px-2.5 py-1.5 rounded-xl bg-[#262930] hover:bg-[#323640] border border-white/10 text-white font-medium transition">
+        🎨 Стиль: Цветной
+      </button>
+      <button onclick="toggleColorTheme()" id="btnColorTheme" title="Переключить темный / светлый режим Яндекс Про" class="w-8 h-8 rounded-xl bg-[#262930] hover:bg-[#323640] border border-white/10 text-base flex items-center justify-center transition">
+        ☀️
+      </button>
+    </div>
+  </div>
+
+  <!-- ОСНОВНОЙ КОНТЕЙНЕР -->
+  <div id="layoutContainer" class="w-full max-w-[430px] transition-all duration-200">
+
+    <div id="columnsGrid" class="grid grid-cols-1 gap-4 items-start">
+
+      <!-- ========================================================================= -->
+      <!-- ЭКРАН 1: ГЛАВНЫЙ ЭКРАН АНАЛИТИКИ ЯНДЕКС ПРО                               -->
+      <!-- ========================================================================= -->
+      <div id="screenMain" class="app-shell rounded-[32px] p-3.5 sm:p-4 space-y-3">
+
+        <!-- 1. Шапка: Назад | Аналитика дохода | Экспорт -->
+        <header class="flex items-center justify-between gap-2 pt-0.5">
+          <button onclick="showToast('Возврат в раздел «Доход» Яндекс Про')" class="ya-nav-btn h-10 px-3.5 flex items-center gap-1.5 text-xs font-semibold active:scale-95">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+            <span>Назад</span>
+          </button>
+
+          <h1 class="text-sm sm:text-base font-extrabold tracking-tight text-center flex-1 truncate">
+            Аналитика дохода
+          </h1>
+
+          <button onclick="openExportModal()" class="ya-nav-btn h-10 px-3.5 flex items-center gap-1.5 text-xs font-semibold active:scale-95">
+            <span>Экспорт</span>
+            <svg class="w-3.5 h-3.5 opacity-80" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5-5m0 0l5 5m-5-5v12"/></svg>
+          </button>
+        </header>
+
+        <!-- 2. Второстепенная строка: Прибыль в час за все время -->
+        <div class="px-1.5 text-[11px] leading-tight" style="color: var(--text-muted);">
+          Прибыль в час за все время <span id="goalsStatusLabel">(с учетом целей)</span>:
+          <span id="allTimeHourlyProfit" class="font-medium">694 ₽/ч</span>
+        </div>
+
+        <!-- 3. Четыре кнопки управления -->
+        <div class="grid grid-cols-4 gap-1.5">
+          <div onclick="toggleGrossNet()" class="ya-switch-card">
+            <span id="lblGross" class="ya-switch-opt">Начислено</span>
+            <span id="lblNet" class="ya-switch-opt ya-switch-opt-active">Чистыми</span>
+          </div>
+
+          <div onclick="toggleSumHourly()" class="ya-switch-card">
+            <span id="lblSum" class="ya-switch-opt ya-switch-opt-active">Сумма</span>
+            <span id="lblHourly" class="ya-switch-opt">В час</span>
+          </div>
+
+          <div onclick="toggleChartTable()" class="ya-switch-card">
+            <span id="lblChart" class="ya-switch-opt ya-switch-opt-active">Диаграмма</span>
+            <span id="lblTable" class="ya-switch-opt">Таблица</span>
+          </div>
+
+          <button onclick="openSettingsScreen()" class="ya-card flex flex-col items-center justify-center gap-1 py-2 px-1 hover:opacity-90 active:scale-95 transition">
+            <svg class="w-4 h-4" style="color: var(--text-secondary);" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+            </svg>
+            <span class="text-[11px] font-semibold">Настройки</span>
+          </button>
+        </div>
+
+        <!-- 4. Три кнопки периода -->
+        <div class="ya-segmented grid grid-cols-3 gap-1">
+          <button onclick="setPeriod('days')" id="btnPeriod-days" class="py-1.5 text-xs ya-seg-btn ya-seg-btn-active">Дни</button>
+          <button onclick="setPeriod('weeks')" id="btnPeriod-weeks" class="py-1.5 text-xs ya-seg-btn">Недели</button>
+          <button onclick="setPeriod('months')" id="btnPeriod-months" class="py-1.5 text-xs ya-seg-btn">Месяцы</button>
+        </div>
+
+        <!-- 5. БЛОК 1: ДИНАМИКА ДОХОДА -->
+        <section class="ya-card p-3.5 space-y-2.5">
+          <div class="flex items-center justify-between">
+            <h2 id="block1Title" class="text-xs font-bold tracking-tight">Динамика дохода</h2>
+          </div>
+
+          <div id="chartViewContainer" class="space-y-2.5">
+            <div class="relative h-56 pt-3 pb-6 pl-9 pr-1 select-none" id="barChartCanvas"></div>
+
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] pt-1 border-t" style="border-color: var(--border-subtle); color: var(--text-secondary);">
+              <span class="flex items-center gap-1"><i class="w-2 h-2 rounded-full bg-blue-500 inline-block"></i>Заказы</span>
+              <span class="flex items-center gap-1"><i class="w-2 h-2 rounded-full bg-[#FCE000] inline-block"></i>Спрос</span>
+              <span class="flex items-center gap-1"><i class="w-2 h-2 rounded-full bg-orange-400 inline-block"></i>Рейтинг</span>
+              <span class="flex items-center gap-1"><i class="w-2 h-2 rounded-full bg-purple-500 inline-block"></i>Бонусы</span>
+              <span id="legendGoalsItem" class="flex items-center gap-1"><i class="w-2 h-2 rounded-full bg-pink-500 inline-block"></i>Цели</span>
+              <span class="flex items-center gap-1"><i class="w-2 h-2 rounded-full bg-emerald-400 inline-block"></i>Чаевые</span>
+              <span id="legendGrossBg" class="flex items-center gap-1"><i class="w-2 h-2 rounded-sm bg-gray-400/50 border border-dashed border-gray-400 inline-block"></i>Начислено</span>
+            </div>
+
+            <div id="selectedBarDetails" class="ya-subcard p-2.5 text-[11px] space-y-1.5"></div>
+          </div>
+
+          <div id="tableViewContainer" class="hidden space-y-2">
+            <div class="flex items-center justify-between text-[10px]" style="color: var(--text-secondary);">
+              <span>Активные столбцы</span>
+              <button onclick="openSettingsScreen()" class="font-semibold underline" style="color: var(--text-main);">Настроить поля</button>
+            </div>
+            <div class="overflow-x-auto custom-scroll rounded-xl border" style="border-color: var(--border-strong);">
+              <table class="w-full text-left border-collapse text-[11px] whitespace-nowrap">
+                <thead id="detailedTableHead" style="background-color: var(--bg-elevated); color: var(--text-secondary);" class="border-b"></thead>
+                <tbody id="detailedTableBody" class="divide-y" style="border-color: var(--border-subtle);"></tbody>
+                <tfoot id="detailedTableFoot" style="background-color: var(--bg-elevated);" class="font-bold border-t"></tfoot>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- 6. ПАНЕЛЬ УПРАВЛЕНИЯ СПРОСОМ -->
+        <div class="grid grid-cols-12 gap-1.5">
+          <button onclick="toggleWeather()" id="btnWeather" class="col-span-3 ya-card py-2 px-1.5 flex flex-col items-center justify-center gap-0.5 text-[11px] font-semibold transition active:scale-95">
+            <span class="text-sm leading-none">🌧️</span>
+            <span class="leading-tight">Осадки</span>
+          </button>
+
+          <div onclick="toggleHeatUnit()" class="col-span-3 ya-switch-card">
+            <span id="lblUnitPct" class="ya-switch-opt ya-switch-opt-active">% спроса</span>
+            <span id="lblUnitRub" class="ya-switch-opt">₽ в час</span>
+          </div>
+
+          <button onclick="openDistrictSeasonModal()" class="col-span-6 ya-card py-2 px-3 text-left flex items-center justify-between hover:opacity-95 active:scale-95 transition">
+            <div class="min-w-0">
+              <div class="text-[10px] font-medium" style="color: var(--text-secondary);">Район и сезон</div>
+              <div id="currentDistrictSeasonSub" class="text-xs font-bold truncate mt-0.5">Центр-Юг • Авто</div>
+            </div>
+            <svg class="w-4 h-4 shrink-0 opacity-60" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+
+        <!-- 7. БЛОК 2: СРЕДНЯЯ ДОПЛАТА ЗА СПРОС И ДОХОД В ЧАС -->
+        <section class="ya-card p-3.5 space-y-2">
+          <div class="flex items-center justify-between gap-2">
+            <h2 id="block2Title" class="text-xs font-bold tracking-tight">Средняя доплата за спрос и общий доход в час</h2>
+            <button onclick="clearSelectedSlots()" id="btnClearSlots" title="Сбросить выбор слотов" class="text-[10px] font-semibold px-2 py-0.5 rounded-lg ya-badge-red hover:opacity-90 active:scale-95 transition shrink-0">
+              Сбросить ✕
+            </button>
+          </div>
+
+          <div class="flex items-center justify-between gap-2 bg-black/15 py-1.5 px-2.5 rounded-xl">
+            <span id="selectedSlotsCounter" class="text-[10px] font-bold truncate">Выбрано: 5 сл. (20ч) • Ср. +57%</span>
+          </div>
+
+          <div class="w-full">
+            <table class="w-full table-fixed text-center border-separate border-spacing-1 text-[10px]">
+              <thead>
+                <tr class="font-semibold text-[10px]" style="color: var(--text-secondary);">
+                  <th class="w-[66px] text-left pl-0.5 py-1">Часы</th>
+                  <th>Пн</th>
+                  <th>Вт</th>
+                  <th>Ср</th>
+                  <th>Чт</th>
+                  <th>Пт</th>
+                  <th>Сб</th>
+                  <th>Вс</th>
+                </tr>
+              </thead>
+              <tbody id="heatmapTableBody"></tbody>
+            </table>
+          </div>
+
+          <div class="grid grid-cols-12 gap-2 pt-1">
+            <button onclick="selectTop5Slots()" class="col-span-4 ya-subcard py-2.5 px-2 text-[11px] leading-tight font-bold text-center hover:opacity-90 active:scale-95 transition">
+              Топ 5 слотов<br/><span class="text-[10px] font-normal opacity-75">(20 часов)</span>
+            </button>
+            <button onclick="planSelectedSlots()" class="col-span-8 rounded-2xl py-2.5 px-3 text-left active:scale-98 transition flex items-center justify-between" style="background-color: var(--ya-yellow); color: var(--ya-yellow-text);">
+              <div>
+                <div class="text-xs font-extrabold">Запланировать слоты</div>
+                <div id="plannedProfitEstimate" class="text-[10px] font-semibold opacity-85 mt-0.5">Расчет прибыли: ~15 240 ₽ (762 ₽/ч)</div>
+              </div>
+              <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+            </button>
+          </div>
+        </section>
+
+        <!-- 8. ПЕРЕКЛЮЧАТЕЛЬ СРАВНЕНИЯ -->
+        <div class="ya-segmented grid grid-cols-3 gap-1">
+          <button onclick="setCompareMode('transport')" id="btnComp-transport" class="py-1.5 text-[11px] ya-seg-btn ya-seg-btn-active">Транспорт</button>
+          <button onclick="setCompareMode('slot')" id="btnComp-slot" class="py-1.5 text-[11px] ya-seg-btn">Тип слота</button>
+          <button onclick="setCompareMode('total')" id="btnComp-total" class="py-1.5 text-[11px] ya-seg-btn">Тотал</button>
+        </div>
+
+        <!-- 9. БЛОК 3: СРАВНЕНИЕ ПОКАЗАТЕЛЕЙ -->
+        <section class="ya-card p-3.5 space-y-2.5">
+          <h2 class="text-xs font-bold tracking-tight">Сравнение средних показателей</h2>
+          <div class="overflow-x-auto custom-scroll rounded-xl border" style="border-color: var(--border-strong);">
+            <table class="w-full text-left border-collapse text-[11px]">
+              <thead id="compareTableHead" style="background-color: var(--bg-elevated); color: var(--text-secondary);" class="border-b"></thead>
+              <tbody id="compareTableBody" class="divide-y" style="border-color: var(--border-subtle);"></tbody>
+              <tfoot id="compareTableFoot" style="background-color: var(--bg-elevated);" class="border-t-2 font-bold divide-y"></tfoot>
+            </table>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- ========================================================================= -->
+      <!-- ЭКРАН 2: ВЫБОР РАЙОНА И СЕЗОНА                                            -->
+      <!-- ========================================================================= -->
+      <div id="screenMiddleSpec" class="app-shell rounded-[32px] p-3.5 sm:p-4 space-y-3.5 hidden">
+        <header class="flex items-center justify-between gap-2">
+          <button onclick="closeMiddleScreen()" class="ya-nav-btn h-10 px-3.5 flex items-center gap-1.5 text-xs font-semibold active:scale-95">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+            <span>Назад</span>
+          </button>
+          <h2 class="font-extrabold text-sm sm:text-base text-center flex-1">Район и сезон</h2>
+          <div class="w-16"></div>
+        </header>
+
+        <div class="ya-card p-3.5 space-y-3.5">
+          <div>
+            <div class="text-xs font-bold mb-2">Сезон года</div>
+            <div class="ya-segmented grid grid-cols-5 gap-1">
+              <button onclick="setSeason('auto')" id="btnSeason-auto" class="py-1.5 px-1 text-[10px] ya-seg-btn ya-seg-btn-active">Авто (4н)</button>
+              <button onclick="setSeason('summer')" id="btnSeason-summer" class="py-1.5 px-1 text-[10px] ya-seg-btn">Лето</button>
+              <button onclick="setSeason('autumn')" id="btnSeason-autumn" class="py-1.5 px-1 text-[10px] ya-seg-btn">Осень</button>
+              <button onclick="setSeason('winter')" id="btnSeason-winter" class="py-1.5 px-1 text-[10px] ya-seg-btn">Зима</button>
+              <button onclick="setSeason('spring')" id="btnSeason-spring" class="py-1.5 px-1 text-[10px] ya-seg-btn">Весна</button>
+            </div>
+          </div>
+
+          <button onclick="openRealMapModal()" class="w-full rounded-2xl py-3 px-4 font-extrabold text-xs flex items-center justify-between shadow active:scale-98 transition" style="background-color: var(--ya-yellow); color: var(--ya-yellow-text);">
+            <span class="flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
+              <span>Выбрать район на карте</span>
+            </span>
+            <span class="text-[11px] font-bold opacity-80">Открыть карту →</span>
+          </button>
+
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-bold">Список районов</span>
+              <span id="districtListUnitHint" class="text-[10px]" style="color: var(--text-secondary);">Средняя / Пик</span>
+            </div>
+            <div id="districtListContainer" class="space-y-2"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================================================= -->
+      <!-- ЭКРАН 3: НАСТРОЙКИ                                                        -->
+      <!-- ========================================================================= -->
+      <div id="screenSettings" class="app-shell rounded-[32px] p-3.5 sm:p-4 space-y-3.5 hidden">
+        <header class="flex items-center justify-between gap-2">
+          <button onclick="closeSettingsScreen()" class="ya-nav-btn h-10 px-3.5 flex items-center gap-1.5 text-xs font-semibold active:scale-95">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+            <span>Назад</span>
+          </button>
+          <h2 class="font-extrabold text-sm sm:text-base text-center flex-1">Настройки</h2>
+          <div class="w-16"></div>
+        </header>
+
+        <div class="ya-card p-3.5 space-y-3.5">
+          <div class="flex items-center justify-between gap-2">
+            <div>
+              <h3 class="text-xs sm:text-sm font-bold">Расходы за неделю</h3>
+              <p class="text-[10px]" style="color: var(--text-secondary);">Учитываются при расчете чистой прибыли</p>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0">
+              <button onclick="resetExpensesToDefault()" title="Вернуть изначальные статьи и суммы расходов по умолчанию" class="px-2.5 py-1 rounded-xl text-[10px] font-bold ya-subcard hover:opacity-90 active:scale-95 transition">
+                Сбросить по умолчанию
+              </button>
+              <span id="totalWeeklyExpenseBadge" class="text-xs font-extrabold px-2.5 py-1 rounded-xl bg-rose-500/15 text-rose-400">5 300 ₽/нед</span>
+            </div>
+          </div>
+
+          <div>
+            <div class="text-[11px] font-medium mb-1.5" style="color: var(--text-secondary);">Тип передвижения (средние расходы по умолчанию):</div>
+            <div class="grid grid-cols-2 gap-1.5">
+              <button onclick="applyTransportPreset('walk')" id="presetBtn-walk" class="py-2 px-2.5 rounded-xl text-left transition flex items-center justify-between">
+                <span class="text-xs font-bold">🚶 Пеший</span>
+                <span id="presetSum-walk" class="text-[10px] font-semibold opacity-80">1 600 ₽</span>
+              </button>
+              <button onclick="applyTransportPreset('bike')" id="presetBtn-bike" class="py-2 px-2.5 rounded-xl text-left transition flex items-center justify-between">
+                <span class="text-xs font-bold">🚲 Вело</span>
+                <span id="presetSum-bike" class="text-[10px] font-semibold opacity-80">2 500 ₽</span>
+              </button>
+              <button onclick="applyTransportPreset('ebike')" id="presetBtn-ebike" class="py-2 px-2.5 rounded-xl text-left transition flex items-center justify-between">
+                <span class="text-xs font-bold">⚡ Электровело</span>
+                <span id="presetSum-ebike" class="text-[10px] font-semibold opacity-80">5 300 ₽</span>
+              </button>
+              <button onclick="applyTransportPreset('car')" id="presetBtn-car" class="py-2 px-2.5 rounded-xl text-left transition flex items-center justify-between">
+                <span class="text-xs font-bold">🚗 Авто</span>
+                <span id="presetSum-car" class="text-[10px] font-semibold opacity-80">9 600 ₽</span>
+              </button>
+            </div>
+          </div>
+
+          <div id="expenseSlidersContainer" class="space-y-2.5"></div>
+
+          <div id="addExpenseForm" class="hidden ya-subcard p-2.5 space-y-2">
+            <div class="text-[11px] font-semibold">Название расхода:</div>
+            <div class="flex gap-2">
+              <input type="text" id="newExpenseNameInput" placeholder="Напр.: Бензин, Связь, ТО" class="flex-1 px-3 py-1.5 rounded-xl bg-black/20 border border-white/15 text-xs focus:outline-none focus:border-[#FCE000]" style="color: var(--text-main);" />
+              <button onclick="confirmAddCustomExpense()" class="px-3.5 py-1.5 rounded-xl text-xs font-extrabold" style="background-color: var(--ya-yellow); color: var(--ya-yellow-text);">Добавить</button>
+            </div>
+          </div>
+
+          <button onclick="toggleAddExpenseForm()" class="w-full ya-subcard py-2.5 px-3 text-xs font-bold text-center hover:opacity-90 active:scale-98 transition">+ Добавить статью расхода</button>
+        </div>
+
+        <div class="ya-card p-3.5">
+          <label class="flex items-center justify-between cursor-pointer select-none">
+            <div>
+              <div class="text-xs sm:text-sm font-bold">Учитывать цели</div>
+              <div class="text-[10px]" style="color: var(--text-secondary);">Включать бонусные цели в расчет прибыли и графиков</div>
+            </div>
+            <input type="checkbox" id="chkIncludeGoals" checked onchange="onToggleGoals(this.checked)" class="w-5 h-5 rounded accent-[#FCE000] cursor-pointer" />
+          </label>
+        </div>
+
+        <div class="ya-card p-3.5 space-y-3">
+          <div>
+            <h3 class="text-xs sm:text-sm font-bold">Столбцы таблицы и их порядок</h3>
+            <p class="text-[10px] mt-0.5" style="color: var(--text-secondary);">Отметьте нужные поля. Удерживайте строку (долгий тап) и тяните вверх/вниз</p>
+          </div>
+
+          <div class="ya-subcard p-2 text-[11px] flex items-center justify-between opacity-75">
+            <span class="font-bold">0. Дата (опорный столбец)</span>
+            <span class="text-[10px] px-2 py-0.5 rounded bg-black/20">Фиксирован</span>
+          </div>
+
+          <div id="reorderableColumnsList" class="space-y-1 text-xs select-none"></div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- МОДАЛЬНОЕ ОКНО: РЕАЛЬНАЯ КАРТА (LEAFLET) -->
+  <div id="realMapModal" class="fixed inset-0 z-50 hidden bg-black/75 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4">
+    <div class="app-shell w-full max-w-lg rounded-[28px] overflow-hidden flex flex-col shadow-2xl border border-white/15">
+      <div class="p-3.5 flex items-center justify-between border-b" style="border-color: var(--border-subtle);">
+        <div>
+          <h3 class="text-sm font-extrabold">Карта районов доставки</h3>
+          <p id="realMapSubtitle" class="text-[11px]" style="color: var(--text-secondary);">Нажмите на выделенный район для выбора</p>
+        </div>
+        <button onclick="closeRealMapModal()" class="ya-nav-btn w-8 h-8 flex items-center justify-center text-sm font-bold">✕</button>
+      </div>
+      <div class="relative w-full h-[380px] bg-[#181A20]">
+        <div id="leafletMapContainer" class="w-full h-full z-10"></div>
+      </div>
+      <div class="p-3.5 flex items-center justify-between gap-2 border-t" style="border-color: var(--border-subtle); background-color: var(--bg-card);">
+        <div class="min-w-0">
+          <div class="text-[10px]" style="color: var(--text-secondary);">Выбранный полигон:</div>
+          <div id="mapSelectedDistrictName" class="text-xs font-extrabold truncate">Центр-Юг (Хамовники / Якиманка)</div>
+        </div>
+        <button onclick="closeRealMapModal()" class="px-4 py-2 rounded-xl text-xs font-extrabold shrink-0" style="background-color: var(--ya-yellow); color: var(--ya-yellow-text);">Применить район</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- МОДАЛЬНОЕ ОКНО: ПОДТВЕРЖДЕНИЕ ПЛАНИРОВАНИЯ СЛОТОВ -->
+  <div id="planSlotsModal" class="fixed inset-0 z-50 hidden bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+    <div class="app-shell w-full max-w-md rounded-[28px] overflow-hidden flex flex-col shadow-2xl border border-white/15">
+      <div class="p-4 flex items-center justify-between border-b" style="border-color: var(--border-subtle);">
+        <div>
+          <h3 class="text-sm font-extrabold">Подтверждение слотов</h3>
+          <p class="text-[11px]" style="color: var(--text-secondary);">Проверьте параметры перед планированием</p>
+        </div>
+        <button onclick="closePlanSlotsModal()" class="ya-nav-btn w-8 h-8 flex items-center justify-center text-sm font-bold">✕</button>
+      </div>
+
+      <div class="p-4 space-y-3 text-xs max-h-[70vh] overflow-y-auto custom-scroll">
+        <div class="grid grid-cols-2 gap-2">
+          <div class="ya-subcard p-2.5">
+            <div class="text-[10px]" style="color: var(--text-secondary);">Тип передвижения</div>
+            <div id="planModalTransport" class="font-extrabold mt-0.5">⚡ Электровело</div>
+          </div>
+          <div class="ya-subcard p-2.5">
+            <div class="text-[10px]" style="color: var(--text-secondary);">Район доставки</div>
+            <div id="planModalDistrict" class="font-extrabold mt-0.5 truncate">Центр-Юг</div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div class="ya-subcard p-2.5">
+            <div class="text-[10px]" style="color: var(--text-secondary);">Тотал часы и прибыль</div>
+            <div id="planModalTotal" class="font-extrabold text-emerald-400 mt-0.5">20 ч • ~15 240 ₽</div>
+          </div>
+          <div class="ya-subcard p-2.5">
+            <div class="text-[10px]" style="color: var(--text-secondary);">Средние доплата и ₽/ч</div>
+            <div id="planModalAvg" class="font-extrabold mt-0.5">+57% • 762 ₽/ч</div>
+          </div>
+        </div>
+
+        <div>
+          <div class="text-[11px] font-bold mb-1.5">Выбранные слоты:</div>
+          <div id="planModalSlotsList" class="space-y-1.5 max-h-44 overflow-y-auto custom-scroll pr-1"></div>
+        </div>
+      </div>
+
+      <div class="p-3.5 grid grid-cols-2 gap-2 border-t" style="border-color: var(--border-subtle); background-color: var(--bg-card);">
+        <button onclick="closePlanSlotsModal()" class="ya-subcard py-2.5 px-4 rounded-xl text-xs font-bold hover:opacity-90 active:scale-95 transition">Отменить</button>
+        <button onclick="confirmPlanSlots()" class="py-2.5 px-4 rounded-xl text-xs font-extrabold active:scale-95 transition" style="background-color: var(--ya-yellow); color: var(--ya-yellow-text);">Подтвердить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- МОДАЛЬНОЕ ОКНО: СПРАВКА О РАСЧЕТЕ ПРОГНОЗА -->
+  <div id="forecastInfoModal" class="fixed inset-0 z-50 hidden bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+    <div class="app-shell w-full max-w-md rounded-[28px] overflow-hidden flex flex-col shadow-2xl border border-white/15">
+      <div class="p-4 flex items-center justify-between border-b" style="border-color: var(--border-subtle);">
+        <div>
+          <h3 class="text-sm font-extrabold">Как считается прогноз (Авто)</h3>
+          <p class="text-[11px]" style="color: var(--text-secondary);">Расчет под ваш график и расходы</p>
+        </div>
+        <button onclick="closeForecastInfoModal()" class="ya-nav-btn w-8 h-8 flex items-center justify-center text-sm font-bold">✕</button>
+      </div>
+
+      <div class="p-4 space-y-3 text-xs leading-relaxed max-h-[70vh] overflow-y-auto custom-scroll">
+        <p style="color: var(--text-secondary);">У вас пока нет отработанных слотов на <b>Авто</b>. Чтобы вы могли оценить реальную выгоду или возможный убыток от перехода, система строит персональный прогноз:</p>
+
+        <div class="ya-subcard p-3 space-y-1.5">
+          <div class="font-extrabold text-[11px]">Формула расчета прибыли в час:</div>
+          <div class="text-[11px] font-mono p-2 rounded-lg bg-black/20">(Ср. доход Авто по городу × Ваши часы − Налог 6% − Расходы на Авто) ÷ Ваши часы</div>
+          <div class="text-[10px]" style="color: var(--text-secondary);">• Показатели заказов берутся из средних данных курьеров на Авто в вашем городе.<br/>• Количество часов берется из вашего графика за выбранный период.</div>
+        </div>
+
+        <div class="space-y-2">
+          <div class="font-extrabold text-[11px]">Как использовать эти данные:</div>
+          <div class="ya-subcard p-2.5">
+            <div class="font-bold text-rose-400">Пример 1: Мало часов — риск уйти в минус</div>
+            <p class="text-[11px] mt-0.5" style="color: var(--text-secondary);">Аренда машины платятся постоянно (~9 600 ₽/нед). При работе 8–10 часов в неделю расходы на авто уведут прибыль в минус.</p>
+          </div>
+          <div class="ya-subcard p-2.5">
+            <div class="font-bold text-emerald-400">Пример 2: Полная занятость — выход в плюс</div>
+            <p class="text-[11px] mt-0.5" style="color: var(--text-secondary);">При работе 40–50 часов в неделю постоянные расходы распределяются на много часов, и чистая ставка на Авто становится выгодной.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="p-3.5 border-t" style="border-color: var(--border-subtle); background-color: var(--bg-card);">
+        <button onclick="closeForecastInfoModal()" class="w-full py-2.5 px-4 rounded-xl text-xs font-extrabold active:scale-95 transition" style="background-color: var(--ya-yellow); color: var(--ya-yellow-text);">Понятно</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toastBox" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 hidden px-4 py-2.5 rounded-2xl bg-[#1C1E23] border border-[#FCE000] text-white text-xs font-semibold shadow-2xl max-w-sm text-center">
+    <span id="toastText"></span>
+  </div>
+
+  <script>
+    const state = {
+      wireframeMode: false,
+      lightMode: false,
+      currentScreen: 'main',
+
+      isNet: true,
+      isHourly: false,
+      viewMode: 'chart',
+      period: 'days',
+      selectedBarIndex: 4,
+
+      accountTransport: 'ebike',
+      includeGoals: true,
+      selectedPreset: 'ebike',
+      expensesByTransport: {
+        walk: [
+          { id: 'rent', name: 'Аренда', value: 400, max: 25000 },
+          { id: 'food', name: 'Еда', value: 1200, max: 25000 }
+        ],
+        bike: [
+          { id: 'rent', name: 'Аренда', value: 1100, max: 25000 },
+          { id: 'food', name: 'Еда', value: 1400, max: 25000 }
+        ],
+        ebike: [
+          { id: 'rent', name: 'Аренда', value: 3900, max: 25000 },
+          { id: 'food', name: 'Еда', value: 1400, max: 25000 }
+        ],
+        car: [
+          { id: 'rent', name: 'Аренда', value: 7800, max: 25000 },
+          { id: 'food', name: 'Еда', value: 1800, max: 25000 }
+        ]
+      },
+      expenses: [],
+
+      tableColumns: [
+        { key: 'date',        label: 'Дата',                        enabled: true,  defaultOff: false, fixed: true },
+        { key: 'netProfit',   label: 'Прибыль (на руки)',           enabled: true,  defaultOff: false },
+        { key: 'profitPerHr', label: 'Прибыль в час',               enabled: true,  defaultOff: false },
+        { key: 'ordersPerHr', label: 'Заказов в час',               enabled: true,  defaultOff: false },
+        { key: 'slotHours',   label: 'Длит. слота (ч)',             enabled: true,  defaultOff: false },
+        { key: 'ordersCount', label: 'Кол-во заказов',              enabled: true,  defaultOff: false },
+        { key: 'grossTotal',  label: 'Начислено (до расх.)',        enabled: true,  defaultOff: false },
+        { key: 'ordersCost',  label: 'Стоимость заказов',           enabled: true,  defaultOff: false },
+        { key: 'surgeRub',    label: 'Доплата (спрос)',             enabled: true,  defaultOff: false },
+        { key: 'ratingRub',   label: 'Доплата (рейтинг)',           enabled: true,  defaultOff: false },
+        { key: 'bonuses',     label: 'Бонусы',                      enabled: true,  defaultOff: false },
+        { key: 'goals',       label: 'Цели',                        enabled: true,  defaultOff: false },
+        { key: 'tips',        label: 'Чаевые',                      enabled: true,  defaultOff: false },
+        { key: 'tax',         label: 'Налог',                       enabled: true,  defaultOff: false },
+        { key: 'adjustments', label: 'Корректировки',               enabled: true,  defaultOff: false },
+        { key: 'expenses',    label: 'Расходы',                     enabled: true,  defaultOff: false },
+        { key: 'dayOfWeek',   label: 'День недели',                 enabled: false, defaultOff: true  },
+        { key: 'transport',   label: 'Транспорт',                   enabled: false, defaultOff: true  },
+        { key: 'surgePct',    label: 'Доплата (спрос; %)',          enabled: false, defaultOff: true  },
+        { key: 'ratingPct',   label: 'Доплата (рейтинг; %)',        enabled: false, defaultOff: true  }
+      ],
+
+      weatherBoost: false,
+      heatUnitRub: false,
+      season: 'auto',
+      districtId: 'center_south',
+      selectedSlotCells: ['4-4', '4-5', '4-6', '2-4', '2-5'],
+      compareMode: 'transport'
+    };
+
+    const defaultTransportExpenses = {
+      walk: [
+        { id: 'rent', name: 'Аренда', value: 400, max: 25000 },
+        { id: 'food', name: 'Еда', value: 1200, max: 25000 }
+      ],
+      bike: [
+        { id: 'rent', name: 'Аренда', value: 1100, max: 25000 },
+        { id: 'food', name: 'Еда', value: 1400, max: 25000 }
+      ],
+      ebike: [
+        { id: 'rent', name: 'Аренда', value: 3900, max: 25000 },
+        { id: 'food', name: 'Еда', value: 1400, max: 25000 }
+      ],
+      car: [
+        { id: 'rent', name: 'Аренда', value: 7800, max: 25000 },
+        { id: 'food', name: 'Еда', value: 1800, max: 25000 }
+      ]
+    };
+
+    const transportMeta = {
+      walk:  { label: 'Пеший',       icon: '🚶', baseHourlyRub: 310, cityAvgGrossHr: 540 },
+      bike:  { label: 'Вело',        icon: '🚲', baseHourlyRub: 390, cityAvgGrossHr: 680 },
+      ebike: { label: 'Электровело', icon: '⚡', baseHourlyRub: 455, cityAvgGrossHr: 820 },
+      car:   { label: 'Авто',        icon: '🚗', baseHourlyRub: 540, cityAvgGrossHr: 980 }
+    };
+
+    state.expenses = state.expensesByTransport[state.selectedPreset];
+
+    const rawDatasets = {
+      days: [
+        { date: '19.10', dayOfWeek: 'Пн', slotHours: 8,  ordersCount: 16, transport: 'Электровело', transportKey: 'ebike', ordersCost: 2450, surgePct: 32, surgeRub: 1120, ratingPct: 15, ratingRub: 520, bonuses: 420, goals: 500, tips: 280, adjustments: 0 },
+        { date: '20.10', dayOfWeek: 'Вт', slotHours: 7,  ordersCount: 14, transport: 'Электровело', transportKey: 'ebike', ordersCost: 2180, surgePct: 28, surgeRub: 940,  ratingPct: 15, ratingRub: 460, bonuses: 350, goals: 450, tips: 240, adjustments: 0 },
+        { date: '21.10', dayOfWeek: 'Ср', slotHours: 8,  ordersCount: 17, transport: 'Электровело', transportKey: 'ebike', ordersCost: 2600, surgePct: 35, surgeRub: 1250, ratingPct: 15, ratingRub: 560, bonuses: 480, goals: 550, tips: 320, adjustments: -100 },
+        { date: '22.10', dayOfWeek: 'Чт', slotHours: 8,  ordersCount: 18, transport: 'Электровело', transportKey: 'ebike', ordersCost: 2720, surgePct: 38, surgeRub: 1380, ratingPct: 15, ratingRub: 590, bonuses: 510, goals: 600, tips: 360, adjustments: 0 },
+        { date: '23.10', dayOfWeek: 'Пт', slotHours: 10, ordersCount: 24, transport: 'Электровело', transportKey: 'ebike', ordersCost: 3580, surgePct: 54, surgeRub: 2140, ratingPct: 15, ratingRub: 780, bonuses: 740, goals: 850, tips: 520, adjustments: -150 },
+        { date: '24.10', dayOfWeek: 'Сб', slotHours: 9,  ordersCount: 22, transport: 'Электровело', transportKey: 'ebike', ordersCost: 3320, surgePct: 58, surgeRub: 2050, ratingPct: 15, ratingRub: 720, bonuses: 690, goals: 800, tips: 490, adjustments: 0 }
+      ],
+      weeks: [
+        { date: 'Нед 39', dayOfWeek: 'Пн–Вс', slotHours: 40, ordersCount: 82, transport: 'Электровело', transportKey: 'ebike', ordersCost: 13200, surgePct: 36, surgeRub: 6400, ratingPct: 15, ratingRub: 2750, bonuses: 2400, goals: 2900, tips: 1650, adjustments: -150 },
+        { date: 'Нед 40', dayOfWeek: 'Пн–Вс', slotHours: 44, ordersCount: 91, transport: 'Электровело', transportKey: 'ebike', ordersCost: 14800, surgePct: 41, surgeRub: 7350, ratingPct: 15, ratingRub: 3100, bonuses: 2850, goals: 3300, tips: 1920, adjustments: 0 },
+        { date: 'Нед 41', dayOfWeek: 'Пн–Вс', slotHours: 42, ordersCount: 86, transport: 'Электровело', transportKey: 'ebike', ordersCost: 14100, surgePct: 39, surgeRub: 6920, ratingPct: 15, ratingRub: 2950, bonuses: 2600, goals: 3100, tips: 1780, adjustments: -200 },
+        { date: 'Нед 42', dayOfWeek: 'Пн–Вс', slotHours: 50, ordersCount: 111, transport: 'Электровело', transportKey: 'ebike', ordersCost: 16850, surgePct: 44, surgeRub: 8880, ratingPct: 15, ratingRub: 3630, bonuses: 3190, goals: 3750, tips: 2210, adjustments: -100 }
+      ],
+      months: [
+        { date: 'Июнь',     dayOfWeek: 'Месяц', slotHours: 168, ordersCount: 345, transport: 'Вело/Электро', transportKey: 'ebike', ordersCost: 56200, surgePct: 34, surgeRub: 25400, ratingPct: 10, ratingRub: 9800,  bonuses: 9400,  goals: 11200, tips: 6800, adjustments: -300 },
+        { date: 'Июль',     dayOfWeek: 'Месяц', slotHours: 176, ordersCount: 362, transport: 'Электровело',  transportKey: 'ebike', ordersCost: 59400, surgePct: 37, surgeRub: 27800, ratingPct: 15, ratingRub: 11900, bonuses: 10200, goals: 12400, tips: 7300, adjustments: 0 },
+        { date: 'Август',   dayOfWeek: 'Месяц', slotHours: 182, ordersCount: 380, transport: 'Электровело',  transportKey: 'ebike', ordersCost: 62800, surgePct: 40, surgeRub: 30100, ratingPct: 15, ratingRub: 12600, bonuses: 11400, goals: 13500, tips: 7900, adjustments: -250 },
+        { date: 'Сентябрь', dayOfWeek: 'Месяц', slotHours: 174, ordersCount: 368, transport: 'Электровело',  transportKey: 'ebike', ordersCost: 60900, surgePct: 42, surgeRub: 29600, ratingPct: 15, ratingRub: 12300, bonuses: 11100, goals: 13100, tips: 7600, adjustments: -150 },
+        { date: 'Октябрь',  dayOfWeek: 'Месяц', slotHours: 188, ordersCount: 404, transport: 'Электровело',  transportKey: 'ebike', ordersCost: 66200, surgePct: 45, surgeRub: 33400, ratingPct: 15, ratingRub: 13800, bonuses: 12500, goals: 14800, tips: 8400, adjustments: -200 }
+      ]
+    };
+
+    const districtsData = [
+      {
+        id: 'center_south',
+        name: 'Центр-Юг (Хамовники / Якиманка)',
+        shortName: 'Центр-Юг',
+        avgPct: 42,
+        peakPct: 68,
+        color: '#FCE000',
+        center: [55.728, 37.595],
+        polygon: [
+          [55.748, 37.560],
+          [55.748, 37.630],
+          [55.710, 37.625],
+          [55.712, 37.555]
+        ]
+      },
+      {
+        id: 'north_city',
+        name: 'Север-Сити (Пресня / Сокол)',
+        shortName: 'Север-Сити',
+        avgPct: 46,
+        peakPct: 74,
+        color: '#38BDF8',
+        center: [55.775, 37.545],
+        polygon: [
+          [55.802, 37.500],
+          [55.800, 37.585],
+          [55.752, 37.585],
+          [55.752, 37.505]
+        ]
+      },
+      {
+        id: 'east_izh',
+        name: 'Восток (Сокольники / Перово)',
+        shortName: 'Восток',
+        avgPct: 33,
+        peakPct: 54,
+        color: '#A855F7',
+        center: [55.772, 37.715],
+        polygon: [
+          [55.800, 37.665],
+          [55.798, 37.770],
+          [55.745, 37.765],
+          [55.748, 37.665]
+        ]
+      },
+      {
+        id: 'south_west',
+        name: 'Юго-Запад (Раменки / Черемушки)',
+        shortName: 'Юго-Запад',
+        avgPct: 39,
+        peakPct: 63,
+        color: '#10B981',
+        center: [55.682, 37.525],
+        polygon: [
+          [55.708, 37.475],
+          [55.708, 37.575],
+          [55.658, 37.575],
+          [55.658, 37.475]
+        ]
+      }
+    ];
+
+    const seasonMultipliers = {
+      auto:   { label: 'Авто (4 нед.)', mult: 1.00 },
+      summer: { label: 'Лето',          mult: 0.88 },
+      autumn: { label: 'Осень',         mult: 1.06 },
+      winter: { label: 'Зима',          mult: 1.22 },
+      spring: { label: 'Весна',         mult: 0.96 }
+    };
+
+    const baseHeatmapMatrix = [
+      { hours: '02:00–06:00', values: [14, 13, 14, 16, 20, 22, 18] },
+      { hours: '06:00–10:00', values: [24, 26, 27, 29, 32, 28, 25] },
+      { hours: '10:00–14:00', values: [36, 38, 40, 42, 48, 46, 43] },
+      { hours: '14:00–18:00', values: [29, 31, 33, 35, 41, 44, 40] },
+      { hours: '18:00–22:00', values: [46, 48, 51, 55, 66, 70, 63] },
+      { hours: '22:00–02:00', values: [33, 34, 37, 41, 54, 58, 45] }
+    ];
+    const shortDayNames = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+
+    const comparisonDatasets = {
+      transport: {
+        columns: [
+          { key: 'walk',  title: 'Пеший',       forecast: false },
+          { key: 'bike',  title: 'Вело',        forecast: false },
+          { key: 'ebike', title: 'Электровело', forecast: false },
+          { key: 'car',   title: 'Авто (прогноз)', forecast: true }
+        ],
+        rowsPerOrder: [
+          { label: 'Расстояние заказа',         vals: ['1.3 км', '2.1 км', '2.8 км', '4.3 км'] },
+          { label: 'Продолжительность заказа',  vals: ['29 мин', '24 мин', '19 мин', '22 мин'] },
+          { label: 'Вес заказа',                vals: ['2.4 кг', '3.6 кг', '4.8 кг', '7.5 кг'] },
+          { label: 'Оплата за км заказа',       vals: ['185 ₽/км', '142 ₽/км', '134 ₽/км', '108 ₽/км'] },
+          { label: 'Оплата за кг заказа',       vals: ['100 ₽/кг', '83 ₽/кг',  '78 ₽/кг',  '62 ₽/кг']  },
+          { label: 'Доля заказов с ожиданием',  vals: ['24%',    '26%',    '28%',    '31%']    },
+          { label: 'Ожидание заказа',           vals: ['6.2 мин','6.5 мин','6.8 мин','7.4 мин']}
+        ],
+        rowsTotal: [
+          { label: 'Заказов в час',             vals: ['1.55',   '1.85',   '2.20',   '2.35']   },
+          { label: 'Прибыль в час',             vals: [' WALK_DYN ', ' BIKE_DYN ', ' EBIKE_DYN ', ' CAR_FORECAST_DYN '] }
+        ]
+      },
+      slot: {
+        columns: ['Плановый', 'Свободный'],
+        rowsPerOrder: [
+          { label: 'Расстояние заказа',         vals: ['2.7 км', '3.1 км'] },
+          { label: 'Продолжительность заказа',  vals: ['19 мин', '23 мин'] },
+          { label: 'Вес заказа',                vals: ['4.9 кг', '4.4 кг'] },
+          { label: 'Оплата за км заказа',       vals: ['140 ₽/км', '112 ₽/км'] },
+          { label: 'Оплата за кг заказа',       vals: ['77 ₽/кг',  '68 ₽/кг']  },
+          { label: 'Доля заказов с ожиданием',  vals: ['27%',    '25%']    },
+          { label: 'Ожидание заказа',           vals: ['6.5 мин','6.4 мин']}
+        ],
+        rowsTotal: [
+          { label: 'Заказов в час',             vals: ['2.25',   '1.75']   },
+          { label: 'Прибыль в час',             vals: ['DYNAMIC','530 ₽/ч']}
+        ]
+      },
+      total: {
+        columns: ['Вы (все время)', 'DYNAMIC_PERIOD_COL', 'AVG_DIST_COL', 'TOP_DIST_COL', 'AVG_CITY_COL', 'TOP_CITY_COL'],
+        rowsPerOrder: [
+          { label: 'Расстояние заказа',         vals: ['2.7 км', '2.8 км', '3.0 км', '2.5 км', '3.2 км', '2.6 км'] },
+          { label: 'Продолжительность заказа',  vals: ['20 мин', '19 мин', '22 мин', '17 мин', '24 мин', '18 мин'] },
+          { label: 'Вес заказа',                vals: ['4.6 кг', '4.8 кг', '4.5 кг', '4.9 кг', '4.4 кг', '4.8 кг'] },
+          { label: 'Оплата за км заказа',       vals: ['131 ₽/км', '134 ₽/км', '120 ₽/км', '156 ₽/км', '114 ₽/км', '148 ₽/км'] },
+          { label: 'Оплата за кг заказа',       vals: ['76 ₽/кг',  '78 ₽/кг',  '71 ₽/кг',  '88 ₽/кг',  '68 ₽/кг',  '84 ₽/кг']  },
+          { label: 'Доля заказов с ожиданием',  vals: ['29%',    '28%',    '33%',    '21%',    '35%',    '23%']    },
+          { label: 'Ожидание заказа',           vals: ['7.0 мин','6.8 мин','8.1 мин','5.4 мин','8.5 мин','5.8 мин']}
+        ],
+        rowsTotal: [
+          { label: 'Заказов в час',             vals: ['2.15',   'DYNAMIC_ORD_HR', '1.95',   '2.45',   '1.85',   '2.35']   },
+          { label: 'Прибыль в час',             vals: ['ALLTIME','DYNAMIC',        '625 ₽/ч','810 ₽/ч','580 ₽/ч','765 ₽/ч']}
+        ]
+      }
+    };
+
+    function getPeriodExpenseFactor(periodKey) {
+      if (periodKey === 'days') return 1 / 6;
+      if (periodKey === 'months') return 4.2;
+      return 1;
+    }
+
+    function getWeeklyExpenseForTransport(transportKey) {
+      const list = state.expensesByTransport[transportKey] || [];
+      return list.reduce((acc, item) => acc + Number(item.value || 0), 0);
+    }
+
+    function getTotalWeeklyExpenses() {
+      return getWeeklyExpenseForTransport(state.selectedPreset);
+    }
+
+    function enrichRow(rawRow, periodKey) {
+      const goalsVal = state.includeGoals ? rawRow.goals : 0;
+      const grossTotal = rawRow.ordersCost + rawRow.surgeRub + rawRow.ratingRub + rawRow.bonuses + goalsVal + rawRow.tips;
+      const tax = Math.round(grossTotal * 0.06);
+
+      const factor = getPeriodExpenseFactor(periodKey);
+      const slotTransportKey = rawRow.transportKey || 'ebike';
+      const slotExpensesList = state.expensesByTransport[slotTransportKey] || [];
+      const itemizedExpenses = slotExpensesList.map(e => ({
+        name: e.name,
+        amount: Math.round(Number(e.value || 0) * factor)
+      }));
+      const rowExpense = itemizedExpenses.reduce((a, b) => a + b.amount, 0);
+
+      const penaltyAdjustments = -Math.abs(Number(rawRow.adjustments || 0));
+      const netProfit = Math.max(0, grossTotal - tax - rowExpense + penaltyAdjustments);
+      const ordersPerHr = (rawRow.ordersCount / rawRow.slotHours).toFixed(2);
+      const profitPerHr = Math.round(netProfit / rawRow.slotHours);
+      const grossPerHr = Math.round(grossTotal / rawRow.slotHours);
+
+      return {
+        ...rawRow,
+        adjustments: penaltyAdjustments,
+        goals: goalsVal,
+        grossTotal,
+        grossPerHr,
+        tax,
+        expenses: rowExpense,
+        itemizedExpenses,
+        netProfit,
+        ordersPerHr,
+        profitPerHr
+      };
+    }
+
+    function getCurrentDataset() {
+      const list = rawDatasets[state.period] || rawDatasets.days;
+      return list.map(r => enrichRow(r, state.period));
+    }
+
+    function getAllTimeHourlyProfit() {
+      const allMonths = rawDatasets.months.map(r => enrichRow(r, 'months'));
+      const totalNet = allMonths.reduce((a, r) => a + r.netProfit, 0);
+      const totalHrs = allMonths.reduce((a, r) => a + r.slotHours, 0);
+      return totalHrs > 0 ? Math.round(totalNet / totalHrs) : 0;
+    }
+
+    function renderAll(skipSettingsSlidersRebuild = false) {
+      state.expenses = state.expensesByTransport[state.selectedPreset];
+      const allTimeProfitHr = getAllTimeHourlyProfit();
+      document.getElementById('allTimeHourlyProfit').textContent = `${formatNum(allTimeProfitHr)} ₽/ч`;
+      document.getElementById('goalsStatusLabel').textContent = state.includeGoals
+        ? '(с учетом целей)'
+        : '(без учета целей)';
+
+      document.getElementById('lblGross').className = `ya-switch-opt ${!state.isNet ? 'ya-switch-opt-active' : ''}`;
+      document.getElementById('lblNet').className   = `ya-switch-opt ${state.isNet  ? 'ya-switch-opt-active' : ''}`;
+
+      document.getElementById('lblSum').className    = `ya-switch-opt ${!state.isHourly ? 'ya-switch-opt-active' : ''}`;
+      document.getElementById('lblHourly').className = `ya-switch-opt ${state.isHourly  ? 'ya-switch-opt-active' : ''}`;
+
+      document.getElementById('lblChart').className = `ya-switch-opt ${state.viewMode === 'chart' ? 'ya-switch-opt-active' : ''}`;
+      document.getElementById('lblTable').className = `ya-switch-opt ${state.viewMode === 'table' ? 'ya-switch-opt-active' : ''}`;
+
+      ['days', 'weeks', 'months'].forEach(p => {
+        const btn = document.getElementById(`btnPeriod-${p}`);
+        btn.className = `py-1.5 text-xs ya-seg-btn ${state.period === p ? 'ya-seg-btn-active' : ''}`;
+      });
+
+      renderBlock1();
+      renderBlock2();
+      renderBlock3(allTimeProfitHr);
+      renderSettingsScreen(skipSettingsSlidersRebuild);
+    }
+
+    function renderBlock1() {
+      const data = getCurrentDataset();
+      if (state.selectedBarIndex >= data.length) {
+        state.selectedBarIndex = data.length - 1;
+      }
+
+      document.getElementById('block1Title').textContent =
+        state.viewMode === 'chart' ? 'Динамика дохода' : 'Таблица доходов и расходов';
+
+      document.getElementById('chartViewContainer').classList.toggle('hidden', state.viewMode !== 'chart');
+      document.getElementById('tableViewContainer').classList.toggle('hidden', state.viewMode !== 'table');
+
+      document.getElementById('legendGoalsItem').classList.toggle('hidden', !state.includeGoals);
+      document.getElementById('legendGrossBg').classList.toggle('hidden', !state.isNet);
+
+      if (state.viewMode === 'chart') {
+        renderBarChart(data);
+      } else {
+        renderDetailedTable(data);
+      }
+    }
+
+    function renderBarChart(data) {
+      const canvas = document.getElementById('barChartCanvas');
+      const maxGrossVal = Math.max(...data.map(d => state.isHourly ? d.grossPerHr : d.grossTotal)) * 1.15;
+
+      const avgUserVal = Math.round(
+        data.reduce((a, d) => a + (state.isHourly ? (state.isNet ? d.profitPerHr : d.grossPerHr) : (state.isNet ? d.netProfit : d.grossTotal)), 0) / data.length
+      );
+      const avgDistrictVal = Math.round(avgUserVal * 0.91);
+      const avgCityVal = Math.round(avgUserVal * 0.83);
+
+      const pctUser = Math.min(94, Math.max(12, Math.round((avgUserVal / maxGrossVal) * 100)));
+      const pctDist = Math.min(94, Math.max(12, Math.round((avgDistrictVal / maxGrossVal) * 100)));
+      const pctCity = Math.min(94, Math.max(12, Math.round((avgCityVal / maxGrossVal) * 100)));
+
+      const unitSuffix = state.isHourly ? '₽/ч' : '₽';
+      const yTop = Math.round(maxGrossVal);
+      const yMid = Math.round(maxGrossVal / 2);
+
+      let html = `
+        <div class="absolute left-0 top-3 bottom-6 w-8 flex flex-col justify-between text-[9px] pr-1 text-right" style="color: var(--text-muted);">
+          <span>${formatCompact(yTop)}</span>
+          <span>${formatCompact(yMid)}</span>
+          <span>0</span>
+        </div>
+
+        <div class="absolute left-9 right-1 bottom-6 top-3 pointer-events-none">
+          <div style="bottom: ${pctUser}%" class="absolute left-0 right-0 border-t border-dashed border-gray-300/75 z-20">
+            <span class="absolute left-1 -top-3.5 text-[8.5px] font-semibold px-1 rounded bg-black/70 text-gray-100 whitespace-nowrap">
+              Вы (${formatNum(avgUserVal)} ${unitSuffix})
+            </span>
+          </div>
+          <div style="bottom: ${pctDist}%" class="absolute left-0 right-0 border-t border-dashed border-amber-300/70 z-20">
+            <span class="absolute left-1 -top-3.5 text-[8.5px] font-semibold px-1 rounded bg-black/70 text-amber-300 whitespace-nowrap">
+              Район (${formatNum(avgDistrictVal)} ${unitSuffix})
+            </span>
+          </div>
+          <div style="bottom: ${pctCity}%" class="absolute left-0 right-0 border-t border-dashed border-gray-400/65 z-20">
+            <span class="absolute left-1 -top-3.5 text-[8.5px] font-semibold px-1 rounded bg-black/70 text-gray-300 whitespace-nowrap">
+              Город (${formatNum(avgCityVal)} ${unitSuffix})
+            </span>
+          </div>
+        </div>
+
+        <div class="w-full h-full flex items-end justify-around gap-1.5 border-b border-l relative z-10 px-1" style="border-color: var(--border-strong);">
+      `;
+
+      data.forEach((d, idx) => {
+        const grossMetric = state.isHourly ? d.grossPerHr : d.grossTotal;
+        const netMetric   = state.isHourly ? d.profitPerHr : d.netProfit;
+        const displayMetric = state.isNet ? netMetric : grossMetric;
+
+        const grossHeightPct = Math.max(6, Math.round((grossMetric / maxGrossVal) * 100));
+        const netHeightPct   = Math.max(4, Math.round((displayMetric / maxGrossVal) * 100));
+
+        const totalParts = d.ordersCost + d.surgeRub + d.ratingRub + d.bonuses + d.goals + d.tips;
+        const pOrders  = ((d.ordersCost / totalParts) * 100).toFixed(1);
+        const pSurge   = ((d.surgeRub / totalParts) * 100).toFixed(1);
+        const pRating  = ((d.ratingRub / totalParts) * 100).toFixed(1);
+        const pBonuses = ((d.bonuses / totalParts) * 100).toFixed(1);
+        const pGoals   = ((d.goals / totalParts) * 100).toFixed(1);
+        const pTips    = ((d.tips / totalParts) * 100).toFixed(1);
+
+        const isSelected = idx === state.selectedBarIndex;
+
+        html += `
+          <div onclick="selectBar(${idx})" class="flex-1 h-full flex flex-col justify-end items-center cursor-pointer group relative">
+            <div class="text-[9px] font-bold mb-0.5 ${isSelected ? ' opacity-100' : 'opacity-70'}" style="color: var(--text-main);">
+              ${formatCompact(displayMetric)}
+            </div>
+
+            <div class="w-full max-w-[36px] h-full flex items-end justify-center relative">
+              ${state.isNet ? `
+                <div style="height: ${grossHeightPct}%"
+                     class="w-full bg-gray-500/35 border border-dashed border-gray-400/70 rounded-t-lg absolute bottom-0 left-0 right-0">
+                </div>
+              ` : ''}
+
+              <div style="height: ${netHeightPct}%"
+                   class="w-4/5 relative z-10 rounded-t-lg overflow-hidden flex flex-col-reverse shadow ${isSelected ? 'ring-2 ring-[#FCE000]' : 'opacity-90 group-hover:opacity-100'}">
+                <div style="height: ${pOrders}%"  class="w-full bg-blue-500"></div>
+                <div style="height: ${pSurge}%"   class="w-full bg-[#FCE000]"></div>
+                <div style="height: ${pRating}%"  class="w-full bg-orange-400"></div>
+                <div style="height: ${pBonuses}%" class="w-full bg-purple-500"></div>
+                ${state.includeGoals ? `<div style="height: ${pGoals}%" class="w-full bg-pink-500"></div>` : ''}
+                <div style="height: ${pTips}%"    class="w-full bg-emerald-400"></div>
+              </div>
+            </div>
+
+            <div class="absolute -bottom-5 text-[10px] font-semibold ${isSelected ? 'underline font-extrabold' : 'opacity-65'}">
+              ${d.date}
+            </div>
+          </div>
+        `;
+      });
+
+      html += `</div>`;
+      canvas.innerHTML = html;
+
+      const sel = data[state.selectedBarIndex];
+      const deductionBadges = [];
+
+      if (sel.tax > 0) {
+        deductionBadges.push(`<span class="px-2 py-0.5 rounded-md ya-badge-red">Налог: <b>-${formatNum(sel.tax)} ₽</b></span>`);
+      }
+      sel.itemizedExpenses.forEach(expItem => {
+        if (expItem.amount > 0) {
+          deductionBadges.push(`<span class="px-2 py-0.5 rounded-md ya-badge-red">${expItem.name}: <b>-${formatNum(expItem.amount)} ₽</b></span>`);
+        }
+      });
+      if (sel.adjustments < 0) {
+        deductionBadges.push(`<span class="px-2 py-0.5 rounded-md ya-badge-red">Корректировки: <b>-${formatNum(Math.abs(sel.adjustments))} ₽</b></span>`);
+      }
+
+      document.getElementById('selectedBarDetails').innerHTML = `
+        <div class="flex items-center justify-between">
+          <div>
+            <span class="font-extrabold">${sel.date} (${sel.dayOfWeek})</span>
+            <span class="opacity-70 ml-1">• ${sel.transport} • ${sel.slotHours} ч • ${sel.ordersCount} зак.</span>
+          </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-1.5 text-[10px] pt-1">
+          <span class="px-2 py-0.5 rounded-md ya-badge-grey">Начислено: <b>${formatNum(sel.grossTotal)} ₽</b></span>
+          ${deductionBadges.join('')}
+          <span class="px-2 py-0.5 rounded-md ya-badge-green">Чистыми: <b>${formatNum(sel.netProfit)} ₽ (${formatNum(sel.profitPerHr)} ₽/ч)</b></span>
+        </div>
+      `;
+    }
+
+    function renderDetailedTable(data) {
+      const enabledCols = state.tableColumns.filter(c => c.enabled);
+      const thead = document.getElementById('detailedTableHead');
+      const tbody = document.getElementById('detailedTableBody');
+      const tfoot = document.getElementById('detailedTableFoot');
+
+      let headHtml = '<tr>';
+      enabledCols.forEach((col, i) => {
+        const stickyCls = i === 0 ? 'sticky left-0 z-10 border-r min-w-[54px]' : 'min-w-[72px] max-w-[90px]';
+        headHtml += `<th class="py-1.5 px-1 font-bold text-[9.5px] leading-snug whitespace-normal align-middle ${stickyCls}" style="background-color: var(--bg-elevated); border-color: var(--border-strong);">${col.label}</th>`;
+      });
+      headHtml += '</tr>';
+      thead.innerHTML = headHtml;
+
+      let bodyHtml = '';
+      data.forEach(row => {
+        bodyHtml += '<tr class="hover:opacity-90 transition">';
+        enabledCols.forEach((col, i) => {
+          const stickyCls = i === 0 ? 'sticky left-0 font-bold z-10 border-r' : '';
+          bodyHtml += `<td class="py-1.5 px-1 text-[10px] whitespace-nowrap ${stickyCls}" style="${i === 0 ? 'background-color: var(--bg-card); border-color: var(--border-strong);' : ''}">${formatTableCellValue(row, col.key)}</td>`;
+        });
+        bodyHtml += '</tr>';
+      });
+      tbody.innerHTML = bodyHtml;
+
+      let footHtml = '<tr>';
+      enabledCols.forEach((col, i) => {
+        const stickyCls = i === 0 ? 'sticky left-0 z-10 border-r' : '';
+        if (i === 0) {
+          footHtml += `<td class="py-1.5 px-1 text-[9.5px] ${stickyCls}" style="background-color: var(--bg-elevated); border-color: var(--border-strong);">ИТОГО / СР.</td>`;
+        } else {
+          footHtml += `<td class="py-1.5 px-1 text-[10px] whitespace-nowrap">${formatTableFootValue(data, col.key)}</td>`;
+        }
+      });
+      footHtml += '</tr>';
+      tfoot.innerHTML = footHtml;
+    }
+
+    function formatTableCellValue(row, key) {
+      switch (key) {
+        case 'date':        return row.date;
+        case 'dayOfWeek':   return row.dayOfWeek;
+        case 'slotHours':   return `${row.slotHours} ч`;
+        case 'ordersCount': return row.ordersCount;
+        case 'ordersPerHr': return row.ordersPerHr;
+        case 'transport':   return row.transport;
+        case 'grossTotal':  return `<span class="font-semibold">${formatNum(row.grossTotal)} ₽</span>`;
+        case 'ordersCost':  return `${formatNum(row.ordersCost)} ₽`;
+        case 'surgePct':    return `+${row.surgePct}%`;
+        case 'surgeRub':    return `${formatNum(row.surgeRub)} ₽`;
+        case 'ratingPct':   return `+${row.ratingPct}%`;
+        case 'ratingRub':   return `${formatNum(row.ratingRub)} ₽`;
+        case 'bonuses':     return `${formatNum(row.bonuses)} ₽`;
+        case 'goals':       return `${formatNum(row.goals)} ₽`;
+        case 'tips':        return `${formatNum(row.tips)} ₽`;
+        case 'tax':         return `<span class="text-rose-400">-${formatNum(row.tax)} ₽</span>`;
+        case 'adjustments': return row.adjustments === 0 ? '0 ₽' : `<span class="text-rose-400">-${formatNum(Math.abs(row.adjustments))} ₽</span>`;
+        case 'expenses':    return `<span class="text-rose-400">-${formatNum(row.expenses)} ₽</span>`;
+        case 'netProfit':   return `<span class="font-extrabold text-emerald-400">${formatNum(row.netProfit)} ₽</span>`;
+        case 'profitPerHr': return `<span class="font-extrabold">${formatNum(row.profitPerHr)} ₽/ч</span>`;
+        default: return '-';
+      }
+    }
+
+    function formatTableFootValue(data, key) {
+      const sum = k => data.reduce((a, r) => a + Number(r[k] || 0), 0);
+      const avg = k => Math.round(sum(k) / data.length);
+      switch (key) {
+        case 'dayOfWeek':   return '—';
+        case 'transport':   return 'Электровело';
+        case 'slotHours':   return `${sum('slotHours')} ч`;
+        case 'ordersCount': return sum('ordersCount');
+        case 'ordersPerHr': return (sum('ordersCount') / sum('slotHours')).toFixed(2);
+        case 'surgePct':    return `+${avg('surgePct')}%`;
+        case 'ratingPct':   return `+${avg('ratingPct')}%`;
+        case 'profitPerHr': return `${formatNum(avg('profitPerHr'))} ₽/ч`;
+        case 'netProfit':   return `<span class="text-emerald-400">${formatNum(sum('netProfit'))} ₽</span>`;
+        case 'adjustments': return sum('adjustments') === 0 ? '0 ₽' : `<span class="text-rose-400">-${formatNum(Math.abs(sum('adjustments')))} ₽</span>`;
+        case 'tax':
+        case 'expenses':    return `<span class="text-rose-400">-${formatNum(sum(key))} ₽</span>`;
+        default:            return `${formatNum(sum(key))} ₽`;
+      }
+    }
+
+    function getCellComputedValue(basePct) {
+      const distObj = districtsData.find(d => d.id === state.districtId) || districtsData[0];
+      const distFactor = distObj.avgPct / 42;
+      const seasonFactor = seasonMultipliers[state.season].mult;
+      const weatherAdd = state.weatherBoost ? 16 : 0;
+
+      const acctMeta = transportMeta[state.accountTransport] || transportMeta.ebike;
+      const finalPct = Math.round(basePct * distFactor * seasonFactor + weatherAdd);
+      const rubPerHour = Math.round(acctMeta.baseHourlyRub * (1 + finalPct / 100));
+      return { pct: finalPct, rubHr: rubPerHour };
+    }
+
+    function renderBlock2() {
+      const btnWeather = document.getElementById('btnWeather');
+      btnWeather.style.backgroundColor = state.weatherBoost ? 'var(--ya-yellow)' : 'var(--bg-card)';
+      btnWeather.style.color = state.weatherBoost ? 'var(--ya-yellow-text)' : 'var(--text-main)';
+
+      document.getElementById('lblUnitPct').className = `ya-switch-opt ${!state.heatUnitRub ? 'ya-switch-opt-active' : ''}`;
+      document.getElementById('lblUnitRub').className = `ya-switch-opt ${state.heatUnitRub  ? 'ya-switch-opt-active' : ''}`;
+
+      document.getElementById('block2Title').textContent = state.heatUnitRub
+        ? 'Средний общий доход в час (с учетом спроса)'
+        : 'Средняя доплата за спрос по часам';
+
+      const distObj = districtsData.find(d => d.id === state.districtId) || districtsData[0];
+      const seasonObj = seasonMultipliers[state.season];
+      document.getElementById('currentDistrictSeasonSub').textContent =
+        `${distObj.shortName} • ${seasonObj.label}`;
+
+      const tbody = document.getElementById('heatmapTableBody');
+      let html = '';
+      baseHeatmapMatrix.forEach((row, rIdx) => {
+        html += `<tr><td class="text-left font-medium py-1.5 pl-0.5 pr-1 whitespace-nowrap text-[9.5px] opacity-80">${row.hours}</td>`;
+        row.values.forEach((baseVal, cIdx) => {
+          const cellKey = `${rIdx}-${cIdx}`;
+          const isSelected = state.selectedSlotCells.includes(cellKey);
+          const comp = getCellComputedValue(baseVal);
+          const displayStr = state.heatUnitRub ? `${comp.rubHr}₽` : `+${comp.pct}%`;
+          const colorCls = getHeatCellColor(comp.pct);
+
+          html += `
+            <td>
+              <div onclick="toggleHeatCell('${cellKey}')"
+                   class="heat-cell rounded-lg py-1.5 px-0 text-[9.5px] font-bold ${colorCls} ${isSelected ? 'heat-cell-selected' : ''}">
+                ${displayStr}
+              </div>
+            </td>
+          `;
+        });
+        html += `</tr>`;
+      });
+      tbody.innerHTML = html;
+
+      const countSlots = state.selectedSlotCells.length;
+      const totalHours = countSlots * 4;
+
+      let totalRubEst = 0;
+      let totalPctSum = 0;
+      state.selectedSlotCells.forEach(key => {
+        const [r, c] = key.split('-').map(Number);
+        const baseVal = baseHeatmapMatrix[r]?.values[c] || 35;
+        const comp = getCellComputedValue(baseVal);
+        totalRubEst += comp.rubHr * 4;
+        totalPctSum += comp.pct;
+      });
+      const avgHrEst = totalHours > 0 ? Math.round(totalRubEst / totalHours) : 0;
+      const avgPctEst = countSlots > 0 ? Math.round(totalPctSum / countSlots) : 0;
+
+      const avgMetricLabel = countSlots > 0
+        ? (state.heatUnitRub ? ` • Ср. ${formatNum(avgHrEst)} ₽/ч` : ` • Ср. +${avgPctEst}%`)
+        : '';
+
+      document.getElementById('selectedSlotsCounter').textContent =
+        `Выбрано: ${countSlots} сл. (${totalHours}ч)${avgMetricLabel}`;
+      document.getElementById('btnClearSlots').classList.toggle('opacity-40', countSlots === 0);
+
+      document.getElementById('plannedProfitEstimate').textContent =
+        totalHours > 0
+          ? `Расчет прибыли: ~${formatNum(totalRubEst)} ₽ (${avgHrEst} ₽/ч за ${totalHours}ч)`
+          : `Выберите слоты в таблице для расчета прибыли`;
+
+      renderDistrictSeasonScreen();
+    }
+
+    function getHeatCellColor(pct) {
+      if (pct >= 60) return 'bg-[#FCE000] text-[#141518]';
+      if (pct >= 45) return 'bg-amber-400/85 text-[#141518]';
+      if (pct >= 32) return 'bg-amber-500/30';
+      return 'bg-gray-500/15 opacity-80';
+    }
+
+    function renderDistrictSeasonScreen() {
+      ['auto', 'summer', 'autumn', 'winter', 'spring'].forEach(s => {
+        const btn = document.getElementById(`btnSeason-${s}`);
+        if (btn) {
+          btn.className = `py-1.5 px-1 text-[10px] ya-seg-btn ${state.season === s ? 'ya-seg-btn-active' : ''}`;
+        }
+      });
+
+      document.getElementById('districtListUnitHint').textContent =
+        state.heatUnitRub ? 'Средняя / Пик (₽/ч)' : 'Средняя / Пик (% спроса)';
+
+      const seasonFactor = seasonMultipliers[state.season].mult;
+      const weatherAdd = state.weatherBoost ? 16 : 0;
+      const acctMeta = transportMeta[state.accountTransport] || transportMeta.ebike;
+
+      const listContainer = document.getElementById('districtListContainer');
+      let listHtml = '';
+
+      districtsData.forEach(d => {
+        const isCurrent = d.id === state.districtId;
+        const avgPct  = Math.round(d.avgPct * seasonFactor + weatherAdd);
+        const peakPct = Math.round(d.peakPct * seasonFactor + weatherAdd);
+        const avgRub  = Math.round(acctMeta.baseHourlyRub * (1 + avgPct / 100));
+        const peakRub = Math.round(acctMeta.baseHourlyRub * (1 + peakPct / 100));
+
+        const avgStr  = state.heatUnitRub ? `${avgRub} ₽/ч`  : `+${avgPct}%`;
+        const peakStr = state.heatUnitRub ? `${peakRub} ₽/ч` : `+${peakPct}%`;
+
+        listHtml += `
+          <div onclick="selectDistrict('${d.id}')"
+               class="ya-subcard p-3 cursor-pointer flex items-center justify-between transition ${
+                 isCurrent ? 'ring-2 ring-[#FCE000]' : 'hover:opacity-90'
+               }">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <span class="w-3 h-3 rounded-full shrink-0" style="background-color: ${d.color}"></span>
+              <div class="truncate">
+                <div class="text-xs font-bold truncate">${d.name}</div>
+                <div class="text-[10px]" style="color: var(--text-secondary);">Сезон: ${seasonMultipliers[state.season].label}</div>
+              </div>
+            </div>
+            <div class="text-right text-xs shrink-0 ml-2">
+              <div>Ср.: <b>${avgStr}</b></div>
+              <div class="text-[11px] font-bold text-amber-400">Пик: ${peakStr}</div>
+            </div>
+          </div>
+        `;
+      });
+
+      listContainer.innerHTML = listHtml;
+    }
+
+    function getTransportProfitPerHourForComparison(tKey, userHoursInPeriod) {
+      const allPeriodRows = getCurrentDataset();
+      const matchingRows = allPeriodRows.filter(r => r.transportKey === tKey);
+
+      if (matchingRows.length > 0) {
+        const sumNet = matchingRows.reduce((a, r) => a + r.netProfit, 0);
+        const sumHrs = matchingRows.reduce((a, r) => a + r.slotHours, 0);
+        return Math.round(sumNet / sumHrs);
+      }
+
+      const cityAvgGrossHr = (transportMeta[tKey] && transportMeta[tKey].cityAvgGrossHr) || 980;
+      const hrs = Math.max(1, userHoursInPeriod);
+      const grossForUserHours = cityAvgGrossHr * hrs;
+      const tax = Math.round(grossForUserHours * 0.06);
+      const periodExpense = Math.round(getWeeklyExpenseForTransport(tKey) * getPeriodExpenseFactor(state.period));
+      const netForecast = grossForUserHours - tax - periodExpense;
+      return Math.round(netForecast / hrs);
+    }
+
+    function renderBlock3(allTimeProfitHr) {
+      ['transport', 'slot', 'total'].forEach(m => {
+        const btn = document.getElementById(`btnComp-${m}`);
+        btn.className = `py-1.5 text-[11px] ya-seg-btn ${state.compareMode === m ? 'ya-seg-btn-active' : ''}`;
+      });
+
+      const currentData = getCurrentDataset();
+      const selectedRow = currentData[state.selectedBarIndex] || currentData[currentData.length - 1];
+      const userPeriodProfitHr = selectedRow
+        ? selectedRow.profitPerHr
+        : Math.round(currentData.reduce((a, r) => a + r.profitPerHr, 0) / currentData.length);
+      const userPeriodOrdersHr = selectedRow ? selectedRow.ordersPerHr : '2.20';
+      const userHoursInSelectedPeriod = selectedRow
+        ? selectedRow.slotHours
+        : Math.round(currentData.reduce((a, r) => a + r.slotHours, 0) / currentData.length);
+      const periodTag = selectedRow ? selectedRow.date : 'период';
+
+      const ds = comparisonDatasets[state.compareMode];
+      const thead = document.getElementById('compareTableHead');
+      const tbody = document.getElementById('compareTableBody');
+      const tfoot = document.getElementById('compareTableFoot');
+
+      let headHtml = `<tr><th class="py-1.5 px-1.5 font-bold text-[9.5px] leading-snug whitespace-normal sticky left-0 z-10 border-r min-w-[94px] max-w-[104px]" style="background-color: var(--bg-elevated); border-color: var(--border-strong);">Показатель</th>`;
+      ds.columns.forEach(colItem => {
+        if (typeof colItem === 'object') {
+          if (colItem.forecast) {
+            headHtml += `
+              <th class="py-1.5 px-1 font-bold text-[9px] leading-snug text-center whitespace-normal align-middle min-w-[76px] max-w-[88px]">
+                <div class="inline-flex items-center justify-center gap-1 flex-wrap">
+                  <span>${colItem.title}</span>
+                  <button onclick="openForecastInfoModal()" title="Как рассчитывается прогноз" class="w-4 h-4 rounded-full bg-[#FCE000] text-[#141518] font-extrabold text-[9px] inline-flex items-center justify-center shadow hover:opacity-90 active:scale-95 transition">?</button>
+                </div>
+              </th>
+            `;
+          } else {
+            headHtml += `<th class="py-1.5 px-1 font-bold text-[9.5px] leading-snug text-center whitespace-normal align-middle min-w-[62px] max-w-[76px]">${colItem.title}</th>`;
+          }
+        } else {
+          let resolvedColName = colItem;
+          if (colItem === 'DYNAMIC_PERIOD_COL') resolvedColName = `Вы (${periodTag})`;
+          if (colItem === 'AVG_DIST_COL')       resolvedColName = `Ср. район (${periodTag})`;
+          if (colItem === 'TOP_DIST_COL')       resolvedColName = `Топ-20% района (${periodTag})`;
+          if (colItem === 'AVG_CITY_COL')       resolvedColName = `Ср. город (${periodTag})`;
+          if (colItem === 'TOP_CITY_COL')       resolvedColName = `Топ-20% города (${periodTag})`;
+          headHtml += `<th class="py-1.5 px-1 font-bold text-[9px] leading-snug text-center whitespace-normal align-middle min-w-[62px] max-w-[76px]">${resolvedColName}</th>`;
+        }
+      });
+      headHtml += `</tr>`;
+      thead.innerHTML = headHtml;
+
+      let bodyHtml = '';
+      ds.rowsPerOrder.forEach(row => {
+        bodyHtml += `<tr class="hover:opacity-90">
+          <td class="py-1.5 px-1.5 font-medium text-[9.5px] leading-snug whitespace-normal sticky left-0 z-10 border-r min-w-[94px] max-w-[104px]" style="background-color: var(--bg-card); border-color: var(--border-strong); color: var(--text-secondary);">${row.label}</td>`;
+        row.vals.forEach(v => {
+          bodyHtml += `<td class="py-1.5 px-1 text-[10px] text-center whitespace-nowrap">${v}</td>`;
+        });
+        bodyHtml += `</tr>`;
+      });
+      tbody.innerHTML = bodyHtml;
+
+      let footHtml = '';
+      ds.rowsTotal.forEach(row => {
+        footHtml += `<tr>
+          <td class="py-1.5 px-1.5 font-extrabold text-[9.5px] leading-snug whitespace-normal sticky left-0 z-10 border-r min-w-[94px] max-w-[104px]" style="background-color: var(--bg-elevated); border-color: var(--border-strong);">${row.label}</td>`;
+        row.vals.forEach(v => {
+          let cellVal = v.trim();
+          if (cellVal === 'DYNAMIC') cellVal = `${formatNum(userPeriodProfitHr)} ₽/ч`;
+          if (cellVal === 'DYNAMIC_ORD_HR') cellVal = `${userPeriodOrdersHr}`;
+          if (cellVal === 'ALLTIME') cellVal = `${formatNum(allTimeProfitHr)} ₽/ч`;
+          if (cellVal === 'WALK_DYN') {
+            const val = getTransportProfitPerHourForComparison('walk', userHoursInSelectedPeriod);
+            cellVal = `${formatNum(val)} ₽/ч`;
+          }
+          if (cellVal === 'BIKE_DYN') {
+            const val = getTransportProfitPerHourForComparison('bike', userHoursInSelectedPeriod);
+            cellVal = `${formatNum(val)} ₽/ч`;
+          }
+          if (cellVal === 'EBIKE_DYN') {
+            const val = getTransportProfitPerHourForComparison('ebike', userHoursInSelectedPeriod);
+            cellVal = `${formatNum(val)} ₽/ч`;
+          }
+          if (cellVal === 'CAR_FORECAST_DYN') {
+            const val = getTransportProfitPerHourForComparison('car', userHoursInSelectedPeriod);
+            const cls = val < 0 ? 'text-rose-400' : '';
+            cellVal = `<span class="${cls}">${formatNum(val)} ₽/ч</span>`;
+          }
+          footHtml += `<td class="py-1.5 px-1 text-[10px] text-center font-extrabold whitespace-nowrap">${cellVal}</td>`;
+        });
+        footHtml += `</tr>`;
+      });
+      tfoot.innerHTML = footHtml;
+    }
+
+    function renderSettingsScreen(skipSlidersRebuild = false) {
+      document.getElementById('chkIncludeGoals').checked = state.includeGoals;
+      state.expenses = state.expensesByTransport[state.selectedPreset];
+
+      ['walk', 'bike', 'ebike', 'car'].forEach(t => {
+        const btn = document.getElementById(`presetBtn-${t}`);
+        const isSelected = state.selectedPreset === t;
+        btn.style.backgroundColor = isSelected ? 'var(--ya-yellow)' : 'var(--bg-elevated)';
+        btn.style.color = isSelected ? 'var(--ya-yellow-text)' : 'var(--text-main)';
+
+        const sumSpan = document.getElementById(`presetSum-${t}`);
+        if (sumSpan) {
+          sumSpan.textContent = `${formatNum(getWeeklyExpenseForTransport(t))} ₽`;
+        }
+      });
+
+      const totalExp = getTotalWeeklyExpenses();
+      document.getElementById('totalWeeklyExpenseBadge').textContent = `${formatNum(totalExp)} ₽/нед`;
+
+      if (!skipSlidersRebuild) {
+        const slidersEl = document.getElementById('expenseSlidersContainer');
+        if (state.expenses.length === 0) {
+          slidersEl.innerHTML = `
+            <div class="ya-subcard p-3 text-center text-[11px]" style="color: var(--text-secondary);">
+              Все статьи расходов удалены (0 ₽/нед). Добавьте свою статью или нажмите «Сбросить по умолчанию».
+            </div>
+          `;
+        } else {
+          slidersEl.innerHTML = state.expenses.map((item, idx) => `
+            <div class="ya-subcard p-2.5 space-y-1.5">
+              <div class="flex items-center justify-between text-xs gap-2">
+                <span class="font-bold truncate">${item.name}</span>
+                <div class="flex items-center gap-2 shrink-0">
+                  <span id="expenseValueLabel-${idx}" class="font-extrabold">${formatNum(item.value)} ₽/нед</span>
+                  <button onclick="deleteExpenseItem(${idx})" title="Удалить статью расхода" class="w-5 h-5 rounded-md bg-rose-500/15 text-rose-400 hover:bg-rose-500/25 flex items-center justify-center text-[10px] font-bold active:scale-95 transition">✕</button>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <button onclick="stepExpense(${idx}, -100)" class="px-2.5 py-1 rounded-lg bg-black/20 hover:bg-black/30 border border-white/10 text-xs font-extrabold active:scale-95 transition shrink-0">-100</button>
+                <input id="expenseRangeInput-${idx}" type="range" min="0" max="${item.max}" step="100" value="${item.value}"
+                       oninput="updateExpenseSlider(${idx}, this.value)"
+                       class="flex-1 h-6 cursor-pointer touch-pan-y" />
+                <button onclick="stepExpense(${idx}, 100)" class="px-2.5 py-1 rounded-lg bg-black/20 hover:bg-black/30 border border-white/10 text-xs font-extrabold active:scale-95 transition shrink-0">+100</button>
+              </div>
+            </div>
+          `).join('');
+        }
+      }
+
+      renderReorderableColumnsList();
+    }
+
+    function renderReorderableColumnsList() {
+      const listEl = document.getElementById('reorderableColumnsList');
+      if (!listEl) return;
+
+      const items = state.tableColumns.slice(1);
+      listEl.innerHTML = items.map((c, idx) => {
+        const realIdx = idx + 1;
+        return `
+          <div data-col-idx="${realIdx}"
+               class="col-reorder-item ya-subcard py-2 px-2.5 flex items-center justify-between gap-2 transition cursor-grab active:cursor-grabbing">
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="text-xs opacity-50 font-bold select-none" title="Удерживайте для перетаскивания">☰</span>
+              <span class="text-[11px] font-semibold truncate">${realIdx}. ${c.label}</span>
+            </div>
+            <input type="checkbox" ${c.enabled ? 'checked' : ''}
+                   onchange="toggleTableColumn('${c.key}', this.checked)"
+                   class="w-4 h-4 accent-[#FCE000] cursor-pointer shrink-0" />
+          </div>
+        `;
+      }).join('');
+
+      initLongPressDragColumns();
+    }
+
+    let dragColState = {
+      timer: null,
+      active: false,
+      draggedIdx: null
+    };
+
+    function initLongPressDragColumns() {
+      const container = document.getElementById('reorderableColumnsList');
+      if (!container) return;
+
+      const rows = container.querySelectorAll('.col-reorder-item');
+      rows.forEach(row => {
+        const startHold = (e) => {
+          if (e.target && e.target.tagName === 'INPUT') return;
+          const idx = Number(row.getAttribute('data-col-idx'));
+          clearTimeout(dragColState.timer);
+          dragColState.timer = setTimeout(() => {
+            dragColState.active = true;
+            dragColState.draggedIdx = idx;
+            row.classList.add('col-drag-active');
+            showToast('Перетащите столбец вверх или вниз');
+          }, 260);
+        };
+
+        row.addEventListener('pointerdown', startHold);
+      });
+    }
+
+    window.addEventListener('pointermove', (e) => {
+      if (!dragColState.active || dragColState.draggedIdx === null) return;
+      e.preventDefault();
+      const targetEl = document.elementFromPoint(e.clientX, e.clientY);
+      const overRow = targetEl ? targetEl.closest('.col-reorder-item') : null;
+      if (!overRow) return;
+
+      const overIdx = Number(overRow.getAttribute('data-col-idx'));
+      if (overIdx && overIdx !== dragColState.draggedIdx && overIdx > 0) {
+        const moved = state.tableColumns.splice(dragColState.draggedIdx, 1)[0];
+        state.tableColumns.splice(overIdx, 0, moved);
+        dragColState.draggedIdx = overIdx;
+        renderReorderableColumnsList();
+        const activeRow = document.querySelector(`.col-reorder-item[data-col-idx="${overIdx}"]`);
+        if (activeRow) activeRow.classList.add('col-drag-active');
+        renderBlock1();
+      }
+    }, { passive: false });
+
+    window.addEventListener('pointerup', () => {
+      clearTimeout(dragColState.timer);
+      if (dragColState.active) {
+        dragColState.active = false;
+        dragColState.draggedIdx = null;
+        document.querySelectorAll('.col-reorder-item').forEach(el => el.classList.remove('col-drag-active'));
+      }
+    });
+
+    let leafletMap = null;
+    let polygonLayers = [];
+
+    function openRealMapModal() {
+      const modal = document.getElementById('realMapModal');
+      modal.classList.remove('hidden');
+      setTimeout(() => {
+        initOrUpdateLeafletMap();
+      }, 60);
+    }
+
+    function closeRealMapModal() {
+      document.getElementById('realMapModal').classList.add('hidden');
+    }
+
+    function initOrUpdateLeafletMap() {
+      if (!window.L) {
+        showToast('Библиотека карты загружается...');
+        return;
+      }
+
+      if (!leafletMap) {
+        leafletMap = L.map('leafletMapContainer', {
+          zoomControl: true,
+          attributionControl: false
+        }).setView([55.742, 37.605], 11);
+
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+          maxZoom: 18
+        }).addTo(leafletMap);
+      } else {
+        leafletMap.invalidateSize();
+      }
+
+      polygonLayers.forEach(layer => leafletMap.removeLayer(layer));
+      polygonLayers = [];
+
+      const seasonFactor = seasonMultipliers[state.season].mult;
+      const weatherAdd = state.weatherBoost ? 16 : 0;
+      const acctMeta = transportMeta[state.accountTransport] || transportMeta.ebike;
+
+      districtsData.forEach(d => {
+        const isCurrent = d.id === state.districtId;
+        const avgPct  = Math.round(d.avgPct * seasonFactor + weatherAdd);
+        const peakPct = Math.round(d.peakPct * seasonFactor + weatherAdd);
+        const avgRub  = Math.round(acctMeta.baseHourlyRub * (1 + avgPct / 100));
+        const peakRub = Math.round(acctMeta.baseHourlyRub * (1 + peakPct / 100));
+
+        const avgStr  = state.heatUnitRub ? `${avgRub} ₽/ч`  : `+${avgPct}%`;
+        const peakStr = state.heatUnitRub ? `${peakRub} ₽/ч` : `+${peakPct}%`;
+
+        const poly = L.polygon(d.polygon, {
+          color: isCurrent ? '#141518' : d.color,
+          weight: isCurrent ? 3.5 : 2,
+          fillColor: d.color,
+          fillOpacity: isCurrent ? 0.45 : 0.22
+        }).addTo(leafletMap);
+
+        poly.bindTooltip(
+          `<div class="text-center leading-tight">
+             <div class="font-extrabold text-[11px] text-[#FCE000]">${d.shortName}</div>
+             <div class="text-[10px]">Ср: <b>${avgStr}</b> • Пик: <b>${peakStr}</b></div>
+           </div>`,
+          {
+            permanent: true,
+            direction: 'center',
+            className: 'district-map-tooltip'
+          }
+        );
+
+        poly.on('click', () => {
+          selectDistrict(d.id);
+          initOrUpdateLeafletMap();
+        });
+
+        polygonLayers.push(poly);
+      });
+
+      const curDist = districtsData.find(d => d.id === state.districtId) || districtsData[0];
+      document.getElementById('mapSelectedDistrictName').textContent = curDist.name;
+    }
+
+    function toggleGrossNet() {
+      state.isNet = !state.isNet;
+      renderAll();
+    }
+
+    function toggleSumHourly() {
+      state.isHourly = !state.isHourly;
+      renderAll();
+    }
+
+    function toggleChartTable() {
+      state.viewMode = state.viewMode === 'chart' ? 'table' : 'chart';
+      renderAll();
+    }
+
+    function setPeriod(p) {
+      state.period = p;
+      state.selectedBarIndex = 0;
+      renderAll();
+    }
+
+    function selectBar(idx) {
+      state.selectedBarIndex = idx;
+      renderAll();
+    }
+
+    function toggleWeather() {
+      state.weatherBoost = !state.weatherBoost;
+      renderAll();
+    }
+
+    function toggleHeatUnit() {
+      state.heatUnitRub = !state.heatUnitRub;
+      renderAll();
+    }
+
+    function toggleHeatCell(cellKey) {
+      const idx = state.selectedSlotCells.indexOf(cellKey);
+      if (idx >= 0) {
+        state.selectedSlotCells.splice(idx, 1);
+      } else {
+        state.selectedSlotCells.push(cellKey);
+      }
+      renderBlock2();
+    }
+
+    function clearSelectedSlots() {
+      if (state.selectedSlotCells.length === 0) return;
+      state.selectedSlotCells = [];
+      renderBlock2();
+      showToast('Выбор слотов сброшен');
+    }
+
+    function selectTop5Slots() {
+      const allCells = [];
+      baseHeatmapMatrix.forEach((row, rIdx) => {
+        row.values.forEach((val, cIdx) => {
+          allCells.push({ key: `${rIdx}-${cIdx}`, val });
+        });
+      });
+      allCells.sort((a, b) => b.val - a.val);
+      state.selectedSlotCells = allCells.slice(0, 5).map(c => c.key);
+      renderBlock2();
+      showToast('Выбраны Топ-5 слотов (20 часов)');
+    }
+
+    function planSelectedSlots() {
+      const count = state.selectedSlotCells.length;
+      if (count === 0) {
+        showToast('Выберите хотя бы один слот в таблице');
+        return;
+      }
+
+      const totalHours = count * 4;
+      let totalRubEst = 0;
+      let totalPctSum = 0;
+      const slotItemsHtml = [];
+
+      state.selectedSlotCells.forEach(key => {
+        const [r, c] = key.split('-').map(Number);
+        const rowObj = baseHeatmapMatrix[r];
+        const baseVal = rowObj?.values[c] || 35;
+        const comp = getCellComputedValue(baseVal);
+        totalRubEst += comp.rubHr * 4;
+        totalPctSum += comp.pct;
+        slotItemsHtml.push(`
+          <div class="ya-subcard py-2 px-3 flex items-center justify-between">
+            <span class="font-bold">${shortDayNames[c]}, ${rowObj.hours} (4ч)</span>
+            <span class="font-extrabold text-amber-400">+${comp.pct}% • ~${formatNum(comp.rubHr)} ₽/ч</span>
+          </div>
+        `);
+      });
+
+      const avgHrEst = Math.round(totalRubEst / totalHours);
+      const avgPctEst = Math.round(totalPctSum / count);
+      const acctMeta = transportMeta[state.accountTransport] || transportMeta.ebike;
+      const distObj = districtsData.find(d => d.id === state.districtId) || districtsData[0];
+
+      document.getElementById('planModalTransport').textContent = `${acctMeta.icon} ${acctMeta.label}`;
+      document.getElementById('planModalDistrict').textContent = distObj.shortName;
+      document.getElementById('planModalTotal').textContent = `${totalHours} ч • ~${formatNum(totalRubEst)} ₽`;
+      document.getElementById('planModalAvg').textContent = `+${avgPctEst}% • ${formatNum(avgHrEst)} ₽/ч`;
+      document.getElementById('planModalSlotsList').innerHTML = slotItemsHtml.join('');
+
+      document.getElementById('planSlotsModal').classList.remove('hidden');
+    }
+
+    function closePlanSlotsModal() {
+      document.getElementById('planSlotsModal').classList.add('hidden');
+    }
+
+    function confirmPlanSlots() {
+      const count = state.selectedSlotCells.length;
+      const hours = count * 4;
+      closePlanSlotsModal();
+      showToast(`Слоты успешно запланированы (${count} сл., ${hours} ч)`);
+    }
+
+    function openForecastInfoModal() {
+      document.getElementById('forecastInfoModal').classList.remove('hidden');
+    }
+
+    function closeForecastInfoModal() {
+      document.getElementById('forecastInfoModal').classList.add('hidden');
+    }
+
+    function setCompareMode(mode) {
+      state.compareMode = mode;
+      renderAll();
+    }
+
+    function onToggleGoals(checked) {
+      state.includeGoals = checked;
+      renderAll();
+    }
+
+    function toggleTableColumn(key, checked) {
+      const col = state.tableColumns.find(c => c.key === key);
+      if (col) col.enabled = checked;
+      renderAll();
+    }
+
+    function applyTransportPreset(presetKey) {
+      state.selectedPreset = presetKey;
+      state.expenses = state.expensesByTransport[presetKey];
+      renderAll();
+    }
+
+    function stepExpense(index, delta) {
+      const list = state.expensesByTransport[state.selectedPreset];
+      const item = list[index];
+      if (!item) return;
+      item.value = Math.min(item.max, Math.max(0, Number(item.value) + delta));
+      const rangeInput = document.getElementById(`expenseRangeInput-${index}`);
+      if (rangeInput) rangeInput.value = item.value;
+      const valLabel = document.getElementById(`expenseValueLabel-${index}`);
+      if (valLabel) valLabel.textContent = `${formatNum(item.value)} ₽/нед`;
+      renderAll(true);
+    }
+
+    function updateExpenseSlider(index, val) {
+      const list = state.expensesByTransport[state.selectedPreset];
+      const item = list[index];
+      if (!item) return;
+      item.value = Number(val);
+      const valLabel = document.getElementById(`expenseValueLabel-${index}`);
+      if (valLabel) valLabel.textContent = `${formatNum(item.value)} ₽/нед`;
+      renderAll(true);
+    }
+
+    function deleteExpenseItem(index) {
+      const list = state.expensesByTransport[state.selectedPreset];
+      const removed = list.splice(index, 1)[0];
+      renderAll(false);
+      if (removed) {
+        showToast(`Удалена статья «${removed.name}»`);
+      }
+    }
+
+    function resetExpensesToDefault() {
+      Object.keys(defaultTransportExpenses).forEach(tKey => {
+        state.expensesByTransport[tKey] = defaultTransportExpenses[tKey].map(item => ({ ...item }));
+      });
+      state.expenses = state.expensesByTransport[state.selectedPreset];
+      renderAll(false);
+      showToast('Расходы всех типов передвижения сброшены по умолчанию');
+    }
+
+    function toggleAddExpenseForm() {
+      const form = document.getElementById('addExpenseForm');
+      form.classList.toggle('hidden');
+      if (!form.classList.contains('hidden')) {
+        document.getElementById('newExpenseNameInput').focus();
+      }
+    }
+
+    function confirmAddCustomExpense() {
+      const input = document.getElementById('newExpenseNameInput');
+      const list = state.expensesByTransport[state.selectedPreset];
+      const name = input.value.trim() || `Расход ${list.length + 1}`;
+      list.push({
+        id: 'custom_' + Date.now(),
+        name,
+        value: 500,
+        max: 25000
+      });
+      input.value = '';
+      document.getElementById('addExpenseForm').classList.add('hidden');
+      renderAll(false);
+      showToast(`Добавлен расход «${name}»`);
+    }
+
+    function setSeason(seasonKey) {
+      state.season = seasonKey;
+      renderAll();
+    }
+
+    function selectDistrict(distId) {
+      state.districtId = distId;
+      renderAll();
+    }
+
+    function openSettingsScreen() {
+      state.currentScreen = 'settings';
+      updateVisibleScreens();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function closeSettingsScreen() {
+      state.currentScreen = 'main';
+      updateVisibleScreens();
+    }
+
+    function openDistrictSeasonModal() {
+      state.currentScreen = 'middle';
+      updateVisibleScreens();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function closeMiddleScreen() {
+      state.currentScreen = 'main';
+      updateVisibleScreens();
+    }
+
+    function updateVisibleScreens() {
+      const mainEl   = document.getElementById('screenMain');
+      const middleEl = document.getElementById('screenMiddleSpec');
+      const settEl   = document.getElementById('screenSettings');
+
+      mainEl.classList.toggle('hidden', state.currentScreen !== 'main');
+      middleEl.classList.toggle('hidden', state.currentScreen !== 'middle');
+      settEl.classList.toggle('hidden', state.currentScreen !== 'settings');
+    }
+
+    function toggleWireframeTheme() {
+      state.wireframeMode = !state.wireframeMode;
+      if (state.wireframeMode) {
+        state.lightMode = false;
+        document.body.classList.remove('light-mode');
+      }
+      document.body.classList.toggle('wireframe-mode', state.wireframeMode);
+      document.getElementById('btnWireTheme').textContent = state.wireframeMode
+        ? '📐 Стиль: Ч/Б схема'
+        : '🎨 Стиль: Цветной';
+      renderAll();
+    }
+
+    function toggleColorTheme() {
+      state.lightMode = !state.lightMode;
+      if (state.lightMode) {
+        state.wireframeMode = false;
+        document.body.classList.remove('wireframe-mode');
+        document.getElementById('btnWireTheme').textContent = '🎨 Стиль: Цветной';
+      }
+      document.body.classList.toggle('light-mode', state.lightMode);
+      document.getElementById('btnColorTheme').textContent = state.lightMode ? '🌙' : '☀️';
+      renderAll();
+    }
+
+    function openExportModal() {
+      const data = getCurrentDataset();
+      const totalNet = data.reduce((a, r) => a + r.netProfit, 0);
+      showToast(`Отчет (${data.length} пер., Чистыми: ${formatNum(totalNet)} ₽) выгружен в CSV/PDF`);
+    }
+
+    let toastTimer = null;
+    function showToast(msg) {
+      const box = document.getElementById('toastBox');
+      document.getElementById('toastText').textContent = msg;
+      box.classList.remove('hidden');
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => box.classList.add('hidden'), 3000);
+    }
+
+    function formatNum(n) {
+      return Math.round(Number(n || 0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+    }
+
+    function formatCompact(n) {
+      if (n >= 10000) return (n / 1000).toFixed(1) + 'к';
+      return formatNum(n);
+    }
+
+    renderAll();
+  </script>
+</body>
+</html>
