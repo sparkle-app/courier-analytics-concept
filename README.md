@@ -1,4 +1,5 @@
-# UI/UX & продуктовый концепт (v13.6): аналитика дохода курьера
+# Продуктовый и UI/UX-концепт (v13.6):
+# аналитика дохода курьера
 
 🔗 **Интерактивное демо (GitHub Pages):** [https://sparkle-app.github.io/courier-analytics-concept/](https://sparkle-app.github.io/courier-analytics-concept/)
 
