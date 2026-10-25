@@ -1715,11 +1715,14 @@
       if (!leafletMap) {
         leafletMap = L.map('leafletMapContainer', {
           zoomControl: true,
-          attributionControl: false
+          attributionControl: true
         }).setView([55.742, 37.605], 11);
 
+        leafletMap.attributionControl.setPrefix(false);
+
         L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
-          maxZoom: 18
+          maxZoom: 18,
+          attribution: '&copy; <a href="https://openstreetmap.org" target="_blank">OpenStreetMap</a> contributors, Tiles style by <a href="https://hotosm.org" target="_blank">HOT</a> hosted by <a href="https://openstreetmap.fr" target="_blank">OSM France</a>'
         }).addTo(leafletMap);
       } else {
         leafletMap.invalidateSize();
