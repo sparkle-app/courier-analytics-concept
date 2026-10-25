@@ -263,23 +263,23 @@
 <body class="min-h-screen flex flex-col items-center py-3 px-2 sm:px-4">
 
 <!-- ВЕРХНЯЯ СЕРВИСНАЯ ПЛАШКА СТЕНДА (вне экрана приложения) -->
-  <div class="w-full max-w-[430px] mb-3 px-3.5 py-2.5 rounded-2xl bg-[#181A20] border border-white/10 text-xs text-gray-300 shadow-lg space-y-1.5">
+  <div class="w-full max-w-[430px] mb-3 px-3.5 py-2.5 rounded-2xl ya-card text-xs space-y-1.5">
     <div class="flex flex-wrap items-center justify-between gap-2">
       <div class="flex items-center gap-2">
         <span class="px-2 py-0.5 rounded-md bg-[#FCE000] text-[#141518] font-extrabold">Этап 13.6</span>
-        <span class="font-semibold text-white">UX-концепт аналитики курьера</span>
+        <span class="font-semibold">UX-концепт аналитики курьера</span>
       </div>
       <div class="flex flex-wrap items-center gap-2">
-        <button onclick="toggleWireframeTheme()" id="btnWireTheme" class="px-2.5 py-1.5 rounded-xl bg-[#262930] hover:bg-[#323640] border border-white/10 text-white font-medium transition">
+        <button onclick="toggleWireframeTheme()" id="btnWireTheme" class="px-2.5 py-1.5 rounded-xl ya-nav-btn font-medium transition">
           🎨 Стиль: Цветной
         </button>
-        <button onclick="toggleColorTheme()" id="btnColorTheme" title="Переключить темный / светлый режим" class="w-8 h-8 rounded-xl bg-[#262930] hover:bg-[#323640] border border-white/10 text-base flex items-center justify-center transition">
+        <button onclick="toggleColorTheme()" id="btnColorTheme" title="Переключить темный / светлый режим" class="w-8 h-8 rounded-xl ya-nav-btn text-base flex items-center justify-center transition">
           ☀️
         </button>
       </div>
     </div>
     <!-- ДИСКЛЕЙМЕР ВНУТРИ ВЕРХНЕЙ ПЛАШКИ -->
-    <div class="pt-1.5 border-t border-white/10 text-[10px] text-gray-400 leading-snug">
+    <div class="pt-1.5 border-t text-[10px] leading-snug" style="border-color: var(--border-subtle); color: var(--text-secondary);">
       Независимый некоммерческий UI/UX-концепт (исследовательский прототип). Не является официальным продуктом сервисов доставки. Все данные вымышленные.
     </div>
   </div>
