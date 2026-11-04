@@ -33,6 +33,12 @@ const dom = {
   detailedTableFoot:        $('detailedTableFoot'),
   legendGoalsItem:          $('legendGoalsItem'),
   legendGrossBg:            $('legendGrossBg'),
+  legValOrders:             $('legValOrders'),
+  legValSurge:              $('legValSurge'),
+  legValRating:             $('legValRating'),
+  legValBonuses:            $('legValBonuses'),
+  legValGoals:              $('legValGoals'),
+  legValTips:               $('legValTips'),
   btnWeather:               $('btnWeather'),
   heatUnitSwitchContainer:  $('heatUnitSwitchContainer'),
   btnDistrictSeasonContainer: $('btnDistrictSeasonContainer'),
@@ -618,17 +624,149 @@ function parseOrdersFromRows(rawRows) {
 }
 
 /**
+ * Точный расчет статистики по видам транспорта с учетом расходов и целей
+ */
+function calculateTransportStats(orders) {
+  if (!orders || orders.length === 0) {
+    return {
+      byTransport: {},
+      totalProfitPerHr: 0,
+      totalOrdersPerHr: '0.00',
+      totalHrs: 0,
+      totalNet: 0,
+      totalSettingsExp: 0
+    };
+  }
+
+  // Группировка сегментов по (дата, номер слота, транспорт)
+  const segmentMap = new Map();
+  orders.forEach(o => {
+    const key = `${o.date}__${o.slotNumber}__${o.transportKey}`;
+    if (!segmentMap.has(key)) {
+      segmentMap.set(key, {
+        date: o.date,
+        slotNumber: o.slotNumber,
+        transportKey: o.transportKey,
+        transportLabel: o.transportLabel,
+        orders: []
+      });
+    }
+    segmentMap.get(key).orders.push(o);
+  });
+
+  const byTransport = {};
+  let totalGross = 0;
+  let totalFileExp = 0;
+  let totalSettingsExp = 0;
+  let totalHrs = 0;
+  let totalOrdersCount = 0;
+
+  // Отслеживаем активные даты для каждого транспорта
+  const transDates = {};
+  segmentMap.forEach(seg => {
+    const tKey = seg.transportKey;
+    if (!transDates[tKey]) transDates[tKey] = new Set();
+    transDates[tKey].add(seg.date);
+  });
+
+  const usedKeys = Object.keys(transDates);
+
+  usedKeys.forEach(tKey => {
+    const segs = Array.from(segmentMap.values()).filter(s => s.transportKey === tKey);
+    let durHr = 0;
+    let gross = 0;
+    let fileExp = 0;
+    let ordersCount = 0;
+
+    segs.forEach(seg => {
+      const oList = seg.orders;
+      const startS = Math.min(...oList.map(o => o.startSecs));
+      const maxEnd = Math.max(...oList.map(o => o.endSecs));
+      let segDur = (maxEnd >= startS ? maxEnd - startS : maxEnd + 86400 - startS) / 3600;
+      segDur = Math.max(0.3, segDur);
+      durHr += segDur;
+      ordersCount += oList.length;
+
+      const exps = oList.map(o => o.expense).filter(e => e > 0);
+      if (exps.length > 0) {
+        fileExp += exps.every(e => Math.abs(e - exps[0]) < 0.01) ? exps[0] : exps.reduce((a, b) => a + b, 0);
+      }
+
+      oList.forEach(o => {
+        const goalVal = state.includeGoals ? (o.goal || 0) : 0;
+        gross += o.baseCost + (o.wait || 0) + o.surgeRub + o.ratingRub + o.bonus + goalVal;
+      });
+    });
+
+    durHr = Math.round(durHr * 10) / 10;
+    const weeklyExp = getWeeklyExpenseForTransport(tKey);
+    const activeDaysCount = transDates[tKey] ? transDates[tKey].size : 0;
+    const settingsExp = activeDaysCount * (weeklyExp / 6.0);
+
+    const tax = gross * 0.06;
+    const net = Math.max(0, gross - tax - fileExp - settingsExp);
+    const profitPerHr = durHr > 0 ? Math.round(net / durHr) : 0;
+    const ordersPerHr = durHr > 0 ? (ordersCount / durHr).toFixed(2) : '0.00';
+
+    byTransport[tKey] = {
+      hrs: durHr,
+      gross,
+      tax,
+      fileExp,
+      settingsExp,
+      net,
+      profitPerHr,
+      ordersCount,
+      ordersPerHr
+    };
+
+    totalGross += gross;
+    totalFileExp += fileExp;
+    totalSettingsExp += settingsExp;
+    totalHrs += durHr;
+    totalOrdersCount += ordersCount;
+  });
+
+  const totalTax = totalGross * 0.06;
+  const totalNet = Math.max(0, totalGross - totalTax - totalFileExp - totalSettingsExp);
+  const totalProfitPerHr = totalHrs > 0 ? Math.round(totalNet / totalHrs) : 0;
+  const totalOrdersPerHr = totalHrs > 0 ? (totalOrdersCount / totalHrs).toFixed(2) : '0.00';
+
+  return {
+    byTransport,
+    totalGross,
+    totalTax,
+    totalFileExp,
+    totalSettingsExp,
+    totalNet,
+    totalHrs,
+    totalProfitPerHr,
+    totalOrdersCount,
+    totalOrdersPerHr
+  };
+}
+
+/**
  * Точный расчет слотовой статистики для плановых и свободных слотов
  */
 function calculateSlotStats(orders) {
+  if (!orders || orders.length === 0) {
+    return {
+      planHrs: 0, planNet: 0, planProfitPerHr: 0, planOrdHr: '0.00',
+      freeHrs: 0, freeNet: 0, freeProfitPerHr: 0, freeOrdHr: '0.00',
+      totalHrs: 0, totalNet: 0, totalProfitPerHr: 0, totalOrdHr: '0.00'
+    };
+  }
+
   const slotMap = new Map();
   orders.forEach(o => {
-    const key = `${o.date}__${o.slotNumber}`;
+    const key = `${o.date}__${o.slotNumber}__${o.slotType}`;
     if (!slotMap.has(key)) {
       slotMap.set(key, {
         orders: [],
         slotType: o.slotType,
-        transportKey: o.transportKey
+        transportKey: o.transportKey,
+        date: o.date
       });
     }
     slotMap.get(key).orders.push(o);
@@ -636,12 +774,12 @@ function calculateSlotStats(orders) {
 
   let planHrs = 0;
   let planGross = 0;
-  let planExp = 0;
+  let planFileExp = 0;
   let planOrdersCount = 0;
 
   let freeHrs = 0;
   let freeGross = 0;
-  let freeExp = 0;
+  let freeFileExp = 0;
   let freeOrdersCount = 0;
 
   slotMap.forEach(slot => {
@@ -664,27 +802,35 @@ function calculateSlotStats(orders) {
     if (isPlan) {
       planHrs += durHr;
       planGross += sGross;
-      planExp += sExp;
+      planFileExp += sExp;
       planOrdersCount += oList.length;
     } else {
       freeHrs += durHr;
       freeGross += sGross;
-      freeExp += sExp;
+      freeFileExp += sExp;
       freeOrdersCount += oList.length;
     }
   });
 
+  planHrs = Math.round(planHrs * 10) / 10;
+  freeHrs = Math.round(freeHrs * 10) / 10;
+  const totalHrs = planHrs + freeHrs;
+
+  const tStats = calculateTransportStats(orders);
+  const totalSettingsExp = tStats.totalSettingsExp;
+  const planSettingsExp = totalHrs > 0 ? (planHrs / totalHrs) * totalSettingsExp : 0;
+  const freeSettingsExp = totalHrs > 0 ? (freeHrs / totalHrs) * totalSettingsExp : 0;
+
   const planTax = planGross * 0.06;
-  const planNet = Math.max(0, planGross - planTax - planExp);
+  const planNet = Math.max(0, planGross - planTax - planFileExp - planSettingsExp);
   const planProfitPerHr = planHrs > 0 ? Math.round(planNet / planHrs) : 0;
   const planOrdHr = planHrs > 0 ? (planOrdersCount / planHrs).toFixed(2) : '0.00';
 
   const freeTax = freeGross * 0.06;
-  const freeNet = Math.max(0, freeGross - freeTax - freeExp);
+  const freeNet = Math.max(0, freeGross - freeTax - freeFileExp - freeSettingsExp);
   const freeProfitPerHr = freeHrs > 0 ? Math.round(freeNet / freeHrs) : 0;
   const freeOrdHr = freeHrs > 0 ? (freeOrdersCount / freeHrs).toFixed(2) : '0.00';
 
-  const totalHrs = planHrs + freeHrs;
   const totalNet = planNet + freeNet;
   const totalProfitPerHr = totalHrs > 0 ? Math.round(totalNet / totalHrs) : 0;
   const totalOrdHr = totalHrs > 0 ? ((planOrdersCount + freeOrdersCount) / totalHrs).toFixed(2) : '0.00';
@@ -719,15 +865,6 @@ function buildComparisonDatasets(orders, days) {
       ? (waitsList.reduce((a, o) => a + (o.wait > 0 ? Math.max(2, o.wait / 3) : 0), 0) / waitsList.length).toFixed(1) + ' мин'
       : '—';
 
-    const totalSlotHours = groupDays.reduce((a, d) => a + d.slotHours, 0) || 1;
-    const totalNetProfit = groupDays.reduce((a, d) => {
-      const enriched = enrichRow(d, 'days');
-      return a + enriched.netProfit;
-    }, 0);
-
-    const ordersPerHr = (cnt / totalSlotHours).toFixed(2);
-    const profitPerHr = Math.round(totalNetProfit / totalSlotHours) + ' ₽/ч';
-
     return {
       avgDist,
       avgDur,
@@ -735,13 +872,9 @@ function buildComparisonDatasets(orders, days) {
       payPerKm,
       payPerKg,
       waitPct,
-      avgWaitMin,
-      ordersPerHr,
-      profitPerHr
+      avgWaitMin
     };
   }
-
-  const slotStats = calculateSlotStats(orders);
 
   // 1. Транспорт: берем ТОЛЬКО те типы транспорта, которые реально есть в файле пользователя
   const usedTransportKeys = Array.from(new Set(orders.map(o => o.transportKey)));
@@ -774,8 +907,8 @@ function buildComparisonDatasets(orders, days) {
       { label: 'Ожидание заказа',          vals: transMetrics.map(m => m.avgWaitMin) }
     ],
     rowsTotal: [
-      { label: 'Заказов в час',            vals: transMetrics.map(m => m.ordersPerHr) },
-      { label: 'Прибыль в час',            vals: transMetrics.map(m => m.profitPerHr) }
+      { label: 'Заказов в час',            vals: transportCols.map(c => `TRANSPORT_${c.key.toUpperCase()}_ORD_HR_DYN`) },
+      { label: 'Прибыль в час',            vals: transportCols.map(c => `TRANSPORT_${c.key.toUpperCase()}_PROFIT_DYN`) }
     ]
   };
 
@@ -802,7 +935,7 @@ function buildComparisonDatasets(orders, days) {
       { label: 'Ожидание заказа',          vals: [planM.avgWaitMin, freeM.avgWaitMin] }
     ],
     rowsTotal: [
-      { label: 'Заказов в час',            vals: [slotStats.planOrdHr, slotStats.freeOrdHr] },
+      { label: 'Заказов в час',            vals: ['SLOT_PLAN_ORD_HR_DYN', 'SLOT_FREE_ORD_HR_DYN'] },
       { label: 'Прибыль в час',            vals: ['PLAN_SLOT_DYN', 'FREE_SLOT_DYN'] }
     ]
   };
@@ -821,10 +954,13 @@ function buildComparisonDatasets(orders, days) {
       { label: 'Ожидание заказа',          vals: [allM.avgWaitMin, allM.avgWaitMin] }
     ],
     rowsTotal: [
-      { label: 'Заказов в час',            vals: [slotStats.totalOrdHr, 'DYNAMIC_ORD_HR'] },
+      { label: 'Заказов в час',            vals: ['TOTAL_ORD_HR_DYN', 'DYNAMIC_ORD_HR'] },
       { label: 'Прибыль в час',            vals: ['ALLTIME', 'DYNAMIC'] }
     ]
   };
+
+  return { transport, slot, total };
+}
 
   return { transport, slot, total };
 }
@@ -1153,7 +1289,8 @@ function processLoadedRows(rawRows, fileName) {
   state.userDataOrders = parsedOrders;
   state.userDatasets = userDatasets;
   state.period = 'days';
-  state.selectedBarIndex = 0;
+  state.selectedBarIndex = userDatasets.days.length - 1;
+  state.selectedSlotCells = [];
 
   if (userDatasets.dominantTransportKey) {
     state.accountTransport = userDatasets.dominantTransportKey;
@@ -1235,7 +1372,8 @@ function resetToDemoData() {
   state.userDataOrders = [];
   state.userDatasets = null;
   state.period = 'days';
-  state.selectedBarIndex = 4;
+  state.selectedBarIndex = 6;
+  state.selectedSlotCells = [];
   state.accountTransport = 'ebike';
   state.selectedPreset = 'ebike';
 
@@ -1341,10 +1479,13 @@ function getAllTimeHourlyProfit() {
   if (dataCache.allTimeProfit !== null) {
     return dataCache.allTimeProfit;
   }
-  const sourceDatasets = (state.usingUserData && state.userDatasets) ? state.userDatasets : rawDatasets;
-  const periodRows = sourceDatasets.months && sourceDatasets.months.length > 0
-    ? sourceDatasets.months.map(r => enrichRow(r, 'months'))
-    : (sourceDatasets.days || []).map(r => enrichRow(r, 'days'));
+  if (state.usingUserData && state.userDatasets && state.userDatasets.orders) {
+    const tStats = calculateTransportStats(state.userDatasets.orders);
+    dataCache.allTimeProfit = tStats.totalProfitPerHr;
+    return dataCache.allTimeProfit;
+  }
+  const sourceDatasets = rawDatasets;
+  const periodRows = (sourceDatasets.days || []).map(r => enrichRow(r, 'days'));
   const totalNet = periodRows.reduce((a, r) => a + r.netProfit, 0);
   const totalHrs = periodRows.reduce((a, r) => a + r.slotHours, 0);
   dataCache.allTimeProfit = totalHrs > 0 ? Math.round(totalNet / totalHrs) : 0;
@@ -1543,7 +1684,7 @@ function renderBarChart(data) {
     ${benchmarkLinesHtml}
 
     <div id="barScrollContainer" class="w-full h-full overflow-x-auto overflow-y-hidden border-b border-l relative z-10 border-strong custom-scroll">
-      <div class="chart-scroll-track ${data.length <= 7 ? 'justify-around' : 'justify-start'}" style="min-width: ${Math.max(100, data.length * 56)}px;">
+      <div class="chart-scroll-track ${data.length <= 7 ? 'justify-around' : 'justify-start'}" style="min-width: ${Math.max(100, data.length * 42)}px;">
   `;
 
   data.forEach((d, idx) => {
@@ -1561,11 +1702,11 @@ function renderBarChart(data) {
 
     html += `
       <div id="barCol-${idx}" onclick="selectBar(${idx})" class="chart-bar-item cursor-pointer group">
-        <div id="barValue-${idx}" class="text-[9px] font-bold mb-0.5 whitespace-nowrap ${isSelected ? 'opacity-100' : 'opacity-70'}">
+        <div id="barValue-${idx}" class="text-[9px] font-bold mb-0.5 whitespace-nowrap shrink-0 ${isSelected ? 'opacity-100 font-extrabold text-[#FCE000]' : 'opacity-70'}">
           ${formatCompact(displayMetric)}
         </div>
 
-        <div class="w-full max-w-[34px] h-full flex items-end justify-center relative">
+        <div class="flex-1 w-full max-w-[28px] min-h-0 flex items-end justify-center relative">
           ${state.isNet ? `
             <div style="height: ${grossHeightPct}%"
                  class="w-full bg-gray-500/35 border border-dashed border-gray-400/70 rounded-t-lg absolute bottom-0 left-0 right-0">
@@ -1573,7 +1714,7 @@ function renderBarChart(data) {
           ` : ''}
 
           <div id="barStack-${idx}" style="height: ${netHeightPct}%"
-               class="w-4/5 relative z-10 rounded-t-lg overflow-hidden flex flex-col-reverse shadow ${isSelected ? 'ring-2 ring-[#FCE000]' : 'opacity-90 group-hover:opacity-100'}">
+               class="w-full relative z-10 rounded-t-lg overflow-hidden flex flex-col-reverse shadow ${isSelected ? 'ring-2 ring-[#FCE000]' : 'opacity-90 group-hover:opacity-100'}">
             <div style="height: ${p('ordersCost')}%" class="w-full bg-blue-500"></div>
             <div style="height: ${p('surgeRub')}%"   class="w-full bg-[#FCE000]"></div>
             <div style="height: ${p('ratingRub')}%"  class="w-full bg-orange-400"></div>
@@ -1583,7 +1724,7 @@ function renderBarChart(data) {
           </div>
         </div>
 
-        <div id="barDate-${idx}" class="absolute -bottom-5 text-[10px] font-semibold whitespace-nowrap text-center ${isSelected ? 'underline font-extrabold text-[#FCE000]' : 'opacity-65'}">
+        <div id="barDate-${idx}" class="text-[9px] font-semibold whitespace-nowrap text-center mt-1 shrink-0 ${isSelected ? 'underline font-extrabold text-[#FCE000]' : 'opacity-70'}">
           ${d.date}
         </div>
       </div>
@@ -1595,10 +1736,16 @@ function renderBarChart(data) {
   canvas.innerHTML = html;
 
   const scrollContainer = document.getElementById('barScrollContainer');
-  const activeBar = document.getElementById(`barCol-${state.selectedBarIndex}`);
-  if (scrollContainer && activeBar) {
-    const leftOffset = activeBar.offsetLeft - (scrollContainer.clientWidth / 2) + (activeBar.clientWidth / 2);
-    scrollContainer.scrollLeft = Math.max(0, leftOffset);
+  if (scrollContainer) {
+    requestAnimationFrame(() => {
+      const activeBar = document.getElementById(`barCol-${state.selectedBarIndex}`);
+      if (activeBar) {
+        const leftOffset = activeBar.offsetLeft - (scrollContainer.clientWidth / 2) + (activeBar.clientWidth / 2);
+        scrollContainer.scrollLeft = Math.max(0, leftOffset);
+      } else {
+        scrollContainer.scrollLeft = scrollContainer.scrollWidth;
+      }
+    });
   }
 
   renderSelectedBarDetails(data[state.selectedBarIndex]);
@@ -1606,10 +1753,18 @@ function renderBarChart(data) {
 
 function renderSelectedBarDetails(sel) {
   if (!sel) return;
-  const deductionBadges = [];
 
+  // Динамические цифры в легенде диаграммы
+  if (dom.legValOrders) dom.legValOrders.textContent = `${formatNum(sel.ordersCost)} ₽`;
+  if (dom.legValSurge) dom.legValSurge.textContent = `+${formatNum(sel.surgeRub)} ₽`;
+  if (dom.legValRating) dom.legValRating.textContent = `+${formatNum(sel.ratingRub)} ₽`;
+  if (dom.legValBonuses) dom.legValBonuses.textContent = `+${formatNum(sel.bonuses)} ₽`;
+  if (dom.legValGoals) dom.legValGoals.textContent = state.includeGoals && sel.goals > 0 ? `+${formatNum(sel.goals)} ₽` : '';
+  if (dom.legValTips) dom.legValTips.textContent = sel.tips > 0 ? `+${formatNum(sel.tips)} ₽` : '';
+
+  const deductionBadges = [];
   if (sel.tax > 0) {
-    deductionBadges.push(`<span class="ya-badge ya-badge-red">Налог: <b>-${formatNum(sel.tax)} ₽</b></span>`);
+    deductionBadges.push(`<span class="ya-badge ya-badge-red">Налог (6%): <b>-${formatNum(sel.tax)} ₽</b></span>`);
   }
   sel.itemizedExpenses.forEach(expItem => {
     if (expItem.amount > 0) {
@@ -1622,6 +1777,19 @@ function renderSelectedBarDetails(sel) {
 
   const transportText = sel.transportSummary || sel.transport || 'Курьер';
 
+  const componentBadges = [
+    `<span class="ya-badge ya-badge-grey flex items-center gap-1"><i class="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block"></i>Заказы: <b>${formatNum(sel.ordersCost)} ₽</b></span>`,
+    `<span class="ya-badge ya-badge-grey flex items-center gap-1"><i class="w-1.5 h-1.5 rounded-full bg-[#FCE000] inline-block"></i>Спрос: <b>+${formatNum(sel.surgeRub)} ₽ (${sel.surgePct}%)</b></span>`,
+    `<span class="ya-badge ya-badge-grey flex items-center gap-1"><i class="w-1.5 h-1.5 rounded-full bg-orange-400 inline-block"></i>Рейтинг: <b>+${formatNum(sel.ratingRub)} ₽ (${sel.ratingPct}%)</b></span>`,
+    `<span class="ya-badge ya-badge-grey flex items-center gap-1"><i class="w-1.5 h-1.5 rounded-full bg-purple-500 inline-block"></i>Бонусы: <b>+${formatNum(sel.bonuses)} ₽</b></span>`
+  ];
+  if (state.includeGoals && sel.goals > 0) {
+    componentBadges.push(`<span class="ya-badge ya-badge-grey flex items-center gap-1"><i class="w-1.5 h-1.5 rounded-full bg-pink-500 inline-block"></i>Цели: <b>+${formatNum(sel.goals)} ₽</b></span>`);
+  }
+  if (sel.tips > 0) {
+    componentBadges.push(`<span class="ya-badge ya-badge-grey flex items-center gap-1"><i class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"></i>Чаевые: <b>+${formatNum(sel.tips)} ₽</b></span>`);
+  }
+
   dom.selectedBarDetails.innerHTML = `
     <div class="flex items-center justify-between">
       <div>
@@ -1630,6 +1798,9 @@ function renderSelectedBarDetails(sel) {
       </div>
     </div>
     <div class="flex flex-wrap items-center gap-1.5 text-[10px] pt-1">
+      ${componentBadges.join('')}
+    </div>
+    <div class="flex flex-wrap items-center gap-1.5 text-[10px] pt-1 border-t border-subtle">
       <span class="ya-badge ya-badge-grey">Начислено: <b>${formatNum(sel.grossTotal)} ₽</b></span>
       ${deductionBadges.join('')}
       <span class="ya-badge ya-badge-green">Чистыми: <b>${formatNum(sel.netProfit)} ₽ (${formatNum(sel.profitPerHr)} ₽/ч)</b></span>
@@ -2007,12 +2178,31 @@ function renderBlock3(precomputedAllTimeProfitHr) {
       if (cellVal === 'DYNAMIC') cellVal = `${formatNum(userPeriodProfitHr)} ₽/ч`;
       else if (cellVal === 'DYNAMIC_ORD_HR') cellVal = `${userPeriodOrdersHr}`;
       else if (cellVal === 'ALLTIME') cellVal = `${formatNum(allTimeProfitHr)} ₽/ч`;
-      else if (cellVal === 'PLAN_SLOT_DYN') {
+      else if (cellVal === 'TOTAL_ORD_HR_DYN') {
+        const stats = calculateTransportStats(state.userDatasets ? state.userDatasets.orders : []);
+        cellVal = `${stats.totalOrdersPerHr}`;
+      } else if (cellVal === 'SLOT_PLAN_ORD_HR_DYN') {
+        const stats = calculateSlotStats(state.userDatasets ? state.userDatasets.orders : []);
+        cellVal = `${stats.planOrdHr}`;
+      } else if (cellVal === 'SLOT_FREE_ORD_HR_DYN') {
+        const stats = calculateSlotStats(state.userDatasets ? state.userDatasets.orders : []);
+        cellVal = `${stats.freeOrdHr}`;
+      } else if (cellVal === 'PLAN_SLOT_DYN') {
         const stats = calculateSlotStats(state.userDatasets ? state.userDatasets.orders : []);
         cellVal = `${formatNum(stats.planProfitPerHr)} ₽/ч`;
       } else if (cellVal === 'FREE_SLOT_DYN') {
         const stats = calculateSlotStats(state.userDatasets ? state.userDatasets.orders : []);
         cellVal = `${formatNum(stats.freeProfitPerHr)} ₽/ч`;
+      } else if (cellVal.startsWith('TRANSPORT_') && cellVal.endsWith('_PROFIT_DYN')) {
+        const tKey = cellVal.replace('TRANSPORT_', '').replace('_PROFIT_DYN', '').toLowerCase();
+        const tStats = calculateTransportStats(state.userDatasets ? state.userDatasets.orders : []);
+        const item = tStats.byTransport[tKey];
+        cellVal = item ? `${formatNum(item.profitPerHr)} ₽/ч` : '—';
+      } else if (cellVal.startsWith('TRANSPORT_') && cellVal.endsWith('_ORD_HR_DYN')) {
+        const tKey = cellVal.replace('TRANSPORT_', '').replace('_ORD_HR_DYN', '').toLowerCase();
+        const tStats = calculateTransportStats(state.userDatasets ? state.userDatasets.orders : []);
+        const item = tStats.byTransport[tKey];
+        cellVal = item ? `${item.ordersPerHr}` : '—';
       } else if (cellVal === 'CAR_FORECAST_DYN') {
         const val = getTransportProfitPerHourForComparison('car', userHoursInSelectedPeriod, currentData);
         cellVal = `<span class="${val < 0 ? 'text-rose-400' : ''}">${formatNum(val)} ₽/ч</span>`;
@@ -2321,8 +2511,9 @@ function toggleChartTable() {
 function setPeriod(p) {
   if (state.period === p) return;
   state.period = p;
-  state.selectedBarIndex = 0;
   dataCache.invalidate();
+  const currentData = getCurrentDataset();
+  state.selectedBarIndex = Math.max(0, currentData.length - 1);
 
   ['days', 'weeks', 'months'].forEach(periodKey => {
     const btn = $(`btnPeriod-${periodKey}`);

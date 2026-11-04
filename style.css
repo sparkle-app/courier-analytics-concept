@@ -338,28 +338,29 @@ body.desktop-mode .desktop-grid-split {
 .chart-scroll-track {
   display: flex !important;
   flex-direction: row !important;
-  align-items: flex-end !important;
+  align-items: stretch !important;
   height: 100% !important;
   min-width: 100% !important;
   box-sizing: border-box !important;
-  gap: 0.5rem !important;
-  padding-left: 0.5rem !important;
-  padding-right: 0.5rem !important;
+  gap: 4px !important;
+  padding-left: 4px !important;
+  padding-right: 4px !important;
   -webkit-overflow-scrolling: touch;
 }
 
 .chart-bar-item {
-  flex: 0 0 52px !important;
-  width: 52px !important;
-  min-width: 52px !important;
-  max-width: 52px !important;
+  flex: 0 0 38px !important;
+  width: 38px !important;
+  min-width: 38px !important;
+  max-width: 42px !important;
   height: 100% !important;
   display: flex !important;
   flex-direction: column !important;
-  justify-content: flex-end !important;
+  justify-content: space-between !important;
   align-items: center !important;
   position: relative !important;
   box-sizing: border-box !important;
+  padding: 2px 0 !important;
 }
 
 .table-scroll-container {
