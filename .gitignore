@@ -3,6 +3,7 @@
 GEMINI.md
 .agents/
 AGENTS.md
+server.py
 
 # OS & Editor files
 .DS_Store
