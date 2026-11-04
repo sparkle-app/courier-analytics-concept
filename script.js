@@ -962,9 +962,6 @@ function buildComparisonDatasets(orders, days) {
   return { transport, slot, total };
 }
 
-  return { transport, slot, total };
-}
-
 /**
  * Агрегация заказов по дням, неделям, месяцам, тепловой карте и сравнению
  */
