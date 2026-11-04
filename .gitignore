@@ -5,6 +5,11 @@ GEMINI.md
 AGENTS.md
 server.py
 
+# User data files
+data*
+*.xlsx
+*.csv
+
 # OS & Editor files
 .DS_Store
 Thumbs.db
