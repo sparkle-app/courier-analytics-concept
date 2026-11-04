@@ -1,5 +1,5 @@
 // =============================================================================
-// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.7) — ЛОГИКА И СОСТОЯНИЕ (script.js)
+// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.8) — ЛОГИКА И СОСТОЯНИЕ (script.js)
 // Оптимизированная и модульная версия с гранулярным рендерингом и кэшированием
 // =============================================================================
 
@@ -66,6 +66,15 @@ const dom = {
   toastText:                $('toastText'),
   btnWireTheme:             $('btnWireTheme'),
   btnColorTheme:            $('btnColorTheme'),
+  btnLayoutMode:            $('btnLayoutMode'),
+  lblLayoutMode:            $('lblLayoutMode'),
+  lblLayoutIcon:            $('lblLayoutIcon'),
+  userDataFileInput:        $('userDataFileInput'),
+  btnImportData:            $('btnImportData'),
+  btnResetData:             $('btnResetData'),
+  dataStatusBadge:          $('dataStatusBadge'),
+  topBannerContainer:       $('topBannerContainer'),
+  layoutContainer:          $('layoutContainer'),
   screenMain:               $('screenMain'),
   screenMiddleSpec:         $('screenMiddleSpec'),
   screenSettings:           $('screenSettings')
@@ -332,7 +341,13 @@ const state = {
   season: 'auto',
   districtId: 'center_south',
   selectedSlotCells: ['4-4', '4-5', '4-6', '2-4', '2-5'],
-  compareMode: 'transport'
+  compareMode: 'transport',
+
+  layoutMode: 'phone', // 'phone' | 'pc'
+  usingUserData: false,
+  userDataFileName: '',
+  userDataOrders: [],
+  userDatasets: null
 };
 
 /**
@@ -346,6 +361,776 @@ const dataCache = {
     this.allTimeProfit = null;
   }
 };
+
+// -----------------------------------------------------------------------------
+// 3.1. ПАРСИНГ И ОБРАБОТКА ПОЛЬЗОВАТЕЛЬСКИХ ДАННЫХ (EXCEL / CSV)
+// -----------------------------------------------------------------------------
+
+/**
+ * Парсер времени из любого формата (HH:MM:SS, HH:MM, числовая доля дня Excel, Date)
+ * Возвращает секунды от начала суток (0..86399)
+ */
+function parseTimeSecs(val) {
+  if (val == null || val === '') return 0;
+  if (val instanceof Date) {
+    return val.getHours() * 3600 + val.getMinutes() * 60 + val.getSeconds();
+  }
+  if (typeof val === 'number') {
+    return Math.round(val * 86400) % 86400;
+  }
+  const str = String(val).trim();
+  const parts = str.split(':').map(p => parseInt(p, 10) || 0);
+  if (parts.length >= 2) {
+    return parts[0] * 3600 + parts[1] * 60 + (parts[2] || 0);
+  }
+  return 0;
+}
+
+/**
+ * Парсер даты (YYYY-MM-DD, DD.MM.YYYY, DD.MM.YY, Excel serial date, Date)
+ */
+function parseDateInfo(val) {
+  const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+  let d = null;
+
+  if (val instanceof Date && !isNaN(val.getTime())) {
+    d = val;
+  } else if (typeof val === 'number') {
+    // Excel serial number (origin: 1899-12-30)
+    d = new Date(Math.round((val - 25569) * 86400 * 1000));
+  } else if (typeof val === 'string') {
+    const s = val.trim();
+    const dotMatch = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2,4})/);
+    if (dotMatch) {
+      const day = parseInt(dotMatch[1], 10);
+      const month = parseInt(dotMatch[2], 10) - 1;
+      let year = parseInt(dotMatch[3], 10);
+      if (year < 100) year += 2000;
+      d = new Date(year, month, day);
+    } else {
+      d = new Date(s);
+    }
+  }
+
+  if (!d || isNaN(d.getTime())) {
+    d = new Date();
+  }
+
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const isoDate = `${y}-${m}-${day}`;
+  const displayDate = `${day}.${m}`;
+  const jsDay = d.getDay();
+  const dowIdx = jsDay === 0 ? 6 : jsDay - 1; // 0=Пн .. 6=Вс
+  const dayOfWeek = shortDayNames[dowIdx] || 'Пн';
+  const monthKey = monthNames[d.getMonth()] || 'Месяц';
+
+  // Расчет номера недели ISO
+  const target = new Date(d.valueOf());
+  const dayNr = (d.getDay() + 6) % 7;
+  target.setDate(target.getDate() - dayNr + 3);
+  const firstThursday = target.valueOf();
+  target.setMonth(0, 1);
+  if (target.getDay() !== 4) {
+    target.setMonth(0, 1 + ((4 - target.getDay()) + 7) % 7);
+  }
+  const weekNum = 1 + Math.ceil((firstThursday - target) / 604800000);
+  const weekKey = `Нед ${weekNum}`;
+
+  return { isoDate, displayDate, dayOfWeek, dowIdx, monthKey, weekKey, year: y, dateObj: d };
+}
+
+/**
+ * Парсер процентов (поддерживает 1.05 для 105%, 0.7 для 70%, 35 для 35%, 105% для 105%)
+ */
+function parsePercentage(val) {
+  if (val == null || val === '') return 0;
+  const num = typeof val === 'number' ? val : parseFloat(String(val).replace(',', '.').replace('%', '').trim());
+  if (isNaN(num)) return 0;
+  return num > 5 ? num : num * 100;
+}
+
+/**
+ * Парсер денежных / числовых значений
+ */
+function parseNum(val) {
+  if (val == null || val === '') return 0;
+  if (typeof val === 'number') return isNaN(val) ? 0 : val;
+  const clean = String(val).replace(/\s/g, '').replace(',', '.');
+  const n = parseFloat(clean);
+  return isNaN(n) ? 0 : n;
+}
+
+/**
+ * Парсер CSV-текста с автоопределением разделителя и кавычек
+ */
+function parseCSVText(text) {
+  const firstLine = text.split(/\r\n|\n|\r/)[0] || '';
+  let delimiter = ';';
+  const commaCount = (firstLine.match(/,/g) || []).length;
+  const semiCount = (firstLine.match(/;/g) || []).length;
+  const tabCount = (firstLine.match(/\t/g) || []).length;
+  if (semiCount >= commaCount && semiCount >= tabCount) delimiter = ';';
+  else if (commaCount > semiCount && commaCount >= tabCount) delimiter = ',';
+  else if (tabCount > semiCount && tabCount > commaCount) delimiter = '\t';
+
+  const rows = [];
+  let currentRow = [];
+  let currentField = '';
+  let insideQuotes = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    const nextChar = text[i + 1];
+
+    if (char === '"') {
+      if (insideQuotes && nextChar === '"') {
+        currentField += '"';
+        i++;
+      } else {
+        insideQuotes = !insideQuotes;
+      }
+    } else if (char === delimiter && !insideQuotes) {
+      currentRow.push(currentField.trim());
+      currentField = '';
+    } else if ((char === '\r' || char === '\n') && !insideQuotes) {
+      if (char === '\r' && nextChar === '\n') i++;
+      currentRow.push(currentField.trim());
+      if (currentRow.some(f => f !== '')) {
+        rows.push(currentRow);
+      }
+      currentRow = [];
+      currentField = '';
+    } else {
+      currentField += char;
+    }
+  }
+  if (currentField !== '' || currentRow.length > 0) {
+    currentRow.push(currentField.trim());
+    if (currentRow.some(f => f !== '')) {
+      rows.push(currentRow);
+    }
+  }
+  return rows;
+}
+
+/**
+ * Извлечение заказов из массива строк (Excel или CSV) по 15 строго упорядоченным столбцам
+ */
+function parseOrdersFromRows(rawRows) {
+  if (!rawRows || rawRows.length < 2) return [];
+  const dataRows = rawRows.slice(1);
+  const orders = [];
+
+  dataRows.forEach(r => {
+    if (!r || r.length < 4) return;
+    if (r[0] == null && r[1] == null && r[5] == null) return;
+
+    const dateInfo = parseDateInfo(r[0]);
+    const startSecs = parseTimeSecs(r[1]);
+    const endSecs = parseTimeSecs(r[2]);
+
+    let durationMins = 0;
+    if (endSecs >= startSecs) {
+      durationMins = (endSecs - startSecs) / 60;
+    } else {
+      durationMins = (endSecs + 86400 - startSecs) / 60;
+    }
+    if (durationMins <= 0) durationMins = 20;
+
+    const distance = parseNum(r[3]);
+    const weight = parseNum(r[4]);
+    const orderCost = parseNum(r[5]);
+    const wait = parseNum(r[6]);
+    const surgePct = parsePercentage(r[7]);
+    const ratingPct = parsePercentage(r[8]);
+    const bonus = parseNum(r[9]);
+    const expense = parseNum(r[10]);
+
+    const transportRaw = String(r[11] || 'Пешком').trim();
+    let transportKey = 'walk';
+    let transportLabel = 'Пеший';
+    const tLower = transportRaw.toLowerCase();
+    if (tLower.includes('электро')) {
+      transportKey = 'ebike';
+      transportLabel = 'Электровело';
+    } else if (tLower.includes('вело')) {
+      transportKey = 'bike';
+      transportLabel = 'Вело';
+    } else if (tLower.includes('авто') || tLower.includes('машин')) {
+      transportKey = 'car';
+      transportLabel = 'Авто';
+    } else if (tLower.includes('пеш')) {
+      transportKey = 'walk';
+      transportLabel = 'Пеший';
+    }
+
+    const slotType = String(r[12] || 'Плановый').trim();
+    const slotNumber = String(r[13] || '1').trim();
+    const goal = parseNum(r[14]);
+
+    const baseCost = orderCost + wait;
+    const surgeRub = baseCost * (surgePct / 100);
+    const ratingRub = baseCost * (ratingPct / 100);
+
+    orders.push({
+      dateInfo,
+      date: dateInfo.isoDate,
+      displayDate: dateInfo.displayDate,
+      dayOfWeek: dateInfo.dayOfWeek,
+      dowIdx: dateInfo.dowIdx,
+      monthKey: dateInfo.monthKey,
+      weekKey: dateInfo.weekKey,
+      startSecs,
+      endSecs,
+      durationMins,
+      distance,
+      weight,
+      orderCost,
+      wait,
+      baseCost,
+      surgePct,
+      surgeRub,
+      ratingPct,
+      ratingRub,
+      bonus,
+      expense,
+      transportRaw,
+      transportKey,
+      transportLabel,
+      slotType,
+      slotNumber,
+      goal
+    });
+  });
+
+  return orders;
+}
+
+/**
+ * Построение сравнительных показателей (Блок 3) на основе загруженных заказов
+ */
+function buildComparisonDatasets(orders, days) {
+  function getGroupMetrics(groupOrders, groupDays) {
+    if (!groupOrders || groupOrders.length === 0) return null;
+    const cnt = groupOrders.length;
+    const sumDist = groupOrders.reduce((a, o) => a + o.distance, 0);
+    const sumDur = groupOrders.reduce((a, o) => a + o.durationMins, 0);
+    const sumWeight = groupOrders.reduce((a, o) => a + o.weight, 0);
+    const sumBaseCost = groupOrders.reduce((a, o) => a + o.baseCost, 0);
+    const waitsList = groupOrders.filter(o => o.wait > 0);
+
+    const avgDist = (sumDist / cnt).toFixed(1) + ' км';
+    const avgDur = Math.round(sumDur / cnt) + ' мин';
+    const avgWeight = (sumWeight / cnt).toFixed(1) + ' кг';
+    const payPerKm = sumDist > 0 ? Math.round(sumBaseCost / sumDist) + ' ₽/км' : '—';
+    const payPerKg = sumWeight > 0 ? Math.round(sumBaseCost / sumWeight) + ' ₽/кг' : '—';
+    const waitPct = Math.round((waitsList.length / cnt) * 100) + '%';
+    const avgWaitMin = waitsList.length > 0
+      ? (waitsList.reduce((a, o) => a + (o.wait > 0 ? Math.max(2, o.wait / 3) : 0), 0) / waitsList.length).toFixed(1) + ' мин'
+      : '—';
+
+    const totalSlotHours = groupDays.reduce((a, d) => a + d.slotHours, 0) || 1;
+    const totalNetProfit = groupDays.reduce((a, d) => {
+      const enriched = enrichRow(d, 'days');
+      return a + enriched.netProfit;
+    }, 0);
+
+    const ordersPerHr = (cnt / totalSlotHours).toFixed(2);
+    const profitPerHr = Math.round(totalNetProfit / totalSlotHours) + ' ₽/ч';
+
+    return {
+      avgDist,
+      avgDur,
+      avgWeight,
+      payPerKm,
+      payPerKg,
+      waitPct,
+      avgWaitMin,
+      ordersPerHr,
+      profitPerHr
+    };
+  }
+
+  // Транспорт: Пеший, Вело, Электровело, Авто
+  const walkOrders = orders.filter(o => o.transportKey === 'walk');
+  const walkDays = days.filter(d => d.transportKey === 'walk');
+  const walkM = getGroupMetrics(walkOrders, walkDays) || {
+    avgDist: '1.1 км', avgDur: '36 мин', avgWeight: '1.4 кг', payPerKm: '87 ₽/км', payPerKg: '66 ₽/кг', waitPct: '5%', avgWaitMin: '5.2 мин', ordersPerHr: '1.55', profitPerHr: 'WALK_DYN'
+  };
+
+  const bikeOrders = orders.filter(o => o.transportKey === 'bike');
+  const bikeDays = days.filter(d => d.transportKey === 'bike');
+  const bikeM = getGroupMetrics(bikeOrders, bikeDays) || {
+    avgDist: '2.1 км', avgDur: '24 мин', avgWeight: '3.6 кг', payPerKm: '142 ₽/км', payPerKg: '83 ₽/кг', waitPct: '26%', avgWaitMin: '6.5 мин', ordersPerHr: '1.85', profitPerHr: 'BIKE_DYN'
+  };
+
+  const ebikeOrders = orders.filter(o => o.transportKey === 'ebike');
+  const ebikeDays = days.filter(d => d.transportKey === 'ebike');
+  const ebikeM = getGroupMetrics(ebikeOrders, ebikeDays) || {
+    avgDist: '2.2 км', avgDur: '30 мин', avgWeight: '1.6 кг', payPerKm: '49 ₽/км', payPerKg: '68 ₽/кг', waitPct: '8%', avgWaitMin: '6.8 мин', ordersPerHr: '2.20', profitPerHr: 'EBIKE_DYN'
+  };
+
+  const transport = {
+    columns: [
+      { key: 'walk',  title: 'Пеший',          forecast: false },
+      { key: 'bike',  title: 'Вело',           forecast: false },
+      { key: 'ebike', title: 'Электровело',    forecast: false },
+      { key: 'car',   title: 'Авто (прогноз)', forecast: true }
+    ],
+    rowsPerOrder: [
+      { label: 'Расстояние заказа',        vals: [walkM.avgDist, bikeM.avgDist, ebikeM.avgDist, '4.3 км'] },
+      { label: 'Продолжительность заказа', vals: [walkM.avgDur, bikeM.avgDur, ebikeM.avgDur, '22 мин'] },
+      { label: 'Вес заказа',               vals: [walkM.avgWeight, bikeM.avgWeight, ebikeM.avgWeight, '7.5 кг'] },
+      { label: 'Оплата за км заказа',      vals: [walkM.payPerKm, bikeM.payPerKm, ebikeM.payPerKm, '108 ₽/км'] },
+      { label: 'Оплата за кг заказа',      vals: [walkM.payPerKg, bikeM.payPerKg, ebikeM.payPerKg, '62 ₽/кг'] },
+      { label: 'Доля заказов с ожиданием', vals: [walkM.waitPct, bikeM.waitPct, ebikeM.waitPct, '31%'] },
+      { label: 'Ожидание заказа',          vals: [walkM.avgWaitMin, bikeM.avgWaitMin, ebikeM.avgWaitMin, '7.4 мин'] }
+    ],
+    rowsTotal: [
+      { label: 'Заказов в час',            vals: [walkM.ordersPerHr, bikeM.ordersPerHr, ebikeM.ordersPerHr, '2.35'] },
+      { label: 'Прибыль в час',            vals: [walkM.profitPerHr, bikeM.profitPerHr, ebikeM.profitPerHr, 'CAR_FORECAST_DYN'] }
+    ]
+  };
+
+  // Тип слота: Плановый, Свободный
+  const planOrders = orders.filter(o => o.slotType.toLowerCase().includes('план'));
+  const planM = getGroupMetrics(planOrders, days) || {
+    avgDist: '1.4 км', avgDur: '34 мин', avgWeight: '1.3 кг', payPerKm: '59 ₽/км', payPerKg: '64 ₽/кг', waitPct: '10%', avgWaitMin: '6.5 мин', ordersPerHr: '2.10', profitPerHr: 'DYNAMIC'
+  };
+
+  const freeOrders = orders.filter(o => o.slotType.toLowerCase().includes('свобод'));
+  const freeM = getGroupMetrics(freeOrders, days) || {
+    avgDist: '1.9 км', avgDur: '32 мин', avgWeight: '1.6 кг', payPerKm: '58 ₽/км', payPerKg: '69 ₽/кг', waitPct: '5%', avgWaitMin: '6.4 мин', ordersPerHr: '1.80', profitPerHr: '530 ₽/ч'
+  };
+
+  const slot = {
+    columns: ['Плановый', 'Свободный'],
+    rowsPerOrder: [
+      { label: 'Расстояние заказа',        vals: [planM.avgDist, freeM.avgDist] },
+      { label: 'Продолжительность заказа', vals: [planM.avgDur, freeM.avgDur] },
+      { label: 'Вес заказа',               vals: [planM.avgWeight, freeM.avgWeight] },
+      { label: 'Оплата за км заказа',      vals: [planM.payPerKm, freeM.payPerKm] },
+      { label: 'Оплата за кг заказа',      vals: [planM.payPerKg, freeM.payPerKg] },
+      { label: 'Доля заказов с ожиданием', vals: [planM.waitPct, freeM.waitPct] },
+      { label: 'Ожидание заказа',          vals: [planM.avgWaitMin, freeM.avgWaitMin] }
+    ],
+    rowsTotal: [
+      { label: 'Заказов в час',            vals: [planM.ordersPerHr, freeM.ordersPerHr] },
+      { label: 'Прибыль в час',            vals: ['DYNAMIC', freeM.profitPerHr] }
+    ]
+  };
+
+  // Тотал: Вы (все время), Вы (период), Ср. район, Топ-20% района, Ср. город, Топ-20% города
+  const allM = getGroupMetrics(orders, days);
+  const total = {
+    columns: ['Вы (все время)', 'DYNAMIC_PERIOD_COL', 'AVG_DIST_COL', 'TOP_DIST_COL', 'AVG_CITY_COL', 'TOP_CITY_COL'],
+    rowsPerOrder: [
+      { label: 'Расстояние заказа',        vals: [allM.avgDist, allM.avgDist, '3.0 км', '2.5 км', '3.2 км', '2.6 км'] },
+      { label: 'Продолжительность заказа', vals: [allM.avgDur, allM.avgDur, '22 мин', '17 мин', '24 мин', '18 мин'] },
+      { label: 'Вес заказа',               vals: [allM.avgWeight, allM.avgWeight, '4.5 кг', '4.9 кг', '4.4 кг', '4.8 кг'] },
+      { label: 'Оплата за км заказа',      vals: [allM.payPerKm, allM.payPerKm, '120 ₽/км', '156 ₽/км', '114 ₽/км', '148 ₽/км'] },
+      { label: 'Оплата за кг заказа',      vals: [allM.payPerKg, allM.payPerKg, '71 ₽/кг', '88 ₽/кг', '68 ₽/кг', '84 ₽/кг'] },
+      { label: 'Доля заказов с ожиданием', vals: [allM.waitPct, allM.waitPct, '33%', '21%', '35%', '23%'] },
+      { label: 'Ожидание заказа',          vals: [allM.avgWaitMin, allM.avgWaitMin, '8.1 мин', '5.4 мин', '8.5 мин', '5.8 мин'] }
+    ],
+    rowsTotal: [
+      { label: 'Заказов в час',            vals: [allM.ordersPerHr, 'DYNAMIC_ORD_HR', '1.95', '2.45', '1.85', '2.35'] },
+      { label: 'Прибыль в час',            vals: ['ALLTIME', 'DYNAMIC', '625 ₽/ч', '810 ₽/ч', '580 ₽/ч', '765 ₽/ч'] }
+    ]
+  };
+
+  return { transport, slot, total };
+}
+
+/**
+ * Агрегация заказов по дням, неделям, месяцам, тепловой карте и сравнению
+ */
+function buildDatasetsFromOrders(orders) {
+  const daysMap = new Map();
+  orders.forEach(o => {
+    if (!daysMap.has(o.date)) {
+      daysMap.set(o.date, {
+        dateInfo: o.dateInfo,
+        orders: [],
+        slotsMap: new Map()
+      });
+    }
+    const dayObj = daysMap.get(o.date);
+    dayObj.orders.push(o);
+
+    const sNum = o.slotNumber;
+    if (!dayObj.slotsMap.has(sNum)) {
+      dayObj.slotsMap.set(sNum, []);
+    }
+    dayObj.slotsMap.get(sNum).push(o);
+  });
+
+  const sortedDates = Array.from(daysMap.keys()).sort();
+  const days = [];
+  const transportUsage = {};
+
+  sortedDates.forEach(dateKey => {
+    const dayObj = daysMap.get(dateKey);
+    const dayOrders = dayObj.orders;
+    const dateInfo = dayObj.dateInfo;
+
+    let totalSlotHours = 0;
+    let daySlotExpenses = 0;
+
+    dayObj.slotsMap.forEach(slotOrders => {
+      const minStart = Math.min(...slotOrders.map(o => o.startSecs));
+      const maxEnd = Math.max(...slotOrders.map(o => o.endSecs));
+      let durHr = 0;
+      if (maxEnd >= minStart) {
+        durHr = (maxEnd - minStart) / 3600;
+      } else {
+        durHr = (maxEnd + 86400 - minStart) / 3600;
+      }
+      durHr = Math.max(0.3, durHr);
+      totalSlotHours += durHr;
+
+      const exps = slotOrders.map(o => o.expense).filter(e => e > 0);
+      if (exps.length > 0) {
+        const allSame = exps.every(e => Math.abs(e - exps[0]) < 0.01);
+        if (allSame) {
+          daySlotExpenses += exps[0];
+        } else {
+          daySlotExpenses += exps.reduce((a, b) => a + b, 0);
+        }
+      }
+    });
+
+    totalSlotHours = Math.round(totalSlotHours * 10) / 10;
+    if (totalSlotHours <= 0) totalSlotHours = 1;
+
+    const ordersCost = Math.round(dayOrders.reduce((a, o) => a + o.baseCost, 0));
+    const surgeRub = Math.round(dayOrders.reduce((a, o) => a + o.surgeRub, 0));
+    const surgePct = ordersCost > 0 ? Math.round((surgeRub / ordersCost) * 100) : 0;
+    const ratingRub = Math.round(dayOrders.reduce((a, o) => a + o.ratingRub, 0));
+    const ratingPct = ordersCost > 0 ? Math.round((ratingRub / ordersCost) * 100) : 0;
+    const bonuses = Math.round(dayOrders.reduce((a, o) => a + o.bonus, 0));
+    const goals = Math.round(dayOrders.reduce((a, o) => a + o.goal, 0));
+    const adjustments = -Math.round(daySlotExpenses);
+
+    const tCounts = {};
+    dayOrders.forEach(o => {
+      tCounts[o.transportKey] = (tCounts[o.transportKey] || 0) + 1;
+      transportUsage[o.transportKey] = (transportUsage[o.transportKey] || 0) + 1;
+    });
+    let domTKey = 'walk';
+    let maxCnt = 0;
+    Object.keys(tCounts).forEach(k => {
+      if (tCounts[k] > maxCnt) {
+        maxCnt = tCounts[k];
+        domTKey = k;
+      }
+    });
+    const domTLabel = (transportMeta[domTKey] && transportMeta[domTKey].label) || 'Пеший';
+
+    days.push({
+      date: dateInfo.displayDate,
+      fullDate: dateKey,
+      dayOfWeek: dateInfo.dayOfWeek,
+      slotHours: totalSlotHours,
+      ordersCount: dayOrders.length,
+      transport: domTLabel,
+      transportKey: domTKey,
+      ordersCost,
+      surgePct,
+      surgeRub,
+      ratingPct,
+      ratingRub,
+      bonuses,
+      goals,
+      tips: 0,
+      adjustments,
+      weekKey: dateInfo.weekKey,
+      monthKey: dateInfo.monthKey
+    });
+  });
+
+  let dominantTransportKey = 'walk';
+  let maxTU = 0;
+  Object.keys(transportUsage).forEach(k => {
+    if (transportUsage[k] > maxTU) {
+      maxTU = transportUsage[k];
+      dominantTransportKey = k;
+    }
+  });
+
+  // Группировка по неделям
+  const weeksMap = new Map();
+  days.forEach(d => {
+    const wk = d.weekKey;
+    if (!weeksMap.has(wk)) weeksMap.set(wk, []);
+    weeksMap.get(wk).push(d);
+  });
+
+  const weeks = [];
+  weeksMap.forEach((wDays, wk) => {
+    const slotHours = Math.round(wDays.reduce((a, d) => a + d.slotHours, 0) * 10) / 10;
+    const ordersCount = wDays.reduce((a, d) => a + d.ordersCount, 0);
+    const ordersCost = wDays.reduce((a, d) => a + d.ordersCost, 0);
+    const surgeRub = wDays.reduce((a, d) => a + d.surgeRub, 0);
+    const surgePct = ordersCost > 0 ? Math.round((surgeRub / ordersCost) * 100) : 0;
+    const ratingRub = wDays.reduce((a, d) => a + d.ratingRub, 0);
+    const ratingPct = ordersCost > 0 ? Math.round((ratingRub / ordersCost) * 100) : 0;
+    const bonuses = wDays.reduce((a, d) => a + d.bonuses, 0);
+    const goals = wDays.reduce((a, d) => a + d.goals, 0);
+    const adjustments = wDays.reduce((a, d) => a + d.adjustments, 0);
+
+    weeks.push({
+      date: wk,
+      dayOfWeek: 'Пн–Вс',
+      slotHours,
+      ordersCount,
+      transport: wDays[0].transport,
+      transportKey: wDays[0].transportKey,
+      ordersCost,
+      surgePct,
+      surgeRub,
+      ratingPct,
+      ratingRub,
+      bonuses,
+      goals,
+      tips: 0,
+      adjustments
+    });
+  });
+
+  // Группировка по месяцам
+  const monthsMap = new Map();
+  days.forEach(d => {
+    const mk = d.monthKey;
+    if (!monthsMap.has(mk)) monthsMap.set(mk, []);
+    monthsMap.get(mk).push(d);
+  });
+
+  const months = [];
+  monthsMap.forEach((mDays, mk) => {
+    const slotHours = Math.round(mDays.reduce((a, d) => a + d.slotHours, 0) * 10) / 10;
+    const ordersCount = mDays.reduce((a, d) => a + d.ordersCount, 0);
+    const ordersCost = mDays.reduce((a, d) => a + d.ordersCost, 0);
+    const surgeRub = mDays.reduce((a, d) => a + d.surgeRub, 0);
+    const surgePct = ordersCost > 0 ? Math.round((surgeRub / ordersCost) * 100) : 0;
+    const ratingRub = mDays.reduce((a, d) => a + d.ratingRub, 0);
+    const ratingPct = ordersCost > 0 ? Math.round((ratingRub / ordersCost) * 100) : 0;
+    const bonuses = mDays.reduce((a, d) => a + d.bonuses, 0);
+    const goals = mDays.reduce((a, d) => a + d.goals, 0);
+    const adjustments = mDays.reduce((a, d) => a + d.adjustments, 0);
+
+    months.push({
+      date: mk,
+      dayOfWeek: 'Месяц',
+      slotHours,
+      ordersCount,
+      transport: mDays[0].transport,
+      transportKey: mDays[0].transportKey,
+      ordersCost,
+      surgePct,
+      surgeRub,
+      ratingPct,
+      ratingRub,
+      bonuses,
+      goals,
+      tips: 0,
+      adjustments
+    });
+  });
+
+  // Тепловая карта спроса
+  const heatmapMatrix = JSON.parse(JSON.stringify(baseHeatmapMatrix));
+  const timeBuckets = [
+    { r: 0, start: 2 * 3600,  end: 6 * 3600 },
+    { r: 1, start: 6 * 3600,  end: 10 * 3600 },
+    { r: 2, start: 10 * 3600, end: 14 * 3600 },
+    { r: 3, start: 14 * 3600, end: 18 * 3600 },
+    { r: 4, start: 18 * 3600, end: 22 * 3600 },
+    { r: 5, start: 22 * 3600, end: 2 * 3600 }
+  ];
+
+  const cellOrderBuckets = Array.from({ length: 6 }, () => Array.from({ length: 7 }, () => []));
+
+  orders.forEach(o => {
+    const s = o.startSecs;
+    const c = o.dowIdx;
+    let matchedR = -1;
+    for (let i = 0; i < timeBuckets.length; i++) {
+      const b = timeBuckets[i];
+      if (b.r === 5) {
+        if (s >= 22 * 3600 || s < 2 * 3600) {
+          matchedR = 5;
+          break;
+        }
+      } else {
+        if (s >= b.start && s < b.end) {
+          matchedR = b.r;
+          break;
+        }
+      }
+    }
+    if (matchedR >= 0 && c >= 0 && c <= 6) {
+      cellOrderBuckets[matchedR][c].push(o);
+    }
+  });
+
+  for (let r = 0; r < 6; r++) {
+    for (let c = 0; c < 7; c++) {
+      const list = cellOrderBuckets[r][c];
+      if (list.length > 0) {
+        const avgSurge = Math.round(list.reduce((a, o) => a + o.surgePct, 0) / list.length);
+        heatmapMatrix[r].values[c] = avgSurge;
+      }
+    }
+  }
+
+  const comparisonDatasets = buildComparisonDatasets(orders, days);
+
+  return {
+    days,
+    weeks,
+    months,
+    heatmapMatrix,
+    comparisonDatasets,
+    dominantTransportKey
+  };
+}
+
+/**
+ * Обработка строк данных после чтения файла
+ */
+function processLoadedRows(rawRows, fileName) {
+  if (!rawRows || rawRows.length < 2) {
+    showToast('Файл пуст или содержит только строку заголовков');
+    return;
+  }
+
+  const parsedOrders = parseOrdersFromRows(rawRows);
+  if (parsedOrders.length === 0) {
+    showToast('Не удалось распознать заказы в файле');
+    return;
+  }
+
+  const userDatasets = buildDatasetsFromOrders(parsedOrders);
+
+  state.usingUserData = true;
+  state.userDataFileName = fileName;
+  state.userDataOrders = parsedOrders;
+  state.userDatasets = userDatasets;
+  state.period = 'days';
+  state.selectedBarIndex = 0;
+
+  if (userDatasets.dominantTransportKey) {
+    state.accountTransport = userDatasets.dominantTransportKey;
+    state.selectedPreset = userDatasets.dominantTransportKey;
+  }
+
+  if (dom.btnResetData) dom.btnResetData.classList.remove('hidden');
+  if (dom.dataStatusBadge) {
+    dom.dataStatusBadge.innerHTML = `Источник: <b class="text-emerald-400">Файл «${escapeHtml(fileName)}» (${parsedOrders.length} зак.)</b>`;
+  }
+
+  dataCache.invalidate();
+  renderAll();
+  showToast(`Загружено ${parsedOrders.length} заказов из «${fileName}»! Все расчеты обновлены.`);
+}
+
+/**
+ * Инициация диалога выбора файла в Windows
+ */
+function triggerUserDataFileInput() {
+  if (dom.userDataFileInput) {
+    dom.userDataFileInput.value = '';
+    dom.userDataFileInput.click();
+  }
+}
+
+/**
+ * Обработчик загрузки файла пользователем (Excel .xlsx/.xls или CSV/.txt)
+ */
+function handleUserDataFileUpload(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+
+  const fileName = file.name;
+  const isExcel = fileName.endsWith('.xlsx') || fileName.endsWith('.xls') || fileName.endsWith('.ods');
+
+  const reader = new FileReader();
+
+  if (isExcel) {
+    reader.onload = function(e) {
+      try {
+        if (typeof XLSX === 'undefined') {
+          showToast('Библиотека Excel еще загружается, попробуйте снова через пару секунд');
+          return;
+        }
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const rawRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: null });
+        processLoadedRows(rawRows, fileName);
+      } catch (err) {
+        console.error('Ошибка чтения Excel:', err);
+        showToast('Ошибка при чтении Excel-файла: ' + err.message);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  } else {
+    reader.onload = function(e) {
+      try {
+        const text = e.target.result;
+        const rawRows = parseCSVText(text);
+        processLoadedRows(rawRows, fileName);
+      } catch (err) {
+        console.error('Ошибка чтения CSV:', err);
+        showToast('Ошибка при чтении CSV-файла: ' + err.message);
+      }
+    };
+    reader.readAsText(file, 'utf-8');
+  }
+}
+
+/**
+ * Сброс загруженных данных и возврат к демо-данным
+ */
+function resetToDemoData() {
+  state.usingUserData = false;
+  state.userDataFileName = '';
+  state.userDataOrders = [];
+  state.userDatasets = null;
+  state.period = 'days';
+  state.selectedBarIndex = 4;
+  state.accountTransport = 'ebike';
+  state.selectedPreset = 'ebike';
+
+  if (dom.btnResetData) dom.btnResetData.classList.add('hidden');
+  if (dom.dataStatusBadge) {
+    dom.dataStatusBadge.innerHTML = 'Источник: <b class="text-amber-400">Демо-данные</b>';
+  }
+
+  dataCache.invalidate();
+  renderAll();
+  showToast('Возврат к демонстрационным данным');
+}
+
+/**
+ * Переключение режима отображения: Телефон / ПК (на всю ширину)
+ */
+function toggleLayoutMode() {
+  state.layoutMode = state.layoutMode === 'phone' ? 'pc' : 'phone';
+  const isPc = state.layoutMode === 'pc';
+  document.body.classList.toggle('desktop-mode', isPc);
+  if (dom.lblLayoutMode) dom.lblLayoutMode.textContent = isPc ? 'ПК' : 'Телефон';
+  if (dom.lblLayoutIcon) dom.lblLayoutIcon.textContent = isPc ? '💻' : '📱';
+  if (dom.btnLayoutMode) {
+    dom.btnLayoutMode.classList.toggle('bg-[#FCE000]', isPc);
+    dom.btnLayoutMode.classList.toggle('text-[#141518]', isPc);
+  }
+  showToast(isPc ? 'Режим: ПК (на всю ширину браузера)' : 'Режим: Телефон (компактный)');
+}
 
 // -----------------------------------------------------------------------------
 // 4. МАТЕМАТИКА И ВЫЧИСЛЕНИЯ
@@ -400,11 +1185,12 @@ function enrichRow(rawRow, periodKey) {
 }
 
 function getCurrentDataset() {
-  const cacheKey = `${state.period}_${state.includeGoals}`;
+  const cacheKey = `${state.period}_${state.includeGoals}_${state.usingUserData ? 'user' : 'demo'}`;
   if (dataCache.enriched.has(cacheKey)) {
     return dataCache.enriched.get(cacheKey);
   }
-  const list = rawDatasets[state.period] || rawDatasets.days;
+  const sourceDatasets = (state.usingUserData && state.userDatasets) ? state.userDatasets : rawDatasets;
+  const list = sourceDatasets[state.period] || sourceDatasets.days || [];
   const enriched = list.map(r => enrichRow(r, state.period));
   dataCache.enriched.set(cacheKey, enriched);
   return enriched;
@@ -414,9 +1200,12 @@ function getAllTimeHourlyProfit() {
   if (dataCache.allTimeProfit !== null) {
     return dataCache.allTimeProfit;
   }
-  const allMonths = rawDatasets.months.map(r => enrichRow(r, 'months'));
-  const totalNet = allMonths.reduce((a, r) => a + r.netProfit, 0);
-  const totalHrs = allMonths.reduce((a, r) => a + r.slotHours, 0);
+  const sourceDatasets = (state.usingUserData && state.userDatasets) ? state.userDatasets : rawDatasets;
+  const periodRows = sourceDatasets.months && sourceDatasets.months.length > 0
+    ? sourceDatasets.months.map(r => enrichRow(r, 'months'))
+    : (sourceDatasets.days || []).map(r => enrichRow(r, 'days'));
+  const totalNet = periodRows.reduce((a, r) => a + r.netProfit, 0);
+  const totalHrs = periodRows.reduce((a, r) => a + r.slotHours, 0);
   dataCache.allTimeProfit = totalHrs > 0 ? Math.round(totalNet / totalHrs) : 0;
   return dataCache.allTimeProfit;
 }
@@ -438,13 +1227,17 @@ function getSelectedSlotsSummary() {
   const totalHours = count * 4;
   let totalRubEst = 0;
   let totalPctSum = 0;
+  const activeMatrix = (state.usingUserData && state.userDatasets && state.userDatasets.heatmapMatrix)
+    ? state.userDatasets.heatmapMatrix
+    : baseHeatmapMatrix;
+
   const items = state.selectedSlotCells.map(key => {
     const [r, c] = key.split('-').map(Number);
-    const rowObj = baseHeatmapMatrix[r];
+    const rowObj = activeMatrix[r] || baseHeatmapMatrix[r];
     const comp = getCellComputedValue(rowObj?.values[c] || 35);
     totalRubEst += comp.rubHr * 4;
     totalPctSum += comp.pct;
-    return { day: shortDayNames[c], hours: rowObj.hours, comp };
+    return { day: shortDayNames[c], hours: rowObj ? rowObj.hours : '', comp };
   });
 
   return {
@@ -773,7 +1566,10 @@ function renderBlock2() {
 
   const tbody = dom.heatmapTableBody;
   let html = '';
-  baseHeatmapMatrix.forEach((row, rIdx) => {
+  const activeMatrix = (state.usingUserData && state.userDatasets && state.userDatasets.heatmapMatrix)
+    ? state.userDatasets.heatmapMatrix
+    : baseHeatmapMatrix;
+  activeMatrix.forEach((row, rIdx) => {
     html += `<tr><td class="text-left font-medium py-1.5 pl-0.5 pr-1 whitespace-nowrap text-[9.5px] opacity-80">${row.hours}</td>`;
     row.values.forEach((baseVal, cIdx) => {
       const cellKey = `${rIdx}-${cIdx}`;
@@ -874,7 +1670,10 @@ function renderBlock3(precomputedAllTimeProfitHr) {
     : Math.round(currentData.reduce((a, r) => a + r.slotHours, 0) / currentData.length);
   const periodTag = selectedRow ? selectedRow.date : 'период';
 
-  const ds = comparisonDatasets[state.compareMode];
+  const activeComparison = (state.usingUserData && state.userDatasets && state.userDatasets.comparisonDatasets)
+    ? state.userDatasets.comparisonDatasets
+    : comparisonDatasets;
+  const ds = activeComparison[state.compareMode];
   const thead = dom.compareTableHead;
   const tbody = dom.compareTableBody;
   const tfoot = dom.compareTableFoot;
@@ -1322,7 +2121,10 @@ function clearSelectedSlots() {
 
 function selectTop5Slots() {
   const allCells = [];
-  baseHeatmapMatrix.forEach((row, rIdx) => {
+  const activeMatrix = (state.usingUserData && state.userDatasets && state.userDatasets.heatmapMatrix)
+    ? state.userDatasets.heatmapMatrix
+    : baseHeatmapMatrix;
+  activeMatrix.forEach((row, rIdx) => {
     row.values.forEach((val, cIdx) => {
       allCells.push({ key: `${rIdx}-${cIdx}`, val });
     });
@@ -1597,6 +2399,10 @@ window.addEventListener('keydown', (e) => {
 // -----------------------------------------------------------------------------
 
 Object.assign(window, {
+  toggleLayoutMode,
+  triggerUserDataFileInput,
+  handleUserDataFileUpload,
+  resetToDemoData,
   toggleWireframeTheme,
   toggleColorTheme,
   showToast,
