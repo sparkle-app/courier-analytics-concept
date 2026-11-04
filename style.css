@@ -306,12 +306,18 @@ body.desktop-mode #screenSettings {
 
 body.desktop-mode .desktop-grid-split {
   display: grid !important;
-  grid-template-columns: 1.12fr 0.88fr !important;
+  grid-template-columns: minmax(0, 1.35fr) minmax(380px, 1fr) !important;
   grid-template-areas:
     "block1 block2"
     "block3 block2" !important;
   gap: 1.25rem !important;
   align-items: start !important;
+}
+
+.area-block1,
+.area-block2,
+.area-block3 {
+  min-width: 0 !important;
 }
 
 .area-block1 {
@@ -330,16 +336,30 @@ body.desktop-mode .desktop-grid-split {
 /* СКРОЛЛ ДИАГРАММЫ И ТАБЛИЦЫ ДОХОДОВ                                       */
 /* ------------------------------------------------------------------------- */
 .chart-scroll-track {
-  overflow-x: auto;
-  overflow-y: hidden;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: flex-end !important;
+  height: 100% !important;
+  min-width: 100% !important;
+  box-sizing: border-box !important;
+  gap: 0.5rem !important;
+  padding-left: 0.5rem !important;
+  padding-right: 0.5rem !important;
   -webkit-overflow-scrolling: touch;
-  scroll-behavior: smooth;
 }
 
 .chart-bar-item {
-  min-width: 48px;
-  max-width: 64px;
-  flex: 0 0 auto;
+  flex: 0 0 52px !important;
+  width: 52px !important;
+  min-width: 52px !important;
+  max-width: 52px !important;
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-end !important;
+  align-items: center !important;
+  position: relative !important;
+  box-sizing: border-box !important;
 }
 
 .table-scroll-container {

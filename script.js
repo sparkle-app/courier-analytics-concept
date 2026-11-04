@@ -34,6 +34,8 @@ const dom = {
   legendGoalsItem:          $('legendGoalsItem'),
   legendGrossBg:            $('legendGrossBg'),
   btnWeather:               $('btnWeather'),
+  heatUnitSwitchContainer:  $('heatUnitSwitchContainer'),
+  btnDistrictSeasonContainer: $('btnDistrictSeasonContainer'),
   lblUnitPct:               $('lblUnitPct'),
   lblUnitRub:               $('lblUnitRub'),
   block2Title:              $('block2Title'),
@@ -654,7 +656,8 @@ function calculateSlotStats(orders) {
     const sExp = exps.length > 0 ? (exps.every(e => Math.abs(e - exps[0]) < 0.01) ? exps[0] : exps.reduce((a, b) => a + b, 0)) : 0;
 
     oList.forEach(o => {
-      sGross += o.baseCost + o.surgeRub + o.ratingRub + o.bonus + o.goal;
+      const goalVal = state.includeGoals ? (o.goal || 0) : 0;
+      sGross += o.baseCost + (o.wait || 0) + o.surgeRub + o.ratingRub + o.bonus + goalVal;
     });
 
     const isPlan = slot.slotType.toLowerCase().includes('план');
@@ -800,7 +803,7 @@ function buildComparisonDatasets(orders, days) {
     ],
     rowsTotal: [
       { label: 'Заказов в час',            vals: [slotStats.planOrdHr, slotStats.freeOrdHr] },
-      { label: 'Прибыль в час',            vals: [`${slotStats.planProfitPerHr} ₽/ч`, `${slotStats.freeProfitPerHr} ₽/ч`] }
+      { label: 'Прибыль в час',            vals: ['PLAN_SLOT_DYN', 'FREE_SLOT_DYN'] }
     ]
   };
 
@@ -819,7 +822,7 @@ function buildComparisonDatasets(orders, days) {
     ],
     rowsTotal: [
       { label: 'Заказов в час',            vals: [slotStats.totalOrdHr, 'DYNAMIC_ORD_HR'] },
-      { label: 'Прибыль в час',            vals: [`${slotStats.totalProfitPerHr} ₽/ч`, 'DYNAMIC'] }
+      { label: 'Прибыль в час',            vals: ['ALLTIME', 'DYNAMIC'] }
     ]
   };
 
@@ -887,7 +890,7 @@ function buildDatasetsFromOrders(orders) {
     totalSlotHours = Math.round(totalSlotHours * 10) / 10;
     if (totalSlotHours <= 0) totalSlotHours = 1;
 
-    const ordersCost = Math.round(dayOrders.reduce((a, o) => a + o.baseCost, 0));
+    const ordersCost = Math.round(dayOrders.reduce((a, o) => a + o.baseCost + (o.wait || 0), 0));
     const surgeRub = Math.round(dayOrders.reduce((a, o) => a + o.surgeRub, 0));
     const surgePct = ordersCost > 0 ? Math.round((surgeRub / ordersCost) * 100) : 0;
     const ratingRub = Math.round(dayOrders.reduce((a, o) => a + o.ratingRub, 0));
@@ -1117,6 +1120,7 @@ function buildDatasetsFromOrders(orders) {
   const comparisonDatasets = buildComparisonDatasets(orders, days);
 
   return {
+    orders,
     days,
     weeks,
     months,
@@ -1539,7 +1543,7 @@ function renderBarChart(data) {
     ${benchmarkLinesHtml}
 
     <div id="barScrollContainer" class="w-full h-full overflow-x-auto overflow-y-hidden border-b border-l relative z-10 border-strong custom-scroll">
-      <div class="chart-scroll-track" style="min-width: ${Math.max(100, data.length * 48)}px;">
+      <div class="chart-scroll-track ${data.length <= 7 ? 'justify-around' : 'justify-start'}" style="min-width: ${Math.max(100, data.length * 56)}px;">
   `;
 
   data.forEach((d, idx) => {
@@ -1556,12 +1560,12 @@ function renderBarChart(data) {
     const isSelected = idx === state.selectedBarIndex;
 
     html += `
-      <div id="barCol-${idx}" onclick="selectBar(${idx})" class="chart-bar-item flex flex-col justify-end items-center cursor-pointer group relative shrink-0">
+      <div id="barCol-${idx}" onclick="selectBar(${idx})" class="chart-bar-item cursor-pointer group">
         <div id="barValue-${idx}" class="text-[9px] font-bold mb-0.5 whitespace-nowrap ${isSelected ? 'opacity-100' : 'opacity-70'}">
           ${formatCompact(displayMetric)}
         </div>
 
-        <div class="w-full max-w-[32px] h-full flex items-end justify-center relative">
+        <div class="w-full max-w-[34px] h-full flex items-end justify-center relative">
           ${state.isNet ? `
             <div style="height: ${grossHeightPct}%"
                  class="w-full bg-gray-500/35 border border-dashed border-gray-400/70 rounded-t-lg absolute bottom-0 left-0 right-0">
@@ -1579,7 +1583,7 @@ function renderBarChart(data) {
           </div>
         </div>
 
-        <div id="barDate-${idx}" class="absolute -bottom-5 text-[10px] font-semibold whitespace-nowrap ${isSelected ? 'underline font-extrabold text-[#FCE000]' : 'opacity-65'}">
+        <div id="barDate-${idx}" class="absolute -bottom-5 text-[10px] font-semibold whitespace-nowrap text-center ${isSelected ? 'underline font-extrabold text-[#FCE000]' : 'opacity-65'}">
           ${d.date}
         </div>
       </div>
@@ -1732,17 +1736,19 @@ function formatTableFootValue(data, key) {
 // Блок 2: Матрица спроса и планирование слотов
 function renderBlock2() {
   const btnWeather = dom.btnWeather;
-  btnWeather.style.backgroundColor = state.weatherBoost ? 'var(--ya-yellow)' : 'var(--bg-card)';
-  btnWeather.style.color = state.weatherBoost ? 'var(--ya-yellow-text)' : 'var(--text-main)';
-
-  dom.lblUnitPct.classList.toggle('ya-switch-opt-active', !state.heatUnitRub);
-  dom.lblUnitRub.classList.toggle('ya-switch-opt-active', state.heatUnitRub);
-
-  dom.block2Title.textContent = state.heatUnitRub
-    ? 'Средний общий доход в час (с учетом спроса)'
-    : 'Средняя доплата за спрос по часам';
+  const heatUnitSwitch = dom.heatUnitSwitchContainer;
+  const districtSeasonBtn = dom.btnDistrictSeasonContainer;
 
   if (state.usingUserData) {
+    if (btnWeather) btnWeather.classList.add('hidden');
+    if (heatUnitSwitch) {
+      heatUnitSwitch.classList.remove('col-span-3');
+      heatUnitSwitch.classList.add('col-span-4');
+    }
+    if (districtSeasonBtn) {
+      districtSeasonBtn.classList.remove('col-span-6');
+      districtSeasonBtn.classList.add('col-span-8');
+    }
     const availableSeasons = state.userDatasets?.availableSeasons || ['autumn'];
     const seasonLabels = availableSeasons.map(s => seasonMultipliers[s]?.label || s).join(', ');
     dom.currentDistrictSeasonSub.textContent = `Локация пользователя • ${seasonLabels}`;
@@ -1750,6 +1756,19 @@ function renderBlock2() {
       dom.planningActionContainer.style.display = 'none';
     }
   } else {
+    if (btnWeather) {
+      btnWeather.classList.remove('hidden');
+      btnWeather.style.backgroundColor = state.weatherBoost ? 'var(--ya-yellow)' : 'var(--bg-card)';
+      btnWeather.style.color = state.weatherBoost ? 'var(--ya-yellow-text)' : 'var(--text-main)';
+    }
+    if (heatUnitSwitch) {
+      heatUnitSwitch.classList.remove('col-span-4');
+      heatUnitSwitch.classList.add('col-span-3');
+    }
+    if (districtSeasonBtn) {
+      districtSeasonBtn.classList.remove('col-span-8');
+      districtSeasonBtn.classList.add('col-span-6');
+    }
     const distObj = districtsData.find(d => d.id === state.districtId) || districtsData[0];
     const seasonObj = seasonMultipliers[state.season] || seasonMultipliers.autumn;
     dom.currentDistrictSeasonSub.textContent = `${distObj.shortName} • ${seasonObj.label}`;
@@ -1758,11 +1777,31 @@ function renderBlock2() {
     }
   }
 
+  dom.lblUnitPct.classList.toggle('ya-switch-opt-active', !state.heatUnitRub);
+  dom.lblUnitRub.classList.toggle('ya-switch-opt-active', state.heatUnitRub);
+
+  dom.block2Title.textContent = state.heatUnitRub
+    ? 'Средний общий доход в час (с учетом спроса)'
+    : 'Средняя доплата за спрос по часам';
+
   const tbody = dom.heatmapTableBody;
   let html = '';
   const activeMatrix = (state.usingUserData && state.userDatasets && state.userDatasets.heatmapMatrix)
     ? state.userDatasets.heatmapMatrix
     : baseHeatmapMatrix;
+
+  // Динамический сбор всех доступных значений матрицы для относительного цветового градиента
+  const validCells = [];
+  activeMatrix.forEach(row => {
+    row.values.forEach(baseVal => {
+      const comp = getCellComputedValue(baseVal);
+      if (comp) validCells.push(comp);
+    });
+  });
+
+  const activeVals = validCells.map(c => state.heatUnitRub ? c.rubHr : c.pct);
+  const minVal = activeVals.length > 0 ? Math.min(...activeVals) : 0;
+  const maxVal = activeVals.length > 0 ? Math.max(...activeVals) : 1;
 
   activeMatrix.forEach((row, rIdx) => {
     html += `<tr><td class="text-left font-medium py-1.5 pl-0.5 pr-1 whitespace-nowrap text-[9.5px] opacity-80">${row.hours}</td>`;
@@ -1773,7 +1812,7 @@ function renderBlock2() {
       if (!comp) {
         html += `
           <td>
-            <div class="heat-cell rounded-lg py-1.5 px-0 text-[10px] font-medium bg-gray-500/10 text-mut opacity-50 cursor-default">
+            <div class="heat-cell rounded-lg py-1.5 px-0 text-[10px] font-medium bg-gray-500/10 text-mut opacity-40 cursor-default select-none">
               —
             </div>
           </td>
@@ -1781,7 +1820,7 @@ function renderBlock2() {
       } else {
         const isSelected = state.selectedSlotCells.includes(cellKey);
         const displayStr = state.heatUnitRub ? `${comp.rubHr} ₽` : `+${comp.pct}%`;
-        const colorCls = getHeatCellColor(comp.pct);
+        const colorCls = getHeatCellColor(comp, minVal, maxVal);
 
         html += `
           <td>
@@ -1816,11 +1855,17 @@ function updateHeatmapSummary() {
     : `Выберите слоты в таблице для расчета прибыли`;
 }
 
-function getHeatCellColor(pct) {
-  if (pct >= 60) return 'bg-[#FCE000] text-[#141518]';
-  if (pct >= 45) return 'bg-amber-400/85 text-[#141518]';
-  if (pct >= 32) return 'bg-amber-500/30';
-  return 'bg-gray-500/15 opacity-80';
+function getHeatCellColor(comp, minVal, maxVal) {
+  if (!comp) return 'bg-transparent text-mut/40';
+  const val = state.heatUnitRub ? comp.rubHr : comp.pct;
+  if (maxVal <= minVal) {
+    return val > 0 ? 'bg-[#FCE000] text-[#141518]' : 'bg-gray-500/20 text-sec';
+  }
+  const ratio = (val - minVal) / (maxVal - minVal);
+  if (ratio >= 0.70) return 'bg-[#FCE000] text-[#141518] font-black shadow-sm';
+  if (ratio >= 0.45) return 'bg-amber-400 text-[#141518] font-bold';
+  if (ratio >= 0.20) return 'bg-amber-500/35 text-main font-semibold';
+  return 'bg-gray-500/20 text-sec font-medium';
 }
 
 function renderDistrictSeasonScreen() {
@@ -1914,12 +1959,12 @@ function renderBlock3(precomputedAllTimeProfitHr) {
   const tbody = dom.compareTableBody;
   const tfoot = dom.compareTableFoot;
 
-  let headHtml = `<tr><th scope="col" class="py-1.5 px-1.5 font-bold text-[9.5px] leading-snug whitespace-normal sticky left-0 z-10 border-r min-w-[94px] max-w-[104px] bg-elevated border-strong">Показатель</th>`;
+  let headHtml = `<tr><th scope="col" class="py-2 px-3 font-bold text-[10px] leading-snug whitespace-normal sticky left-0 z-10 border-r min-w-[120px] max-w-[140px] bg-elevated border-strong">Показатель</th>`;
   ds.columns.forEach(colItem => {
     if (typeof colItem === 'object') {
       if (colItem.forecast) {
         headHtml += `
-          <th scope="col" class="py-1.5 px-1 font-bold text-[9px] leading-snug text-center whitespace-normal align-middle min-w-[76px] max-w-[88px]">
+          <th scope="col" class="py-2 px-3 font-bold text-[10px] leading-snug text-center whitespace-normal align-middle min-w-[90px] max-w-[130px]">
             <div class="inline-flex items-center justify-center gap-1 flex-wrap">
               <span>${escapeHtml(colItem.title)}</span>
               <button type="button" onclick="openForecastInfoModal()" title="Как рассчитывается прогноз" class="w-4 h-4 rounded-full bg-[#FCE000] text-[#141518] font-extrabold text-[9px] inline-flex items-center justify-center shadow hover:opacity-90 active:scale-95 transition">?</button>
@@ -1927,7 +1972,7 @@ function renderBlock3(precomputedAllTimeProfitHr) {
           </th>
         `;
       } else {
-        headHtml += `<th scope="col" class="py-1.5 px-1 font-bold text-[9.5px] leading-snug text-center whitespace-normal align-middle min-w-[62px] max-w-[76px]">${escapeHtml(colItem.title)}</th>`;
+        headHtml += `<th scope="col" class="py-2 px-3 font-bold text-[10px] leading-snug text-center whitespace-normal align-middle min-w-[90px] max-w-[130px]">${escapeHtml(colItem.title)}</th>`;
       }
     } else {
       let resolvedColName = colItem;
@@ -1936,7 +1981,7 @@ function renderBlock3(precomputedAllTimeProfitHr) {
       if (colItem === 'TOP_DIST_COL')       resolvedColName = `Топ-20% района (${periodTag})`;
       if (colItem === 'AVG_CITY_COL')       resolvedColName = `Ср. город (${periodTag})`;
       if (colItem === 'TOP_CITY_COL')       resolvedColName = `Топ-20% города (${periodTag})`;
-      headHtml += `<th scope="col" class="py-1.5 px-1 font-bold text-[9px] leading-snug text-center whitespace-normal align-middle min-w-[62px] max-w-[76px]">${escapeHtml(resolvedColName)}</th>`;
+      headHtml += `<th scope="col" class="py-2 px-3 font-bold text-[10px] leading-snug text-center whitespace-normal align-middle min-w-[90px] max-w-[130px]">${escapeHtml(resolvedColName)}</th>`;
     }
   });
   headHtml += `</tr>`;
@@ -1945,9 +1990,9 @@ function renderBlock3(precomputedAllTimeProfitHr) {
   let bodyHtml = '';
   ds.rowsPerOrder.forEach(row => {
     bodyHtml += `<tr class="hover:opacity-90">
-      <td class="py-1.5 px-1.5 font-medium text-[9.5px] leading-snug whitespace-normal sticky left-0 z-10 border-r min-w-[94px] max-w-[104px] bg-card border-strong text-sec">${escapeHtml(row.label)}</td>`;
+      <td class="py-2 px-3 font-medium text-[10px] leading-snug whitespace-normal sticky left-0 z-10 border-r min-w-[120px] max-w-[140px] bg-card border-strong text-sec">${escapeHtml(row.label)}</td>`;
     row.vals.forEach(v => {
-      bodyHtml += `<td class="py-1.5 px-1 text-[10px] text-center whitespace-nowrap">${escapeHtml(v)}</td>`;
+      bodyHtml += `<td class="py-2 px-3 text-[10px] text-center whitespace-nowrap">${escapeHtml(v)}</td>`;
     });
     bodyHtml += `</tr>`;
   });
@@ -1956,13 +2001,19 @@ function renderBlock3(precomputedAllTimeProfitHr) {
   let footHtml = '';
   ds.rowsTotal.forEach(row => {
     footHtml += `<tr>
-      <td class="py-1.5 px-1.5 font-extrabold text-[9.5px] leading-snug whitespace-normal sticky left-0 z-10 border-r min-w-[94px] max-w-[104px] bg-elevated border-strong">${escapeHtml(row.label)}</td>`;
+      <td class="py-2 px-3 font-extrabold text-[10px] leading-snug whitespace-normal sticky left-0 z-10 border-r min-w-[120px] max-w-[140px] bg-elevated border-strong">${escapeHtml(row.label)}</td>`;
     row.vals.forEach(v => {
       let cellVal = v.trim();
       if (cellVal === 'DYNAMIC') cellVal = `${formatNum(userPeriodProfitHr)} ₽/ч`;
       else if (cellVal === 'DYNAMIC_ORD_HR') cellVal = `${userPeriodOrdersHr}`;
       else if (cellVal === 'ALLTIME') cellVal = `${formatNum(allTimeProfitHr)} ₽/ч`;
-      else if (cellVal === 'CAR_FORECAST_DYN') {
+      else if (cellVal === 'PLAN_SLOT_DYN') {
+        const stats = calculateSlotStats(state.userDatasets ? state.userDatasets.orders : []);
+        cellVal = `${formatNum(stats.planProfitPerHr)} ₽/ч`;
+      } else if (cellVal === 'FREE_SLOT_DYN') {
+        const stats = calculateSlotStats(state.userDatasets ? state.userDatasets.orders : []);
+        cellVal = `${formatNum(stats.freeProfitPerHr)} ₽/ч`;
+      } else if (cellVal === 'CAR_FORECAST_DYN') {
         const val = getTransportProfitPerHourForComparison('car', userHoursInSelectedPeriod, currentData);
         cellVal = `<span class="${val < 0 ? 'text-rose-400' : ''}">${formatNum(val)} ₽/ч</span>`;
       } else if (cellVal.endsWith('_DYN')) {
@@ -1970,7 +2021,7 @@ function renderBlock3(precomputedAllTimeProfitHr) {
         const val = getTransportProfitPerHourForComparison(tKey, userHoursInSelectedPeriod, currentData);
         cellVal = `${formatNum(val)} ₽/ч`;
       }
-      footHtml += `<td class="py-1.5 px-1 text-[10px] text-center font-extrabold whitespace-nowrap">${cellVal}</td>`;
+      footHtml += `<td class="py-2 px-3 text-[10px] text-center font-extrabold whitespace-nowrap">${cellVal}</td>`;
     });
     footHtml += `</tr>`;
   });

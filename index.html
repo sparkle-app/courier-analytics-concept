@@ -25,7 +25,7 @@
 
     <div class="flex flex-wrap items-center justify-between gap-2">
       <div class="flex items-center gap-2">
-        <span class="px-2 py-0.5 rounded-md bg-[#FCE000] text-[#141518] font-extrabold">v13.9.0</span>
+        <span class="px-2 py-0.5 rounded-md bg-[#FCE000] text-[#141518] font-extrabold">v13.9.1</span>
         <span class="font-semibold">UX-концепт аналитики курьера</span>
       </div>
       <div class="flex flex-wrap items-center gap-1.5">
@@ -161,16 +161,16 @@
           <!-- ЗОНА 2: ПАНЕЛЬ СПРОСА + БЛОК 2 (МАТРИЦА СПРОСА И ПЛАНИРОВАНИЕ) -->
           <div class="area-block2 space-y-2">
             <!-- 6. ПАНЕЛЬ УПРАВЛЕНИЯ СПРОСОМ -->
-            <div class="grid grid-cols-12 gap-1.5">
+            <div id="demandControlsRow" class="grid grid-cols-12 gap-1.5">
               <button type="button" onclick="toggleWeather()" id="btnWeather" class="col-span-3 ya-card py-2 px-1.5 flex flex-col items-center justify-center gap-0.5 text-[11px] font-semibold transition active:scale-95">
                 <span class="text-sm leading-none">🌧️</span>
                 <span class="leading-tight">Осадки</span>
               </button>
-              <div role="button" tabindex="0" onclick="toggleHeatUnit()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleHeatUnit();}" class="col-span-3 ya-switch-card">
+              <div id="heatUnitSwitchContainer" role="button" tabindex="0" onclick="toggleHeatUnit()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleHeatUnit();}" class="col-span-3 ya-switch-card">
                 <span id="lblUnitPct" class="ya-switch-opt ya-switch-opt-active">% спроса</span>
                 <span id="lblUnitRub" class="ya-switch-opt">₽ в час</span>
               </div>
-              <button type="button" onclick="openDistrictSeasonModal()" class="col-span-6 ya-card py-2 px-3 text-left flex items-center justify-between hover:opacity-95 active:scale-95 transition">
+              <button id="btnDistrictSeasonContainer" type="button" onclick="openDistrictSeasonModal()" class="col-span-6 ya-card py-2 px-3 text-left flex items-center justify-between hover:opacity-95 active:scale-95 transition">
                 <div class="min-w-0">
                   <div class="text-[10px] font-medium text-sec">Район и сезон</div>
                   <div id="currentDistrictSeasonSub" class="text-xs font-bold truncate mt-0.5">Центр-Юг • Авто</div>
@@ -190,8 +190,8 @@
               <div class="flex items-center justify-between gap-2 bg-black/15 py-1.5 px-2.5 rounded-xl">
                 <span id="selectedSlotsCounter" class="text-[10px] font-bold truncate">Выбрано: 5 сл. (20ч) • Ср. +57%</span>
               </div>
-              <div class="w-full">
-                <table class="w-full table-fixed text-center border-separate border-spacing-1 text-[10px]">
+              <div class="w-full overflow-x-auto custom-scroll">
+                <table class="w-full min-w-[340px] table-fixed text-center border-separate border-spacing-1 text-[10px]">
                   <thead>
                     <tr class="font-semibold text-[10px] text-sec">
                       <th scope="col" class="w-[66px] text-left pl-0.5 py-1">Часы</th>
@@ -235,10 +235,10 @@
             <section class="ya-card p-3.5 space-y-2.5">
               <h2 class="text-xs font-bold tracking-tight">Сравнение средних показателей</h2>
               <div class="overflow-x-auto custom-scroll rounded-xl border border-strong">
-                <table class="w-full text-left border-collapse text-[11px]">
+                <table class="table-auto border-collapse text-[11px] text-left">
                   <thead id="compareTableHead" class="border-b bg-elevated text-sec"></thead>
                   <tbody id="compareTableBody" class="divide-y divide-[var(--border-subtle)]"></tbody>
-                  <tfoot id="compareTableFoot" class="border-t-2 font-bold divide-y bg-elevated"></tfoot>
+                  <tfoot id="compareTableFoot" class="border-t font-bold bg-elevated"></tfoot>
                 </table>
               </div>
             </section>
