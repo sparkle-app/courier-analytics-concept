@@ -236,6 +236,9 @@ body.wireframe-mode input[type="range"] {
   transition: transform 0.12s ease, box-shadow 0.12s ease;
   cursor: pointer;
   user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  will-change: transform;
 }
 .heat-cell:hover {
   transform: scale(1.04);
@@ -248,12 +251,32 @@ body.wireframe-mode input[type="range"] {
 }
 
 /* Dragging state for column reorder */
+.col-reorder-item {
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+}
 .col-drag-active {
   outline: 2px solid var(--ya-yellow);
   background-color: var(--bg-card) !important;
   transform: scale(1.01);
   z-index: 20;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+  touch-action: none;
+}
+
+/* Accessibility focus styles */
+:focus-visible {
+  outline: 2px solid var(--ya-yellow);
+  outline-offset: 2px;
+}
+button:focus-visible, input:focus-visible {
+  outline: 2px solid var(--ya-yellow);
+  outline-offset: 1px;
+}
+
+.ya-switch-card, .ya-nav-btn, .btn-primary {
+  will-change: transform;
 }
 
 /* Leaflet Map Tooltips */

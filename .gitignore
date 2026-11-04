@@ -1,0 +1,12 @@
+# Personal & Assistant configs
+.antigravityrules
+GEMINI.md
+.agents/
+AGENTS.md
+
+# OS & Editor files
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/

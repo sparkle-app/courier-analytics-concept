@@ -1,11 +1,106 @@
 // =============================================================================
 // КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.6) — ЛОГИКА И СОСТОЯНИЕ (script.js)
+// Оптимизированная и модульная версия с гранулярным рендерингом и кэшированием
 // =============================================================================
 
-// Хелпер быстрого доступа к DOM
+'use strict';
+
+// -----------------------------------------------------------------------------
+// 1. ХЕЛПЕРЫ И ДОСТУП К DOM
+// -----------------------------------------------------------------------------
+
 const $ = id => document.getElementById(id);
 
-// Базовые неизменяемые расходы по умолчанию для типов транспорта
+/**
+ * Кэш часто используемых статических элементов DOM для минимизации layout thrashing
+ */
+const dom = {
+  allTimeHourlyProfit:      $('allTimeHourlyProfit'),
+  goalsStatusLabel:         $('goalsStatusLabel'),
+  lblGross:                 $('lblGross'),
+  lblNet:                   $('lblNet'),
+  lblSum:                   $('lblSum'),
+  lblHourly:                $('lblHourly'),
+  lblChart:                 $('lblChart'),
+  lblTable:                 $('lblTable'),
+  block1Title:              $('block1Title'),
+  chartViewContainer:       $('chartViewContainer'),
+  tableViewContainer:       $('tableViewContainer'),
+  barChartCanvas:           $('barChartCanvas'),
+  selectedBarDetails:       $('selectedBarDetails'),
+  detailedTableHead:        $('detailedTableHead'),
+  detailedTableBody:        $('detailedTableBody'),
+  detailedTableFoot:        $('detailedTableFoot'),
+  legendGoalsItem:          $('legendGoalsItem'),
+  legendGrossBg:            $('legendGrossBg'),
+  btnWeather:               $('btnWeather'),
+  lblUnitPct:               $('lblUnitPct'),
+  lblUnitRub:               $('lblUnitRub'),
+  block2Title:              $('block2Title'),
+  currentDistrictSeasonSub: $('currentDistrictSeasonSub'),
+  heatmapTableBody:         $('heatmapTableBody'),
+  selectedSlotsCounter:     $('selectedSlotsCounter'),
+  btnClearSlots:            $('btnClearSlots'),
+  plannedProfitEstimate:    $('plannedProfitEstimate'),
+  districtListUnitHint:     $('districtListUnitHint'),
+  districtListContainer:    $('districtListContainer'),
+  compareTableHead:         $('compareTableHead'),
+  compareTableBody:         $('compareTableBody'),
+  compareTableFoot:         $('compareTableFoot'),
+  chkIncludeGoals:          $('chkIncludeGoals'),
+  totalWeeklyExpenseBadge:  $('totalWeeklyExpenseBadge'),
+  expenseSlidersContainer:  $('expenseSlidersContainer'),
+  addExpenseForm:           $('addExpenseForm'),
+  newExpenseNameInput:      $('newExpenseNameInput'),
+  reorderableColumnsList:   $('reorderableColumnsList'),
+  realMapModal:             $('realMapModal'),
+  mapSelectedDistrictName:  $('mapSelectedDistrictName'),
+  planSlotsModal:           $('planSlotsModal'),
+  planModalTransport:       $('planModalTransport'),
+  planModalDistrict:        $('planModalDistrict'),
+  planModalTotal:           $('planModalTotal'),
+  planModalAvg:             $('planModalAvg'),
+  planModalSlotsList:       $('planModalSlotsList'),
+  forecastInfoModal:        $('forecastInfoModal'),
+  toastBox:                 $('toastBox'),
+  toastText:                $('toastText'),
+  btnWireTheme:             $('btnWireTheme'),
+  btnColorTheme:            $('btnColorTheme'),
+  screenMain:               $('screenMain'),
+  screenMiddleSpec:         $('screenMiddleSpec'),
+  screenSettings:           $('screenSettings')
+};
+
+/**
+ * Защита от XSS при вставке пользовательских строк (напр. названий расходов)
+ */
+function escapeHtml(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+/**
+ * Форматирование чисел с разделением тысяч пробелом (15 240)
+ */
+function formatNum(n) {
+  return Math.round(Number(n || 0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+}
+
+/**
+ * Компактный формат для диаграмм (14.2к / 500)
+ */
+function formatCompact(n) {
+  return n >= 10000 ? (n / 1000).toFixed(1) + 'к' : formatNum(n);
+}
+
+// -----------------------------------------------------------------------------
+// 2. ДАННЫЕ И КОНФИГУРАЦИЯ
+// -----------------------------------------------------------------------------
+
 const defaultTransportExpenses = {
   walk: [
     { id: 'rent', name: 'Аренда', value: 400, max: 25000 },
@@ -25,58 +120,9 @@ const defaultTransportExpenses = {
   ]
 };
 
-const cloneExpenses = () => JSON.parse(JSON.stringify(defaultTransportExpenses));
-
-// Единое реактивное состояние приложения
-const state = {
-  wireframeMode: false,
-  lightMode: false,
-  currentScreen: 'main',
-
-  isNet: true,
-  isHourly: false,
-  viewMode: 'chart',
-  period: 'days',
-  selectedBarIndex: 4,
-
-  accountTransport: 'ebike',
-  includeGoals: true,
-  selectedPreset: 'ebike',
-  expensesByTransport: cloneExpenses(),
-  get expenses() {
-    return this.expensesByTransport[this.selectedPreset] || [];
-  },
-
-  tableColumns: [
-    { key: 'date',        label: 'Дата',                 enabled: true },
-    { key: 'netProfit',   label: 'Прибыль (на руки)',    enabled: true },
-    { key: 'profitPerHr', label: 'Прибыль в час',        enabled: true },
-    { key: 'ordersPerHr', label: 'Заказов в час',        enabled: true },
-    { key: 'slotHours',   label: 'Длит. слота (ч)',      enabled: true },
-    { key: 'ordersCount', label: 'Кол-во заказов',       enabled: true },
-    { key: 'grossTotal',  label: 'Начислено (до расх.)', enabled: true },
-    { key: 'ordersCost',  label: 'Стоимость заказов',    enabled: true },
-    { key: 'surgeRub',    label: 'Доплата (спрос)',      enabled: true },
-    { key: 'ratingRub',   label: 'Доплата (рейтинг)',    enabled: true },
-    { key: 'bonuses',     label: 'Бонусы',               enabled: true },
-    { key: 'goals',       label: 'Цели',                 enabled: true },
-    { key: 'tips',        label: 'Чаевые',               enabled: true },
-    { key: 'tax',         label: 'Налог',                enabled: true },
-    { key: 'adjustments', label: 'Корректировки',        enabled: true },
-    { key: 'expenses',    label: 'Расходы',              enabled: true },
-    { key: 'dayOfWeek',   label: 'День недели',          enabled: false },
-    { key: 'transport',   label: 'Транспорт',            enabled: false },
-    { key: 'surgePct',    label: 'Доплата (спрос; %)',   enabled: false },
-    { key: 'ratingPct',   label: 'Доплата (рейтинг; %)', enabled: false }
-  ],
-
-  weatherBoost: false,
-  heatUnitRub: false,
-  season: 'auto',
-  districtId: 'center_south',
-  selectedSlotCells: ['4-4', '4-5', '4-6', '2-4', '2-5'],
-  compareMode: 'transport'
-};
+const cloneExpenses = () => (typeof structuredClone === 'function'
+  ? structuredClone(defaultTransportExpenses)
+  : JSON.parse(JSON.stringify(defaultTransportExpenses)));
 
 const transportMeta = {
   walk:  { label: 'Пеший',       icon: '🚶', baseHourlyRub: 310, cityAvgGrossHr: 540 },
@@ -176,14 +222,15 @@ const baseHeatmapMatrix = [
   { hours: '18:00–22:00', values: [46, 48, 51, 55, 66, 70, 63] },
   { hours: '22:00–02:00', values: [33, 34, 37, 41, 54, 58, 45] }
 ];
+
 const shortDayNames = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
 const comparisonDatasets = {
   transport: {
     columns: [
-      { key: 'walk',  title: 'Пеший',       forecast: false },
-      { key: 'bike',  title: 'Вело',        forecast: false },
-      { key: 'ebike', title: 'Электровело', forecast: false },
+      { key: 'walk',  title: 'Пеший',          forecast: false },
+      { key: 'bike',  title: 'Вело',           forecast: false },
+      { key: 'ebike', title: 'Электровело',    forecast: false },
       { key: 'car',   title: 'Авто (прогноз)', forecast: true }
     ],
     rowsPerOrder: [
@@ -234,17 +281,75 @@ const comparisonDatasets = {
   }
 };
 
-// =============================================================================
-// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ И РАСЧЕТЫ
-// =============================================================================
+// -----------------------------------------------------------------------------
+// 3. РЕАКТИВНОЕ СОСТОЯНИЕ И КЭШ
+// -----------------------------------------------------------------------------
 
-function formatNum(n) {
-  return Math.round(Number(n || 0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-}
+const state = {
+  wireframeMode: false,
+  lightMode: false,
+  currentScreen: 'main',
 
-function formatCompact(n) {
-  return n >= 10000 ? (n / 1000).toFixed(1) + 'к' : formatNum(n);
-}
+  isNet: true,
+  isHourly: false,
+  viewMode: 'chart',
+  period: 'days',
+  selectedBarIndex: 4,
+
+  accountTransport: 'ebike',
+  includeGoals: true,
+  selectedPreset: 'ebike',
+  expensesByTransport: cloneExpenses(),
+  get expenses() {
+    return this.expensesByTransport[this.selectedPreset] || [];
+  },
+
+  tableColumns: [
+    { key: 'date',        label: 'Дата',                 enabled: true },
+    { key: 'netProfit',   label: 'Прибыль (на руки)',    enabled: true },
+    { key: 'profitPerHr', label: 'Прибыль в час',        enabled: true },
+    { key: 'ordersPerHr', label: 'Заказов в час',        enabled: true },
+    { key: 'slotHours',   label: 'Длит. слота (ч)',      enabled: true },
+    { key: 'ordersCount', label: 'Кол-во заказов',       enabled: true },
+    { key: 'grossTotal',  label: 'Начислено (до расх.)', enabled: true },
+    { key: 'ordersCost',  label: 'Стоимость заказов',    enabled: true },
+    { key: 'surgeRub',    label: 'Доплата (спрос)',      enabled: true },
+    { key: 'ratingRub',   label: 'Доплата (рейтинг)',    enabled: true },
+    { key: 'bonuses',     label: 'Бонусы',               enabled: true },
+    { key: 'goals',       label: 'Цели',                 enabled: true },
+    { key: 'tips',        label: 'Чаевые',               enabled: true },
+    { key: 'tax',         label: 'Налог',                enabled: true },
+    { key: 'adjustments', label: 'Корректировки',        enabled: true },
+    { key: 'expenses',    label: 'Расходы',              enabled: true },
+    { key: 'dayOfWeek',   label: 'День недели',          enabled: false },
+    { key: 'transport',   label: 'Транспорт',            enabled: false },
+    { key: 'surgePct',    label: 'Доплата (спрос; %)',   enabled: false },
+    { key: 'ratingPct',   label: 'Доплата (рейтинг; %)', enabled: false }
+  ],
+
+  weatherBoost: false,
+  heatUnitRub: false,
+  season: 'auto',
+  districtId: 'center_south',
+  selectedSlotCells: ['4-4', '4-5', '4-6', '2-4', '2-5'],
+  compareMode: 'transport'
+};
+
+/**
+ * Кэш обогащенных датасетов для исключения избыточных вычислений
+ */
+const dataCache = {
+  enriched: new Map(),
+  allTimeProfit: null,
+  invalidate() {
+    this.enriched.clear();
+    this.allTimeProfit = null;
+  }
+};
+
+// -----------------------------------------------------------------------------
+// 4. МАТЕМАТИКА И ВЫЧИСЛЕНИЯ
+// -----------------------------------------------------------------------------
 
 function getPeriodExpenseFactor(periodKey) {
   if (periodKey === 'days') return 1 / 6;
@@ -295,15 +400,25 @@ function enrichRow(rawRow, periodKey) {
 }
 
 function getCurrentDataset() {
+  const cacheKey = `${state.period}_${state.includeGoals}`;
+  if (dataCache.enriched.has(cacheKey)) {
+    return dataCache.enriched.get(cacheKey);
+  }
   const list = rawDatasets[state.period] || rawDatasets.days;
-  return list.map(r => enrichRow(r, state.period));
+  const enriched = list.map(r => enrichRow(r, state.period));
+  dataCache.enriched.set(cacheKey, enriched);
+  return enriched;
 }
 
 function getAllTimeHourlyProfit() {
+  if (dataCache.allTimeProfit !== null) {
+    return dataCache.allTimeProfit;
+  }
   const allMonths = rawDatasets.months.map(r => enrichRow(r, 'months'));
   const totalNet = allMonths.reduce((a, r) => a + r.netProfit, 0);
   const totalHrs = allMonths.reduce((a, r) => a + r.slotHours, 0);
-  return totalHrs > 0 ? Math.round(totalNet / totalHrs) : 0;
+  dataCache.allTimeProfit = totalHrs > 0 ? Math.round(totalNet / totalHrs) : 0;
+  return dataCache.allTimeProfit;
 }
 
 function getCellComputedValue(basePct) {
@@ -375,30 +490,39 @@ function getTransportProfitPerHourForComparison(tKey, userHoursInPeriod, cachedD
   return Math.round(netForecast / hrs);
 }
 
-// =============================================================================
-// ОСНОВНОЙ РЕНДЕРИНГ
-// =============================================================================
+// -----------------------------------------------------------------------------
+// 5. РЕНДЕРИНГ КОМПОНЕНТОВ
+// -----------------------------------------------------------------------------
 
-function renderAll(skipSettingsSlidersRebuild = false) {
+/**
+ * Быстрое обновление шапки и глобальных переключателей без трогания тяжелых блоков
+ */
+function renderHeader() {
   const allTimeProfitHr = getAllTimeHourlyProfit();
-  $('allTimeHourlyProfit').textContent = `${formatNum(allTimeProfitHr)} ₽/ч`;
-  $('goalsStatusLabel').textContent = state.includeGoals ? '(с учетом целей)' : '(без учета целей)';
+  dom.allTimeHourlyProfit.textContent = `${formatNum(allTimeProfitHr)} ₽/ч`;
+  dom.goalsStatusLabel.textContent = state.includeGoals ? '(с учетом целей)' : '(без учета целей)';
 
-  $('lblGross').classList.toggle('ya-switch-opt-active', !state.isNet);
-  $('lblNet').classList.toggle('ya-switch-opt-active', state.isNet);
-  $('lblSum').classList.toggle('ya-switch-opt-active', !state.isHourly);
-  $('lblHourly').classList.toggle('ya-switch-opt-active', state.isHourly);
-  $('lblChart').classList.toggle('ya-switch-opt-active', state.viewMode === 'chart');
-  $('lblTable').classList.toggle('ya-switch-opt-active', state.viewMode === 'table');
+  dom.lblGross.classList.toggle('ya-switch-opt-active', !state.isNet);
+  dom.lblNet.classList.toggle('ya-switch-opt-active', state.isNet);
+  dom.lblSum.classList.toggle('ya-switch-opt-active', !state.isHourly);
+  dom.lblHourly.classList.toggle('ya-switch-opt-active', state.isHourly);
+  dom.lblChart.classList.toggle('ya-switch-opt-active', state.viewMode === 'chart');
+  dom.lblTable.classList.toggle('ya-switch-opt-active', state.viewMode === 'table');
 
   ['days', 'weeks', 'months'].forEach(p => {
     const btn = $(`btnPeriod-${p}`);
     if (btn) btn.classList.toggle('ya-seg-btn-active', state.period === p);
   });
+}
 
+/**
+ * Полный рендеринг всего интерфейса
+ */
+function renderAll(skipSettingsSlidersRebuild = false) {
+  renderHeader();
   renderBlock1();
   renderBlock2();
-  renderBlock3(allTimeProfitHr);
+  renderBlock3();
   renderSettingsScreen(skipSettingsSlidersRebuild);
 }
 
@@ -409,12 +533,12 @@ function renderBlock1() {
     state.selectedBarIndex = data.length - 1;
   }
 
-  $('block1Title').textContent = state.viewMode === 'chart' ? 'Динамика дохода' : 'Таблица доходов и расходов';
-  $('chartViewContainer').classList.toggle('hidden', state.viewMode !== 'chart');
-  $('tableViewContainer').classList.toggle('hidden', state.viewMode !== 'table');
+  dom.block1Title.textContent = state.viewMode === 'chart' ? 'Динамика дохода' : 'Таблица доходов и расходов';
+  dom.chartViewContainer.classList.toggle('hidden', state.viewMode !== 'chart');
+  dom.tableViewContainer.classList.toggle('hidden', state.viewMode !== 'table');
 
-  $('legendGoalsItem').classList.toggle('hidden', !state.includeGoals);
-  $('legendGrossBg').classList.toggle('hidden', !state.isNet);
+  dom.legendGoalsItem.classList.toggle('hidden', !state.includeGoals);
+  dom.legendGrossBg.classList.toggle('hidden', !state.isNet);
 
   if (state.viewMode === 'chart') {
     renderBarChart(data);
@@ -424,7 +548,7 @@ function renderBlock1() {
 }
 
 function renderBarChart(data) {
-  const canvas = $('barChartCanvas');
+  const canvas = dom.barChartCanvas;
   const maxGrossVal = Math.max(...data.map(d => state.isHourly ? d.grossPerHr : d.grossTotal)) * 1.15;
 
   const avgUserVal = Math.round(
@@ -483,8 +607,8 @@ function renderBarChart(data) {
     const isSelected = idx === state.selectedBarIndex;
 
     html += `
-      <div onclick="selectBar(${idx})" class="flex-1 h-full flex flex-col justify-end items-center cursor-pointer group relative">
-        <div class="text-[9px] font-bold mb-0.5 ${isSelected ? 'opacity-100' : 'opacity-70'}">
+      <div id="barCol-${idx}" onclick="selectBar(${idx})" class="flex-1 h-full flex flex-col justify-end items-center cursor-pointer group relative">
+        <div id="barValue-${idx}" class="text-[9px] font-bold mb-0.5 ${isSelected ? 'opacity-100' : 'opacity-70'}">
           ${formatCompact(displayMetric)}
         </div>
 
@@ -495,7 +619,7 @@ function renderBarChart(data) {
             </div>
           ` : ''}
 
-          <div style="height: ${netHeightPct}%"
+          <div id="barStack-${idx}" style="height: ${netHeightPct}%"
                class="w-4/5 relative z-10 rounded-t-lg overflow-hidden flex flex-col-reverse shadow ${isSelected ? 'ring-2 ring-[#FCE000]' : 'opacity-90 group-hover:opacity-100'}">
             <div style="height: ${p('ordersCost')}%" class="w-full bg-blue-500"></div>
             <div style="height: ${p('surgeRub')}%"   class="w-full bg-[#FCE000]"></div>
@@ -506,7 +630,7 @@ function renderBarChart(data) {
           </div>
         </div>
 
-        <div class="absolute -bottom-5 text-[10px] font-semibold ${isSelected ? 'underline font-extrabold' : 'opacity-65'}">
+        <div id="barDate-${idx}" class="absolute -bottom-5 text-[10px] font-semibold ${isSelected ? 'underline font-extrabold' : 'opacity-65'}">
           ${d.date}
         </div>
       </div>
@@ -516,7 +640,11 @@ function renderBarChart(data) {
   html += `</div>`;
   canvas.innerHTML = html;
 
-  const sel = data[state.selectedBarIndex];
+  renderSelectedBarDetails(data[state.selectedBarIndex]);
+}
+
+function renderSelectedBarDetails(sel) {
+  if (!sel) return;
   const deductionBadges = [];
 
   if (sel.tax > 0) {
@@ -524,18 +652,18 @@ function renderBarChart(data) {
   }
   sel.itemizedExpenses.forEach(expItem => {
     if (expItem.amount > 0) {
-      deductionBadges.push(`<span class="ya-badge ya-badge-red">${expItem.name}: <b>-${formatNum(expItem.amount)} ₽</b></span>`);
+      deductionBadges.push(`<span class="ya-badge ya-badge-red">${escapeHtml(expItem.name)}: <b>-${formatNum(expItem.amount)} ₽</b></span>`);
     }
   });
   if (sel.adjustments < 0) {
     deductionBadges.push(`<span class="ya-badge ya-badge-red">Корректировки: <b>-${formatNum(Math.abs(sel.adjustments))} ₽</b></span>`);
   }
 
-  $('selectedBarDetails').innerHTML = `
+  dom.selectedBarDetails.innerHTML = `
     <div class="flex items-center justify-between">
       <div>
-        <span class="font-extrabold">${sel.date} (${sel.dayOfWeek})</span>
-        <span class="opacity-70 ml-1">• ${sel.transport} • ${sel.slotHours} ч • ${sel.ordersCount} зак.</span>
+        <span class="font-extrabold">${escapeHtml(sel.date)} (${escapeHtml(sel.dayOfWeek)})</span>
+        <span class="opacity-70 ml-1">• ${escapeHtml(sel.transport)} • ${sel.slotHours} ч • ${sel.ordersCount} зак.</span>
       </div>
     </div>
     <div class="flex flex-wrap items-center gap-1.5 text-[10px] pt-1">
@@ -548,14 +676,14 @@ function renderBarChart(data) {
 
 function renderDetailedTable(data) {
   const enabledCols = state.tableColumns.filter(c => c.enabled);
-  const thead = $('detailedTableHead');
-  const tbody = $('detailedTableBody');
-  const tfoot = $('detailedTableFoot');
+  const thead = dom.detailedTableHead;
+  const tbody = dom.detailedTableBody;
+  const tfoot = dom.detailedTableFoot;
 
   let headHtml = '<tr>';
   enabledCols.forEach((col, i) => {
     const stickyCls = i === 0 ? 'sticky left-0 z-10 border-r min-w-[54px] border-strong bg-elevated' : 'min-w-[72px] max-w-[90px]';
-    headHtml += `<th class="py-1.5 px-1 font-bold text-[9.5px] leading-snug whitespace-normal align-middle ${stickyCls}">${col.label}</th>`;
+    headHtml += `<th scope="col" class="py-1.5 px-1 font-bold text-[9.5px] leading-snug whitespace-normal align-middle ${stickyCls}">${escapeHtml(col.label)}</th>`;
   });
   headHtml += '</tr>';
   thead.innerHTML = headHtml;
@@ -582,12 +710,12 @@ function renderDetailedTable(data) {
 
 function formatTableCellValue(row, key) {
   switch (key) {
-    case 'date':        return row.date;
-    case 'dayOfWeek':   return row.dayOfWeek;
+    case 'date':        return escapeHtml(row.date);
+    case 'dayOfWeek':   return escapeHtml(row.dayOfWeek);
     case 'slotHours':   return `${row.slotHours} ч`;
     case 'ordersCount': return row.ordersCount;
     case 'ordersPerHr': return row.ordersPerHr;
-    case 'transport':   return row.transport;
+    case 'transport':   return escapeHtml(row.transport);
     case 'grossTotal':  return `<span class="font-semibold">${formatNum(row.grossTotal)} ₽</span>`;
     case 'surgePct':
     case 'ratingPct':   return `+${row[key]}%`;
@@ -628,22 +756,22 @@ function formatTableFootValue(data, key) {
 
 // Блок 2: Матрица спроса и планирование слотов
 function renderBlock2() {
-  const btnWeather = $('btnWeather');
+  const btnWeather = dom.btnWeather;
   btnWeather.style.backgroundColor = state.weatherBoost ? 'var(--ya-yellow)' : 'var(--bg-card)';
   btnWeather.style.color = state.weatherBoost ? 'var(--ya-yellow-text)' : 'var(--text-main)';
 
-  $('lblUnitPct').classList.toggle('ya-switch-opt-active', !state.heatUnitRub);
-  $('lblUnitRub').classList.toggle('ya-switch-opt-active', state.heatUnitRub);
+  dom.lblUnitPct.classList.toggle('ya-switch-opt-active', !state.heatUnitRub);
+  dom.lblUnitRub.classList.toggle('ya-switch-opt-active', state.heatUnitRub);
 
-  $('block2Title').textContent = state.heatUnitRub
+  dom.block2Title.textContent = state.heatUnitRub
     ? 'Средний общий доход в час (с учетом спроса)'
     : 'Средняя доплата за спрос по часам';
 
   const distObj = districtsData.find(d => d.id === state.districtId) || districtsData[0];
   const seasonObj = seasonMultipliers[state.season];
-  $('currentDistrictSeasonSub').textContent = `${distObj.shortName} • ${seasonObj.label}`;
+  dom.currentDistrictSeasonSub.textContent = `${distObj.shortName} • ${seasonObj.label}`;
 
-  const tbody = $('heatmapTableBody');
+  const tbody = dom.heatmapTableBody;
   let html = '';
   baseHeatmapMatrix.forEach((row, rIdx) => {
     html += `<tr><td class="text-left font-medium py-1.5 pl-0.5 pr-1 whitespace-nowrap text-[9.5px] opacity-80">${row.hours}</td>`;
@@ -656,7 +784,8 @@ function renderBlock2() {
 
       html += `
         <td>
-          <div onclick="toggleHeatCell('${cellKey}')"
+          <div data-cell-key="${cellKey}"
+               onclick="toggleHeatCell('${cellKey}')"
                class="heat-cell rounded-lg py-1.5 px-0 text-[9.5px] font-bold ${colorCls} ${isSelected ? 'heat-cell-selected' : ''}">
             ${displayStr}
           </div>
@@ -667,19 +796,22 @@ function renderBlock2() {
   });
   tbody.innerHTML = html;
 
+  updateHeatmapSummary();
+  renderDistrictSeasonScreen();
+}
+
+function updateHeatmapSummary() {
   const summary = getSelectedSlotsSummary();
   const avgMetricLabel = summary.count > 0
     ? (state.heatUnitRub ? ` • Ср. ${formatNum(summary.avgHrEst)} ₽/ч` : ` • Ср. +${summary.avgPctEst}%`)
     : '';
 
-  $('selectedSlotsCounter').textContent = `Выбрано: ${summary.count} сл. (${summary.totalHours}ч)${avgMetricLabel}`;
-  $('btnClearSlots').classList.toggle('opacity-40', summary.count === 0);
+  dom.selectedSlotsCounter.textContent = `Выбрано: ${summary.count} сл. (${summary.totalHours}ч)${avgMetricLabel}`;
+  dom.btnClearSlots.classList.toggle('opacity-40', summary.count === 0);
 
-  $('plannedProfitEstimate').textContent = summary.totalHours > 0
+  dom.plannedProfitEstimate.textContent = summary.totalHours > 0
     ? `Расчет прибыли: ~${formatNum(summary.totalRubEst)} ₽ (${summary.avgHrEst} ₽/ч за ${summary.totalHours}ч)`
     : `Выберите слоты в таблице для расчета прибыли`;
-
-  renderDistrictSeasonScreen();
 }
 
 function getHeatCellColor(pct) {
@@ -695,9 +827,9 @@ function renderDistrictSeasonScreen() {
     if (btn) btn.classList.toggle('ya-seg-btn-active', state.season === s);
   });
 
-  $('districtListUnitHint').textContent = state.heatUnitRub ? 'Средняя / Пик (₽/ч)' : 'Средняя / Пик (% спроса)';
+  dom.districtListUnitHint.textContent = state.heatUnitRub ? 'Средняя / Пик (₽/ч)' : 'Средняя / Пик (% спроса)';
 
-  const listContainer = $('districtListContainer');
+  const listContainer = dom.districtListContainer;
   listContainer.innerHTML = districtsData.map(d => {
     const isCurrent = d.id === state.districtId;
     const stats = getDistrictStats(d);
@@ -710,7 +842,7 @@ function renderDistrictSeasonScreen() {
         <div class="flex items-center gap-2.5 min-w-0">
           <span class="w-3 h-3 rounded-full shrink-0" style="background-color: ${d.color}"></span>
           <div class="truncate">
-            <div class="text-xs font-bold truncate">${d.name}</div>
+            <div class="text-xs font-bold truncate">${escapeHtml(d.name)}</div>
             <div class="text-[10px] text-sec">Сезон: ${seasonMultipliers[state.season].label}</div>
           </div>
         </div>
@@ -724,12 +856,13 @@ function renderDistrictSeasonScreen() {
 }
 
 // Блок 3: Сравнение показателей
-function renderBlock3(allTimeProfitHr) {
+function renderBlock3(precomputedAllTimeProfitHr) {
   ['transport', 'slot', 'total'].forEach(m => {
     const btn = $(`btnComp-${m}`);
     if (btn) btn.classList.toggle('ya-seg-btn-active', state.compareMode === m);
   });
 
+  const allTimeProfitHr = precomputedAllTimeProfitHr !== undefined ? precomputedAllTimeProfitHr : getAllTimeHourlyProfit();
   const currentData = getCurrentDataset();
   const selectedRow = currentData[state.selectedBarIndex] || currentData[currentData.length - 1];
   const userPeriodProfitHr = selectedRow
@@ -742,24 +875,24 @@ function renderBlock3(allTimeProfitHr) {
   const periodTag = selectedRow ? selectedRow.date : 'период';
 
   const ds = comparisonDatasets[state.compareMode];
-  const thead = $('compareTableHead');
-  const tbody = $('compareTableBody');
-  const tfoot = $('compareTableFoot');
+  const thead = dom.compareTableHead;
+  const tbody = dom.compareTableBody;
+  const tfoot = dom.compareTableFoot;
 
-  let headHtml = `<tr><th class="py-1.5 px-1.5 font-bold text-[9.5px] leading-snug whitespace-normal sticky left-0 z-10 border-r min-w-[94px] max-w-[104px] bg-elevated border-strong">Показатель</th>`;
+  let headHtml = `<tr><th scope="col" class="py-1.5 px-1.5 font-bold text-[9.5px] leading-snug whitespace-normal sticky left-0 z-10 border-r min-w-[94px] max-w-[104px] bg-elevated border-strong">Показатель</th>`;
   ds.columns.forEach(colItem => {
     if (typeof colItem === 'object') {
       if (colItem.forecast) {
         headHtml += `
-          <th class="py-1.5 px-1 font-bold text-[9px] leading-snug text-center whitespace-normal align-middle min-w-[76px] max-w-[88px]">
+          <th scope="col" class="py-1.5 px-1 font-bold text-[9px] leading-snug text-center whitespace-normal align-middle min-w-[76px] max-w-[88px]">
             <div class="inline-flex items-center justify-center gap-1 flex-wrap">
-              <span>${colItem.title}</span>
-              <button onclick="openForecastInfoModal()" title="Как рассчитывается прогноз" class="w-4 h-4 rounded-full bg-[#FCE000] text-[#141518] font-extrabold text-[9px] inline-flex items-center justify-center shadow hover:opacity-90 active:scale-95 transition">?</button>
+              <span>${escapeHtml(colItem.title)}</span>
+              <button type="button" onclick="openForecastInfoModal()" title="Как рассчитывается прогноз" class="w-4 h-4 rounded-full bg-[#FCE000] text-[#141518] font-extrabold text-[9px] inline-flex items-center justify-center shadow hover:opacity-90 active:scale-95 transition">?</button>
             </div>
           </th>
         `;
       } else {
-        headHtml += `<th class="py-1.5 px-1 font-bold text-[9.5px] leading-snug text-center whitespace-normal align-middle min-w-[62px] max-w-[76px]">${colItem.title}</th>`;
+        headHtml += `<th scope="col" class="py-1.5 px-1 font-bold text-[9.5px] leading-snug text-center whitespace-normal align-middle min-w-[62px] max-w-[76px]">${escapeHtml(colItem.title)}</th>`;
       }
     } else {
       let resolvedColName = colItem;
@@ -768,7 +901,7 @@ function renderBlock3(allTimeProfitHr) {
       if (colItem === 'TOP_DIST_COL')       resolvedColName = `Топ-20% района (${periodTag})`;
       if (colItem === 'AVG_CITY_COL')       resolvedColName = `Ср. город (${periodTag})`;
       if (colItem === 'TOP_CITY_COL')       resolvedColName = `Топ-20% города (${periodTag})`;
-      headHtml += `<th class="py-1.5 px-1 font-bold text-[9px] leading-snug text-center whitespace-normal align-middle min-w-[62px] max-w-[76px]">${resolvedColName}</th>`;
+      headHtml += `<th scope="col" class="py-1.5 px-1 font-bold text-[9px] leading-snug text-center whitespace-normal align-middle min-w-[62px] max-w-[76px]">${escapeHtml(resolvedColName)}</th>`;
     }
   });
   headHtml += `</tr>`;
@@ -777,9 +910,9 @@ function renderBlock3(allTimeProfitHr) {
   let bodyHtml = '';
   ds.rowsPerOrder.forEach(row => {
     bodyHtml += `<tr class="hover:opacity-90">
-      <td class="py-1.5 px-1.5 font-medium text-[9.5px] leading-snug whitespace-normal sticky left-0 z-10 border-r min-w-[94px] max-w-[104px] bg-card border-strong text-sec">${row.label}</td>`;
+      <td class="py-1.5 px-1.5 font-medium text-[9.5px] leading-snug whitespace-normal sticky left-0 z-10 border-r min-w-[94px] max-w-[104px] bg-card border-strong text-sec">${escapeHtml(row.label)}</td>`;
     row.vals.forEach(v => {
-      bodyHtml += `<td class="py-1.5 px-1 text-[10px] text-center whitespace-nowrap">${v}</td>`;
+      bodyHtml += `<td class="py-1.5 px-1 text-[10px] text-center whitespace-nowrap">${escapeHtml(v)}</td>`;
     });
     bodyHtml += `</tr>`;
   });
@@ -788,7 +921,7 @@ function renderBlock3(allTimeProfitHr) {
   let footHtml = '';
   ds.rowsTotal.forEach(row => {
     footHtml += `<tr>
-      <td class="py-1.5 px-1.5 font-extrabold text-[9.5px] leading-snug whitespace-normal sticky left-0 z-10 border-r min-w-[94px] max-w-[104px] bg-elevated border-strong">${row.label}</td>`;
+      <td class="py-1.5 px-1.5 font-extrabold text-[9.5px] leading-snug whitespace-normal sticky left-0 z-10 border-r min-w-[94px] max-w-[104px] bg-elevated border-strong">${escapeHtml(row.label)}</td>`;
     row.vals.forEach(v => {
       let cellVal = v.trim();
       if (cellVal === 'DYNAMIC') cellVal = `${formatNum(userPeriodProfitHr)} ₽/ч`;
@@ -811,22 +944,24 @@ function renderBlock3(allTimeProfitHr) {
 
 // Экран настроек
 function renderSettingsScreen(skipSlidersRebuild = false) {
-  $('chkIncludeGoals').checked = state.includeGoals;
+  dom.chkIncludeGoals.checked = state.includeGoals;
 
   ['walk', 'bike', 'ebike', 'car'].forEach(t => {
     const btn = $(`presetBtn-${t}`);
-    const isSelected = state.selectedPreset === t;
-    btn.style.backgroundColor = isSelected ? 'var(--ya-yellow)' : 'var(--bg-elevated)';
-    btn.style.color = isSelected ? 'var(--ya-yellow-text)' : 'var(--text-main)';
+    if (btn) {
+      const isSelected = state.selectedPreset === t;
+      btn.style.backgroundColor = isSelected ? 'var(--ya-yellow)' : 'var(--bg-elevated)';
+      btn.style.color = isSelected ? 'var(--ya-yellow-text)' : 'var(--text-main)';
+    }
 
     const sumSpan = $(`presetSum-${t}`);
     if (sumSpan) sumSpan.textContent = `${formatNum(getWeeklyExpenseForTransport(t))} ₽`;
   });
 
-  $('totalWeeklyExpenseBadge').textContent = `${formatNum(getTotalWeeklyExpenses())} ₽/нед`;
+  dom.totalWeeklyExpenseBadge.textContent = `${formatNum(getTotalWeeklyExpenses())} ₽/нед`;
 
   if (!skipSlidersRebuild) {
-    const slidersEl = $('expenseSlidersContainer');
+    const slidersEl = dom.expenseSlidersContainer;
     const expensesList = state.expenses;
     if (expensesList.length === 0) {
       slidersEl.innerHTML = `
@@ -838,18 +973,19 @@ function renderSettingsScreen(skipSlidersRebuild = false) {
       slidersEl.innerHTML = expensesList.map((item, idx) => `
         <div class="ya-subcard p-2.5 space-y-1.5">
           <div class="flex items-center justify-between text-xs gap-2">
-            <span class="font-bold truncate">${item.name}</span>
+            <span class="font-bold truncate">${escapeHtml(item.name)}</span>
             <div class="flex items-center gap-2 shrink-0">
               <span id="expenseValueLabel-${idx}" class="font-extrabold">${formatNum(item.value)} ₽/нед</span>
-              <button onclick="deleteExpenseItem(${idx})" title="Удалить статью расхода" class="w-5 h-5 rounded-md bg-rose-500/15 text-rose-400 hover:bg-rose-500/25 flex items-center justify-center text-[10px] font-bold active:scale-95 transition">✕</button>
+              <button type="button" onclick="deleteExpenseItem(${idx})" title="Удалить статью расхода" aria-label="Удалить статью расхода" class="w-5 h-5 rounded-md bg-rose-500/15 text-rose-400 hover:bg-rose-500/25 flex items-center justify-center text-[10px] font-bold active:scale-95 transition">✕</button>
             </div>
           </div>
           <div class="flex items-center gap-2">
-            <button onclick="stepExpense(${idx}, -100)" class="px-2.5 py-1 rounded-lg bg-black/20 hover:bg-black/30 border border-white/10 text-xs font-extrabold active:scale-95 transition shrink-0">-100</button>
+            <button type="button" onclick="stepExpense(${idx}, -100)" class="px-2.5 py-1 rounded-lg bg-black/20 hover:bg-black/30 border border-white/10 text-xs font-extrabold active:scale-95 transition shrink-0">-100</button>
             <input id="expenseRangeInput-${idx}" type="range" min="0" max="${item.max}" step="100" value="${item.value}"
+                   aria-label="${escapeHtml(item.name)}"
                    oninput="updateExpenseSlider(${idx}, this.value)"
                    class="flex-1 h-6 cursor-pointer touch-pan-y" />
-            <button onclick="stepExpense(${idx}, 100)" class="px-2.5 py-1 rounded-lg bg-black/20 hover:bg-black/30 border border-white/10 text-xs font-extrabold active:scale-95 transition shrink-0">+100</button>
+            <button type="button" onclick="stepExpense(${idx}, 100)" class="px-2.5 py-1 rounded-lg bg-black/20 hover:bg-black/30 border border-white/10 text-xs font-extrabold active:scale-95 transition shrink-0">+100</button>
           </div>
         </div>
       `).join('');
@@ -860,7 +996,7 @@ function renderSettingsScreen(skipSlidersRebuild = false) {
 }
 
 function renderReorderableColumnsList() {
-  const listEl = $('reorderableColumnsList');
+  const listEl = dom.reorderableColumnsList;
   if (!listEl) return;
 
   const items = state.tableColumns.slice(1);
@@ -871,43 +1007,58 @@ function renderReorderableColumnsList() {
            class="col-reorder-item ya-subcard py-2 px-2.5 flex items-center justify-between gap-2 transition cursor-grab active:cursor-grabbing">
         <div class="flex items-center gap-2 min-w-0">
           <span class="text-xs opacity-50 font-bold select-none" title="Удерживайте для перетаскивания">☰</span>
-          <span class="text-[11px] font-semibold truncate">${realIdx}. ${c.label}</span>
+          <span class="text-[11px] font-semibold truncate">${realIdx}. ${escapeHtml(c.label)}</span>
         </div>
         <input type="checkbox" ${c.enabled ? 'checked' : ''}
+               aria-label="${escapeHtml(c.label)}"
                onchange="toggleTableColumn('${c.key}', this.checked)"
                class="w-4 h-4 accent-[#FCE000] cursor-pointer shrink-0" />
       </div>
     `;
   }).join('');
-
-  initLongPressDragColumns();
 }
 
-// Drag & Drop перетаскивание столбцов (долгий тап / клик)
-let dragColState = { timer: null, active: false, draggedIdx: null };
+// -----------------------------------------------------------------------------
+// 6. ОПТИМИЗИРОВАННЫЙ DRAG & DROP СТОЛБЦОВ
+// -----------------------------------------------------------------------------
 
-function initLongPressDragColumns() {
-  const container = $('reorderableColumnsList');
-  if (!container) return;
+const dragColState = {
+  timer: null,
+  active: false,
+  draggedIdx: null,
+  activeRowEl: null
+};
 
-  container.querySelectorAll('.col-reorder-item').forEach(row => {
-    row.addEventListener('pointerdown', (e) => {
-      if (e.target && e.target.tagName === 'INPUT') return;
-      const idx = Number(row.getAttribute('data-col-idx'));
-      clearTimeout(dragColState.timer);
-      dragColState.timer = setTimeout(() => {
-        dragColState.active = true;
-        dragColState.draggedIdx = idx;
-        row.classList.add('col-drag-active');
-        showToast('Перетащите столбец вверх или вниз');
-      }, 260);
-    });
+function setupColumnDragDelegation() {
+  const container = dom.reorderableColumnsList;
+  if (!container || container.dataset.dragInitialized) return;
+  container.dataset.dragInitialized = 'true';
+
+  container.addEventListener('pointerdown', (e) => {
+    if (e.target && e.target.tagName === 'INPUT') return;
+    const row = e.target.closest('.col-reorder-item');
+    if (!row) return;
+
+    const idx = Number(row.getAttribute('data-col-idx'));
+    clearTimeout(dragColState.timer);
+
+    dragColState.timer = setTimeout(() => {
+      dragColState.active = true;
+      dragColState.draggedIdx = idx;
+      dragColState.activeRowEl = row;
+      row.classList.add('col-drag-active');
+      if (typeof row.setPointerCapture === 'function') {
+        try { row.setPointerCapture(e.pointerId); } catch (_) {}
+      }
+      showToast('Перетащите столбец вверх или вниз');
+    }, 240);
   });
 }
 
 window.addEventListener('pointermove', (e) => {
   if (!dragColState.active || dragColState.draggedIdx === null) return;
   e.preventDefault();
+
   const targetEl = document.elementFromPoint(e.clientX, e.clientY);
   const overRow = targetEl ? targetEl.closest('.col-reorder-item') : null;
   if (!overRow) return;
@@ -917,36 +1068,47 @@ window.addEventListener('pointermove', (e) => {
     const moved = state.tableColumns.splice(dragColState.draggedIdx, 1)[0];
     state.tableColumns.splice(overIdx, 0, moved);
     dragColState.draggedIdx = overIdx;
+
     renderReorderableColumnsList();
-    const activeRow = document.querySelector(`.col-reorder-item[data-col-idx="${overIdx}"]`);
+    const activeRow = dom.reorderableColumnsList.querySelector(`.col-reorder-item[data-col-idx="${overIdx}"]`);
     if (activeRow) activeRow.classList.add('col-drag-active');
-    renderBlock1();
+
+    if (state.viewMode === 'table') {
+      renderBlock1();
+    }
   }
 }, { passive: false });
 
-window.addEventListener('pointerup', () => {
+const endColumnDrag = () => {
   clearTimeout(dragColState.timer);
   if (dragColState.active) {
     dragColState.active = false;
     dragColState.draggedIdx = null;
-    document.querySelectorAll('.col-reorder-item').forEach(el => el.classList.remove('col-drag-active'));
+    dragColState.activeRowEl = null;
+    dom.reorderableColumnsList?.querySelectorAll('.col-reorder-item').forEach(el => el.classList.remove('col-drag-active'));
+    if (state.viewMode === 'table') {
+      renderBlock1();
+    }
   }
-});
+};
 
-// =============================================================================
-// LEAFLET ИНТЕРАКТИВНАЯ КАРТА РАЙОНОВ
-// =============================================================================
+window.addEventListener('pointerup', endColumnDrag);
+window.addEventListener('pointercancel', endColumnDrag);
+
+// -----------------------------------------------------------------------------
+// 7. LEAFLET КАРТА (ЖИЗНЕННЫЙ ЦИКЛ С ПЕРЕИСПОЛЬЗОВАНИЕМ СЛОЕВ)
+// -----------------------------------------------------------------------------
 
 let leafletMap = null;
-let polygonLayers = [];
+const leafletPolygons = new Map();
 
 function openRealMapModal() {
-  $('realMapModal').classList.remove('hidden');
+  dom.realMapModal.classList.remove('hidden');
   setTimeout(() => initOrUpdateLeafletMap(), 60);
 }
 
 function closeRealMapModal() {
-  $('realMapModal').classList.add('hidden');
+  dom.realMapModal.classList.add('hidden');
 }
 
 function initOrUpdateLeafletMap() {
@@ -965,104 +1127,196 @@ function initOrUpdateLeafletMap() {
 
     L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
       maxZoom: 18,
-      attribution: '&copy; <a href="https://openstreetmap.org" target="_blank">OpenStreetMap</a> contributors, Tiles style by <a href="https://hotosm.org" target="_blank">HOT</a> hosted by <a href="https://openstreetmap.fr" target="_blank">OSM France</a>'
+      attribution: '&copy; <a href="https://openstreetmap.org" target="_blank" rel="noopener">OpenStreetMap</a> contributors, Tiles style by <a href="https://hotosm.org" target="_blank" rel="noopener">HOT</a>'
     }).addTo(leafletMap);
+
+    districtsData.forEach(d => {
+      const isCurrent = d.id === state.districtId;
+      const stats = getDistrictStats(d);
+
+      const poly = L.polygon(d.polygon, {
+        color: isCurrent ? '#141518' : d.color,
+        weight: isCurrent ? 3.5 : 2,
+        fillColor: d.color,
+        fillOpacity: isCurrent ? 0.45 : 0.22
+      }).addTo(leafletMap);
+
+      poly.bindTooltip(
+        `<div class="text-center leading-tight">
+           <div class="font-extrabold text-[11px] text-[#FCE000]">${d.shortName}</div>
+           <div class="text-[10px]">Ср: <b>${stats.avgStr}</b> • Пик: <b>${stats.peakStr}</b></div>
+         </div>`,
+        {
+          permanent: true,
+          direction: 'center',
+          className: 'district-map-tooltip'
+        }
+      );
+
+      poly.on('click', () => {
+        selectDistrict(d.id);
+        updateLeafletMapStyles();
+      });
+
+      leafletPolygons.set(d.id, poly);
+    });
   } else {
     leafletMap.invalidateSize();
+    updateLeafletMapStyles();
   }
 
-  polygonLayers.forEach(layer => leafletMap.removeLayer(layer));
-  polygonLayers = [];
+  const curDist = districtsData.find(d => d.id === state.districtId) || districtsData[0];
+  dom.mapSelectedDistrictName.textContent = curDist.name;
+}
 
+function updateLeafletMapStyles() {
   districtsData.forEach(d => {
+    const poly = leafletPolygons.get(d.id);
+    if (!poly) return;
     const isCurrent = d.id === state.districtId;
     const stats = getDistrictStats(d);
 
-    const poly = L.polygon(d.polygon, {
+    poly.setStyle({
       color: isCurrent ? '#141518' : d.color,
       weight: isCurrent ? 3.5 : 2,
       fillColor: d.color,
       fillOpacity: isCurrent ? 0.45 : 0.22
-    }).addTo(leafletMap);
+    });
 
-    poly.bindTooltip(
+    poly.setTooltipContent(
       `<div class="text-center leading-tight">
          <div class="font-extrabold text-[11px] text-[#FCE000]">${d.shortName}</div>
          <div class="text-[10px]">Ср: <b>${stats.avgStr}</b> • Пик: <b>${stats.peakStr}</b></div>
-       </div>`,
-      {
-        permanent: true,
-        direction: 'center',
-        className: 'district-map-tooltip'
-      }
+       </div>`
     );
-
-    poly.on('click', () => {
-      selectDistrict(d.id);
-      initOrUpdateLeafletMap();
-    });
-
-    polygonLayers.push(poly);
   });
 
   const curDist = districtsData.find(d => d.id === state.districtId) || districtsData[0];
-  $('mapSelectedDistrictName').textContent = curDist.name;
+  dom.mapSelectedDistrictName.textContent = curDist.name;
 }
 
-// =============================================================================
-// ОБРАБОТЧИКИ СОБЫТИЙ И ПОЛЬЗОВАТЕЛЬСКИХ ДЕЙСТВИЙ
-// =============================================================================
+// -----------------------------------------------------------------------------
+// 8. ОБРАБОТЧИКИ СОБЫТИЙ И ПОЛЬЗОВАТЕЛЬСКИХ ДЕЙСТВИЙ (PUBLIC API)
+// -----------------------------------------------------------------------------
 
 function toggleGrossNet() {
   state.isNet = !state.isNet;
-  renderAll();
+  dom.lblGross.classList.toggle('ya-switch-opt-active', !state.isNet);
+  dom.lblNet.classList.toggle('ya-switch-opt-active', state.isNet);
+  renderBlock1();
 }
 
 function toggleSumHourly() {
   state.isHourly = !state.isHourly;
-  renderAll();
+  dom.lblSum.classList.toggle('ya-switch-opt-active', !state.isHourly);
+  dom.lblHourly.classList.toggle('ya-switch-opt-active', state.isHourly);
+  renderBlock1();
 }
 
 function toggleChartTable() {
   state.viewMode = state.viewMode === 'chart' ? 'table' : 'chart';
-  renderAll();
+  dom.lblChart.classList.toggle('ya-switch-opt-active', state.viewMode === 'chart');
+  dom.lblTable.classList.toggle('ya-switch-opt-active', state.viewMode === 'table');
+  renderBlock1();
 }
 
 function setPeriod(p) {
+  if (state.period === p) return;
   state.period = p;
   state.selectedBarIndex = 0;
-  renderAll();
+  dataCache.invalidate();
+
+  ['days', 'weeks', 'months'].forEach(periodKey => {
+    const btn = $(`btnPeriod-${periodKey}`);
+    if (btn) btn.classList.toggle('ya-seg-btn-active', periodKey === p);
+  });
+
+  renderBlock1();
+  renderBlock3();
 }
 
 function selectBar(idx) {
+  if (state.selectedBarIndex === idx) return;
+  const prevIdx = state.selectedBarIndex;
   state.selectedBarIndex = idx;
-  renderAll();
+
+  // Быстрое обновление DOM без перерисовки всей диаграммы
+  const prevCol = $(`barCol-${prevIdx}`);
+  const prevStack = $(`barStack-${prevIdx}`);
+  const prevVal = $(`barValue-${prevIdx}`);
+  const prevDate = $(`barDate-${prevIdx}`);
+
+  if (prevStack) {
+    prevStack.classList.remove('ring-2', 'ring-[#FCE000]');
+    prevStack.classList.add('opacity-90');
+  }
+  if (prevVal) {
+    prevVal.classList.remove('opacity-100');
+    prevVal.classList.add('opacity-70');
+  }
+  if (prevDate) {
+    prevDate.classList.remove('underline', 'font-extrabold');
+    prevDate.classList.add('opacity-65');
+  }
+
+  const newStack = $(`barStack-${idx}`);
+  const newVal = $(`barValue-${idx}`);
+  const newDate = $(`barDate-${idx}`);
+
+  if (newStack) {
+    newStack.classList.add('ring-2', 'ring-[#FCE000]');
+    newStack.classList.remove('opacity-90');
+  }
+  if (newVal) {
+    newVal.classList.add('opacity-100');
+    newVal.classList.remove('opacity-70');
+  }
+  if (newDate) {
+    newDate.classList.add('underline', 'font-extrabold');
+    newDate.classList.remove('opacity-65');
+  }
+
+  const data = getCurrentDataset();
+  renderSelectedBarDetails(data[idx]);
+  renderBlock3();
 }
 
 function toggleWeather() {
   state.weatherBoost = !state.weatherBoost;
-  renderAll();
+  renderBlock2();
+  if (leafletMap && !dom.realMapModal.classList.contains('hidden')) {
+    updateLeafletMapStyles();
+  }
 }
 
 function toggleHeatUnit() {
   state.heatUnitRub = !state.heatUnitRub;
-  renderAll();
+  renderBlock2();
+  if (leafletMap && !dom.realMapModal.classList.contains('hidden')) {
+    updateLeafletMapStyles();
+  }
 }
 
 function toggleHeatCell(cellKey) {
   const idx = state.selectedSlotCells.indexOf(cellKey);
+  const cellEl = document.querySelector(`.heat-cell[data-cell-key="${cellKey}"]`);
+
   if (idx >= 0) {
     state.selectedSlotCells.splice(idx, 1);
+    if (cellEl) cellEl.classList.remove('heat-cell-selected');
   } else {
     state.selectedSlotCells.push(cellKey);
+    if (cellEl) cellEl.classList.add('heat-cell-selected');
   }
-  renderBlock2();
+
+  updateHeatmapSummary();
 }
 
 function clearSelectedSlots() {
   if (state.selectedSlotCells.length === 0) return;
   state.selectedSlotCells = [];
-  renderBlock2();
+  document.querySelectorAll('.heat-cell-selected').forEach(el => el.classList.remove('heat-cell-selected'));
+  updateHeatmapSummary();
   showToast('Выбор слотов сброшен');
 }
 
@@ -1075,7 +1329,13 @@ function selectTop5Slots() {
   });
   allCells.sort((a, b) => b.val - a.val);
   state.selectedSlotCells = allCells.slice(0, 5).map(c => c.key);
-  renderBlock2();
+
+  document.querySelectorAll('.heat-cell').forEach(el => {
+    const k = el.getAttribute('data-cell-key');
+    el.classList.toggle('heat-cell-selected', state.selectedSlotCells.includes(k));
+  });
+
+  updateHeatmapSummary();
   showToast('Выбраны Топ-5 слотов (20 часов)');
 }
 
@@ -1096,17 +1356,17 @@ function planSelectedSlots() {
   const acctMeta = transportMeta[state.accountTransport] || transportMeta.ebike;
   const distObj = districtsData.find(d => d.id === state.districtId) || districtsData[0];
 
-  $('planModalTransport').textContent = `${acctMeta.icon} ${acctMeta.label}`;
-  $('planModalDistrict').textContent = distObj.shortName;
-  $('planModalTotal').textContent = `${summary.totalHours} ч • ~${formatNum(summary.totalRubEst)} ₽`;
-  $('planModalAvg').textContent = `+${summary.avgPctEst}% • ${formatNum(summary.avgHrEst)} ₽/ч`;
-  $('planModalSlotsList').innerHTML = slotItemsHtml;
+  dom.planModalTransport.textContent = `${acctMeta.icon} ${acctMeta.label}`;
+  dom.planModalDistrict.textContent = distObj.shortName;
+  dom.planModalTotal.textContent = `${summary.totalHours} ч • ~${formatNum(summary.totalRubEst)} ₽`;
+  dom.planModalAvg.textContent = `+${summary.avgPctEst}% • ${formatNum(summary.avgHrEst)} ₽/ч`;
+  dom.planModalSlotsList.innerHTML = slotItemsHtml;
 
-  $('planSlotsModal').classList.remove('hidden');
+  dom.planSlotsModal.classList.remove('hidden');
 }
 
 function closePlanSlotsModal() {
-  $('planSlotsModal').classList.add('hidden');
+  dom.planSlotsModal.classList.add('hidden');
 }
 
 function confirmPlanSlots() {
@@ -1116,45 +1376,70 @@ function confirmPlanSlots() {
 }
 
 function openForecastInfoModal() {
-  $('forecastInfoModal').classList.remove('hidden');
+  dom.forecastInfoModal.classList.remove('hidden');
 }
 
 function closeForecastInfoModal() {
-  $('forecastInfoModal').classList.add('hidden');
+  dom.forecastInfoModal.classList.add('hidden');
 }
 
 function setCompareMode(mode) {
+  if (state.compareMode === mode) return;
   state.compareMode = mode;
-  renderAll();
+  ['transport', 'slot', 'total'].forEach(m => {
+    const btn = $(`btnComp-${m}`);
+    if (btn) btn.classList.toggle('ya-seg-btn-active', m === mode);
+  });
+  renderBlock3();
 }
 
 function onToggleGoals(checked) {
   state.includeGoals = checked;
-  renderAll();
+  dataCache.invalidate();
+  dom.goalsStatusLabel.textContent = checked ? '(с учетом целей)' : '(без учета целей)';
+  dom.legendGoalsItem.classList.toggle('hidden', !checked);
+  renderHeader();
+  renderBlock1();
+  renderBlock3();
 }
 
 function toggleTableColumn(key, checked) {
   const col = state.tableColumns.find(c => c.key === key);
   if (col) col.enabled = checked;
-  renderAll();
+  if (state.viewMode === 'table') {
+    renderBlock1();
+  }
 }
 
 function applyTransportPreset(presetKey) {
+  if (state.selectedPreset === presetKey) return;
   state.selectedPreset = presetKey;
-  renderAll();
+  renderSettingsScreen(false);
 }
 
 function updateExpense(idx, newVal, syncRange = false) {
   const item = state.expensesByTransport[state.selectedPreset]?.[idx];
   if (!item) return;
+
   item.value = Math.min(item.max, Math.max(0, newVal));
+  dataCache.invalidate();
+
   if (syncRange) {
     const rangeInput = $(`expenseRangeInput-${idx}`);
     if (rangeInput) rangeInput.value = item.value;
   }
   const valLabel = $(`expenseValueLabel-${idx}`);
   if (valLabel) valLabel.textContent = `${formatNum(item.value)} ₽/нед`;
-  renderAll(true);
+
+  // Обновляем бейджи расходов
+  const presetSum = $(`presetSum-${state.selectedPreset}`);
+  if (presetSum) presetSum.textContent = `${formatNum(getWeeklyExpenseForTransport(state.selectedPreset))} ₽`;
+  dom.totalWeeklyExpenseBadge.textContent = `${formatNum(getTotalWeeklyExpenses())} ₽/нед`;
+
+  // Обновляем зависимые финансовые блоки
+  renderHeader();
+  renderBlock1();
+  renderBlock3();
 }
 
 function stepExpense(idx, delta) {
@@ -1169,51 +1454,76 @@ function updateExpenseSlider(idx, val) {
 function deleteExpenseItem(index) {
   const list = state.expensesByTransport[state.selectedPreset];
   const removed = list.splice(index, 1)[0];
-  renderAll(false);
+  dataCache.invalidate();
+  renderSettingsScreen(false);
+  renderHeader();
+  renderBlock1();
+  renderBlock3();
   if (removed) showToast(`Удалена статья «${removed.name}»`);
 }
 
 function resetExpensesToDefault() {
   state.expensesByTransport = cloneExpenses();
-  renderAll(false);
+  dataCache.invalidate();
+  renderSettingsScreen(false);
+  renderHeader();
+  renderBlock1();
+  renderBlock3();
   showToast('Расходы всех типов передвижения сброшены по умолчанию');
 }
 
 function toggleAddExpenseForm() {
-  const form = $('addExpenseForm');
+  const form = dom.addExpenseForm;
   form.classList.toggle('hidden');
   if (!form.classList.contains('hidden')) {
-    $('newExpenseNameInput').focus();
+    dom.newExpenseNameInput.focus();
   }
 }
 
 function confirmAddCustomExpense() {
-  const input = $('newExpenseNameInput');
+  const input = dom.newExpenseNameInput;
   const list = state.expensesByTransport[state.selectedPreset];
-  const name = input.value.trim() || `Расход ${list.length + 1}`;
+  const rawName = input.value.trim();
+  const name = rawName.substring(0, 40) || `Расход ${list.length + 1}`;
+
   list.push({ id: 'custom_' + Date.now(), name, value: 500, max: 25000 });
+  dataCache.invalidate();
+
   input.value = '';
-  $('addExpenseForm').classList.add('hidden');
-  renderAll(false);
+  dom.addExpenseForm.classList.add('hidden');
+
+  renderSettingsScreen(false);
+  renderHeader();
+  renderBlock1();
+  renderBlock3();
   showToast(`Добавлен расход «${name}»`);
 }
 
 function setSeason(seasonKey) {
+  if (state.season === seasonKey) return;
   state.season = seasonKey;
-  renderAll();
+  renderBlock2();
+  if (leafletMap && !dom.realMapModal.classList.contains('hidden')) {
+    updateLeafletMapStyles();
+  }
 }
 
 function selectDistrict(distId) {
+  if (state.districtId === distId) return;
   state.districtId = distId;
-  renderAll();
+  renderBlock2();
+  if (leafletMap && !dom.realMapModal.classList.contains('hidden')) {
+    updateLeafletMapStyles();
+  }
 }
 
 // Навигация по экранам
 function navigateScreen(screen) {
   state.currentScreen = screen;
-  $('screenMain').classList.toggle('hidden', screen !== 'main');
-  $('screenMiddleSpec').classList.toggle('hidden', screen !== 'middle');
-  $('screenSettings').classList.toggle('hidden', screen !== 'settings');
+  dom.screenMain.classList.toggle('hidden', screen !== 'main');
+  dom.screenMiddleSpec.classList.toggle('hidden', screen !== 'middle');
+  dom.screenSettings.classList.toggle('hidden', screen !== 'settings');
+
   if (screen !== 'main') {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -1232,8 +1542,8 @@ function toggleWireframeTheme() {
     document.body.classList.remove('light-mode');
   }
   document.body.classList.toggle('wireframe-mode', state.wireframeMode);
-  $('btnWireTheme').textContent = state.wireframeMode ? '📐 Стиль: Ч/Б схема' : '🎨 Стиль: Цветной';
-  renderAll();
+  dom.btnWireTheme.textContent = state.wireframeMode ? '📐 Стиль: Ч/Б схема' : '🎨 Стиль: Цветной';
+  renderBlock1();
 }
 
 function toggleColorTheme() {
@@ -1241,11 +1551,11 @@ function toggleColorTheme() {
   if (state.lightMode) {
     state.wireframeMode = false;
     document.body.classList.remove('wireframe-mode');
-    $('btnWireTheme').textContent = '🎨 Стиль: Цветной';
+    dom.btnWireTheme.textContent = '🎨 Стиль: Цветной';
   }
   document.body.classList.toggle('light-mode', state.lightMode);
-  $('btnColorTheme').textContent = state.lightMode ? '🌙' : '☀️';
-  renderAll();
+  dom.btnColorTheme.textContent = state.lightMode ? '🌙' : '☀️';
+  renderBlock1();
 }
 
 function openExportModal() {
@@ -1257,12 +1567,78 @@ function openExportModal() {
 // Всплывающие уведомления (Toast)
 let toastTimer = null;
 function showToast(msg) {
-  const box = $('toastBox');
-  $('toastText').textContent = msg;
+  const box = dom.toastBox;
+  dom.toastText.textContent = msg;
   box.classList.remove('hidden');
   if (toastTimer) clearTimeout(toastTimer);
   toastTimer = setTimeout(() => box.classList.add('hidden'), 3000);
 }
 
-// Запуск первичного рендеринга
+// -----------------------------------------------------------------------------
+// 9. ГЛОБАЛЬНЫЕ КЛАВИАТУРНЫЕ СОБЫТИЯ И ДОСТУПНОСТЬ
+// -----------------------------------------------------------------------------
+
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    if (!dom.realMapModal.classList.contains('hidden')) {
+      closeRealMapModal();
+    } else if (!dom.planSlotsModal.classList.contains('hidden')) {
+      closePlanSlotsModal();
+    } else if (!dom.forecastInfoModal.classList.contains('hidden')) {
+      closeForecastInfoModal();
+    } else if (state.currentScreen !== 'main') {
+      navigateScreen('main');
+    }
+  }
+});
+
+// -----------------------------------------------------------------------------
+// 10. ЭКСПОРТ В GLOBAL SCOPE ДЛЯ INLINE HTML ONCLICK HANDLERS
+// -----------------------------------------------------------------------------
+
+Object.assign(window, {
+  toggleWireframeTheme,
+  toggleColorTheme,
+  showToast,
+  openExportModal,
+  toggleGrossNet,
+  toggleSumHourly,
+  toggleChartTable,
+  openSettingsScreen,
+  closeSettingsScreen,
+  setPeriod,
+  toggleWeather,
+  toggleHeatUnit,
+  openDistrictSeasonModal,
+  closeMiddleScreen,
+  clearSelectedSlots,
+  selectTop5Slots,
+  planSelectedSlots,
+  setCompareMode,
+  setSeason,
+  openRealMapModal,
+  closeRealMapModal,
+  resetExpensesToDefault,
+  applyTransportPreset,
+  confirmAddCustomExpense,
+  toggleAddExpenseForm,
+  onToggleGoals,
+  closePlanSlotsModal,
+  confirmPlanSlots,
+  closeForecastInfoModal,
+  openForecastInfoModal,
+  selectDistrict,
+  selectBar,
+  toggleHeatCell,
+  updateExpenseSlider,
+  stepExpense,
+  deleteExpenseItem,
+  toggleTableColumn
+});
+
+// -----------------------------------------------------------------------------
+// 11. ПЕРВИЧНЫЙ ЗАПУСК
+// -----------------------------------------------------------------------------
+
+setupColumnDragDelegation();
 renderAll();
