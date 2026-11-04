@@ -1,5 +1,5 @@
 // =============================================================================
-// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.8) — ЛОГИКА И СОСТОЯНИЕ (script.js)
+// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.9.0) — ЛОГИКА И СОСТОЯНИЕ (script.js)
 // Оптимизированная и модульная версия с гранулярным рендерингом и кэшированием
 // =============================================================================
 
@@ -42,6 +42,7 @@ const dom = {
   selectedSlotsCounter:     $('selectedSlotsCounter'),
   btnClearSlots:            $('btnClearSlots'),
   plannedProfitEstimate:    $('plannedProfitEstimate'),
+  planningActionContainer:  $('planningActionContainer'),
   districtListUnitHint:     $('districtListUnitHint'),
   districtListContainer:    $('districtListContainer'),
   compareTableHead:         $('compareTableHead'),
@@ -64,7 +65,6 @@ const dom = {
   forecastInfoModal:        $('forecastInfoModal'),
   toastBox:                 $('toastBox'),
   toastText:                $('toastText'),
-  btnWireTheme:             $('btnWireTheme'),
   btnColorTheme:            $('btnColorTheme'),
   btnLayoutMode:            $('btnLayoutMode'),
   lblLayoutMode:            $('lblLayoutMode'),
@@ -295,7 +295,6 @@ const comparisonDatasets = {
 // -----------------------------------------------------------------------------
 
 const state = {
-  wireframeMode: false,
   lightMode: false,
   currentScreen: 'main',
 
@@ -421,10 +420,18 @@ function parseDateInfo(val) {
   const day = String(d.getDate()).padStart(2, '0');
   const isoDate = `${y}-${m}-${day}`;
   const displayDate = `${day}.${m}`;
+  const fullDisplayDate = `${day}.${m}.${y}`;
   const jsDay = d.getDay();
   const dowIdx = jsDay === 0 ? 6 : jsDay - 1; // 0=Пн .. 6=Вс
   const dayOfWeek = shortDayNames[dowIdx] || 'Пн';
   const monthKey = monthNames[d.getMonth()] || 'Месяц';
+
+  const monthIdx = d.getMonth();
+  let seasonKey = 'autumn';
+  if (monthIdx === 11 || monthIdx === 0 || monthIdx === 1) seasonKey = 'winter';
+  else if (monthIdx >= 2 && monthIdx <= 4) seasonKey = 'spring';
+  else if (monthIdx >= 5 && monthIdx <= 7) seasonKey = 'summer';
+  else if (monthIdx >= 8 && monthIdx <= 10) seasonKey = 'autumn';
 
   // Расчет номера недели ISO
   const target = new Date(d.valueOf());
@@ -438,7 +445,7 @@ function parseDateInfo(val) {
   const weekNum = 1 + Math.ceil((firstThursday - target) / 604800000);
   const weekKey = `Нед ${weekNum}`;
 
-  return { isoDate, displayDate, dayOfWeek, dowIdx, monthKey, weekKey, year: y, dateObj: d };
+  return { isoDate, displayDate, fullDisplayDate, dayOfWeek, dowIdx, monthKey, weekKey, year: y, seasonKey, dateObj: d };
 }
 
 /**
@@ -609,6 +616,84 @@ function parseOrdersFromRows(rawRows) {
 }
 
 /**
+ * Точный расчет слотовой статистики для плановых и свободных слотов
+ */
+function calculateSlotStats(orders) {
+  const slotMap = new Map();
+  orders.forEach(o => {
+    const key = `${o.date}__${o.slotNumber}`;
+    if (!slotMap.has(key)) {
+      slotMap.set(key, {
+        orders: [],
+        slotType: o.slotType,
+        transportKey: o.transportKey
+      });
+    }
+    slotMap.get(key).orders.push(o);
+  });
+
+  let planHrs = 0;
+  let planGross = 0;
+  let planExp = 0;
+  let planOrdersCount = 0;
+
+  let freeHrs = 0;
+  let freeGross = 0;
+  let freeExp = 0;
+  let freeOrdersCount = 0;
+
+  slotMap.forEach(slot => {
+    const oList = slot.orders;
+    const startS = Math.min(...oList.map(o => o.startSecs));
+    const maxEnd = Math.max(...oList.map(o => o.endSecs));
+    let durHr = (maxEnd >= startS ? maxEnd - startS : maxEnd + 86400 - startS) / 3600;
+    durHr = Math.max(0.3, durHr);
+
+    let sGross = 0;
+    const exps = oList.map(o => o.expense).filter(e => e > 0);
+    const sExp = exps.length > 0 ? (exps.every(e => Math.abs(e - exps[0]) < 0.01) ? exps[0] : exps.reduce((a, b) => a + b, 0)) : 0;
+
+    oList.forEach(o => {
+      sGross += o.baseCost + o.surgeRub + o.ratingRub + o.bonus + o.goal;
+    });
+
+    const isPlan = slot.slotType.toLowerCase().includes('план');
+    if (isPlan) {
+      planHrs += durHr;
+      planGross += sGross;
+      planExp += sExp;
+      planOrdersCount += oList.length;
+    } else {
+      freeHrs += durHr;
+      freeGross += sGross;
+      freeExp += sExp;
+      freeOrdersCount += oList.length;
+    }
+  });
+
+  const planTax = planGross * 0.06;
+  const planNet = Math.max(0, planGross - planTax - planExp);
+  const planProfitPerHr = planHrs > 0 ? Math.round(planNet / planHrs) : 0;
+  const planOrdHr = planHrs > 0 ? (planOrdersCount / planHrs).toFixed(2) : '0.00';
+
+  const freeTax = freeGross * 0.06;
+  const freeNet = Math.max(0, freeGross - freeTax - freeExp);
+  const freeProfitPerHr = freeHrs > 0 ? Math.round(freeNet / freeHrs) : 0;
+  const freeOrdHr = freeHrs > 0 ? (freeOrdersCount / freeHrs).toFixed(2) : '0.00';
+
+  const totalHrs = planHrs + freeHrs;
+  const totalNet = planNet + freeNet;
+  const totalProfitPerHr = totalHrs > 0 ? Math.round(totalNet / totalHrs) : 0;
+  const totalOrdHr = totalHrs > 0 ? ((planOrdersCount + freeOrdersCount) / totalHrs).toFixed(2) : '0.00';
+
+  return {
+    planHrs, planNet, planProfitPerHr, planOrdHr,
+    freeHrs, freeNet, freeProfitPerHr, freeOrdHr,
+    totalHrs, totalNet, totalProfitPerHr, totalOrdHr
+  };
+}
+
+/**
  * Построение сравнительных показателей (Блок 3) на основе загруженных заказов
  */
 function buildComparisonDatasets(orders, days) {
@@ -653,56 +738,53 @@ function buildComparisonDatasets(orders, days) {
     };
   }
 
-  // Транспорт: Пеший, Вело, Электровело, Авто
-  const walkOrders = orders.filter(o => o.transportKey === 'walk');
-  const walkDays = days.filter(d => d.transportKey === 'walk');
-  const walkM = getGroupMetrics(walkOrders, walkDays) || {
-    avgDist: '1.1 км', avgDur: '36 мин', avgWeight: '1.4 кг', payPerKm: '87 ₽/км', payPerKg: '66 ₽/кг', waitPct: '5%', avgWaitMin: '5.2 мин', ordersPerHr: '1.55', profitPerHr: 'WALK_DYN'
-  };
+  const slotStats = calculateSlotStats(orders);
 
-  const bikeOrders = orders.filter(o => o.transportKey === 'bike');
-  const bikeDays = days.filter(d => d.transportKey === 'bike');
-  const bikeM = getGroupMetrics(bikeOrders, bikeDays) || {
-    avgDist: '2.1 км', avgDur: '24 мин', avgWeight: '3.6 кг', payPerKm: '142 ₽/км', payPerKg: '83 ₽/кг', waitPct: '26%', avgWaitMin: '6.5 мин', ordersPerHr: '1.85', profitPerHr: 'BIKE_DYN'
-  };
+  // 1. Транспорт: берем ТОЛЬКО те типы транспорта, которые реально есть в файле пользователя
+  const usedTransportKeys = Array.from(new Set(orders.map(o => o.transportKey)));
+  const transportCols = [];
+  const transMetrics = [];
 
-  const ebikeOrders = orders.filter(o => o.transportKey === 'ebike');
-  const ebikeDays = days.filter(d => d.transportKey === 'ebike');
-  const ebikeM = getGroupMetrics(ebikeOrders, ebikeDays) || {
-    avgDist: '2.2 км', avgDur: '30 мин', avgWeight: '1.6 кг', payPerKm: '49 ₽/км', payPerKg: '68 ₽/кг', waitPct: '8%', avgWaitMin: '6.8 мин', ordersPerHr: '2.20', profitPerHr: 'EBIKE_DYN'
-  };
+  usedTransportKeys.forEach(tKey => {
+    const tOrders = orders.filter(o => o.transportKey === tKey);
+    const tDays = days.filter(d => d.transportKey === tKey);
+    const m = getGroupMetrics(tOrders, tDays.length > 0 ? tDays : days);
+    if (m) {
+      transportCols.push({
+        key: tKey,
+        title: (transportMeta[tKey] && transportMeta[tKey].label) || tKey,
+        forecast: false
+      });
+      transMetrics.push(m);
+    }
+  });
 
   const transport = {
-    columns: [
-      { key: 'walk',  title: 'Пеший',          forecast: false },
-      { key: 'bike',  title: 'Вело',           forecast: false },
-      { key: 'ebike', title: 'Электровело',    forecast: false },
-      { key: 'car',   title: 'Авто (прогноз)', forecast: true }
-    ],
+    columns: transportCols,
     rowsPerOrder: [
-      { label: 'Расстояние заказа',        vals: [walkM.avgDist, bikeM.avgDist, ebikeM.avgDist, '4.3 км'] },
-      { label: 'Продолжительность заказа', vals: [walkM.avgDur, bikeM.avgDur, ebikeM.avgDur, '22 мин'] },
-      { label: 'Вес заказа',               vals: [walkM.avgWeight, bikeM.avgWeight, ebikeM.avgWeight, '7.5 кг'] },
-      { label: 'Оплата за км заказа',      vals: [walkM.payPerKm, bikeM.payPerKm, ebikeM.payPerKm, '108 ₽/км'] },
-      { label: 'Оплата за кг заказа',      vals: [walkM.payPerKg, bikeM.payPerKg, ebikeM.payPerKg, '62 ₽/кг'] },
-      { label: 'Доля заказов с ожиданием', vals: [walkM.waitPct, bikeM.waitPct, ebikeM.waitPct, '31%'] },
-      { label: 'Ожидание заказа',          vals: [walkM.avgWaitMin, bikeM.avgWaitMin, ebikeM.avgWaitMin, '7.4 мин'] }
+      { label: 'Расстояние заказа',        vals: transMetrics.map(m => m.avgDist) },
+      { label: 'Продолжительность заказа', vals: transMetrics.map(m => m.avgDur) },
+      { label: 'Вес заказа',               vals: transMetrics.map(m => m.avgWeight) },
+      { label: 'Оплата за км заказа',      vals: transMetrics.map(m => m.payPerKm) },
+      { label: 'Оплата за кг заказа',      vals: transMetrics.map(m => m.payPerKg) },
+      { label: 'Доля заказов с ожиданием', vals: transMetrics.map(m => m.waitPct) },
+      { label: 'Ожидание заказа',          vals: transMetrics.map(m => m.avgWaitMin) }
     ],
     rowsTotal: [
-      { label: 'Заказов в час',            vals: [walkM.ordersPerHr, bikeM.ordersPerHr, ebikeM.ordersPerHr, '2.35'] },
-      { label: 'Прибыль в час',            vals: [walkM.profitPerHr, bikeM.profitPerHr, ebikeM.profitPerHr, 'CAR_FORECAST_DYN'] }
+      { label: 'Заказов в час',            vals: transMetrics.map(m => m.ordersPerHr) },
+      { label: 'Прибыль в час',            vals: transMetrics.map(m => m.profitPerHr) }
     ]
   };
 
-  // Тип слота: Плановый, Свободный
+  // 2. Тип слота: Плановый, Свободный
   const planOrders = orders.filter(o => o.slotType.toLowerCase().includes('план'));
   const planM = getGroupMetrics(planOrders, days) || {
-    avgDist: '1.4 км', avgDur: '34 мин', avgWeight: '1.3 кг', payPerKm: '59 ₽/км', payPerKg: '64 ₽/кг', waitPct: '10%', avgWaitMin: '6.5 мин', ordersPerHr: '2.10', profitPerHr: 'DYNAMIC'
+    avgDist: '1.4 км', avgDur: '34 мин', avgWeight: '1.3 кг', payPerKm: '59 ₽/км', payPerKg: '64 ₽/кг', waitPct: '10%', avgWaitMin: '6.5 мин'
   };
 
   const freeOrders = orders.filter(o => o.slotType.toLowerCase().includes('свобод'));
   const freeM = getGroupMetrics(freeOrders, days) || {
-    avgDist: '1.9 км', avgDur: '32 мин', avgWeight: '1.6 кг', payPerKm: '58 ₽/км', payPerKg: '69 ₽/кг', waitPct: '5%', avgWaitMin: '6.4 мин', ordersPerHr: '1.80', profitPerHr: '530 ₽/ч'
+    avgDist: '1.9 км', avgDur: '32 мин', avgWeight: '1.6 кг', payPerKm: '58 ₽/км', payPerKg: '69 ₽/кг', waitPct: '5%', avgWaitMin: '6.4 мин'
   };
 
   const slot = {
@@ -717,27 +799,27 @@ function buildComparisonDatasets(orders, days) {
       { label: 'Ожидание заказа',          vals: [planM.avgWaitMin, freeM.avgWaitMin] }
     ],
     rowsTotal: [
-      { label: 'Заказов в час',            vals: [planM.ordersPerHr, freeM.ordersPerHr] },
-      { label: 'Прибыль в час',            vals: ['DYNAMIC', freeM.profitPerHr] }
+      { label: 'Заказов в час',            vals: [slotStats.planOrdHr, slotStats.freeOrdHr] },
+      { label: 'Прибыль в час',            vals: [`${slotStats.planProfitPerHr} ₽/ч`, `${slotStats.freeProfitPerHr} ₽/ч`] }
     ]
   };
 
-  // Тотал: Вы (все время), Вы (период), Ср. район, Топ-20% района, Ср. город, Топ-20% города
+  // 3. Тотал: ТОЛЬКО данные пользователя (Вы все время / Вы выбранный период) без бенчмарков района и города
   const allM = getGroupMetrics(orders, days);
   const total = {
-    columns: ['Вы (все время)', 'DYNAMIC_PERIOD_COL', 'AVG_DIST_COL', 'TOP_DIST_COL', 'AVG_CITY_COL', 'TOP_CITY_COL'],
+    columns: ['Вы (все время)', 'DYNAMIC_PERIOD_COL'],
     rowsPerOrder: [
-      { label: 'Расстояние заказа',        vals: [allM.avgDist, allM.avgDist, '3.0 км', '2.5 км', '3.2 км', '2.6 км'] },
-      { label: 'Продолжительность заказа', vals: [allM.avgDur, allM.avgDur, '22 мин', '17 мин', '24 мин', '18 мин'] },
-      { label: 'Вес заказа',               vals: [allM.avgWeight, allM.avgWeight, '4.5 кг', '4.9 кг', '4.4 кг', '4.8 кг'] },
-      { label: 'Оплата за км заказа',      vals: [allM.payPerKm, allM.payPerKm, '120 ₽/км', '156 ₽/км', '114 ₽/км', '148 ₽/км'] },
-      { label: 'Оплата за кг заказа',      vals: [allM.payPerKg, allM.payPerKg, '71 ₽/кг', '88 ₽/кг', '68 ₽/кг', '84 ₽/кг'] },
-      { label: 'Доля заказов с ожиданием', vals: [allM.waitPct, allM.waitPct, '33%', '21%', '35%', '23%'] },
-      { label: 'Ожидание заказа',          vals: [allM.avgWaitMin, allM.avgWaitMin, '8.1 мин', '5.4 мин', '8.5 мин', '5.8 мин'] }
+      { label: 'Расстояние заказа',        vals: [allM.avgDist, allM.avgDist] },
+      { label: 'Продолжительность заказа', vals: [allM.avgDur, allM.avgDur] },
+      { label: 'Вес заказа',               vals: [allM.avgWeight, allM.avgWeight] },
+      { label: 'Оплата за км заказа',      vals: [allM.payPerKm, allM.payPerKm] },
+      { label: 'Оплата за кг заказа',      vals: [allM.payPerKg, allM.payPerKg] },
+      { label: 'Доля заказов с ожиданием', vals: [allM.waitPct, allM.waitPct] },
+      { label: 'Ожидание заказа',          vals: [allM.avgWaitMin, allM.avgWaitMin] }
     ],
     rowsTotal: [
-      { label: 'Заказов в час',            vals: [allM.ordersPerHr, 'DYNAMIC_ORD_HR', '1.95', '2.45', '1.85', '2.35'] },
-      { label: 'Прибыль в час',            vals: ['ALLTIME', 'DYNAMIC', '625 ₽/ч', '810 ₽/ч', '580 ₽/ч', '765 ₽/ч'] }
+      { label: 'Заказов в час',            vals: [slotStats.totalOrdHr, 'DYNAMIC_ORD_HR'] },
+      { label: 'Прибыль в час',            vals: [`${slotStats.totalProfitPerHr} ₽/ч`, 'DYNAMIC'] }
     ]
   };
 
@@ -812,7 +894,14 @@ function buildDatasetsFromOrders(orders) {
     const ratingPct = ordersCost > 0 ? Math.round((ratingRub / ordersCost) * 100) : 0;
     const bonuses = Math.round(dayOrders.reduce((a, o) => a + o.bonus, 0));
     const goals = Math.round(dayOrders.reduce((a, o) => a + o.goal, 0));
-    const adjustments = -Math.round(daySlotExpenses);
+
+    // Расходы слотов добавляем в userSlotExpenses (не в корректировки)
+    const userSlotExpenses = Math.round(daySlotExpenses);
+    const adjustments = 0;
+
+    // Сбор уникальных видов транспорта за день
+    const distinctTransports = Array.from(new Set(dayOrders.map(o => o.transportLabel)));
+    const transportSummary = distinctTransports.join(' + ');
 
     const tCounts = {};
     dayOrders.forEach(o => {
@@ -831,12 +920,15 @@ function buildDatasetsFromOrders(orders) {
 
     days.push({
       date: dateInfo.displayDate,
+      fullDisplayDate: dateInfo.fullDisplayDate,
       fullDate: dateKey,
       dayOfWeek: dateInfo.dayOfWeek,
       slotHours: totalSlotHours,
       ordersCount: dayOrders.length,
       transport: domTLabel,
       transportKey: domTKey,
+      distinctTransports,
+      transportSummary,
       ordersCost,
       surgePct,
       surgeRub,
@@ -845,9 +937,12 @@ function buildDatasetsFromOrders(orders) {
       bonuses,
       goals,
       tips: 0,
+      userSlotExpenses,
       adjustments,
       weekKey: dateInfo.weekKey,
-      monthKey: dateInfo.monthKey
+      monthKey: dateInfo.monthKey,
+      year: dateInfo.year,
+      seasonKey: dateInfo.seasonKey
     });
   });
 
@@ -859,6 +954,9 @@ function buildDatasetsFromOrders(orders) {
       dominantTransportKey = k;
     }
   });
+
+  // Сезоны, реально представленные в данных пользователя
+  const availableSeasons = Array.from(new Set(days.map(d => d.seasonKey)));
 
   // Группировка по неделям
   const weeksMap = new Map();
@@ -879,15 +977,22 @@ function buildDatasetsFromOrders(orders) {
     const ratingPct = ordersCost > 0 ? Math.round((ratingRub / ordersCost) * 100) : 0;
     const bonuses = wDays.reduce((a, d) => a + d.bonuses, 0);
     const goals = wDays.reduce((a, d) => a + d.goals, 0);
-    const adjustments = wDays.reduce((a, d) => a + d.adjustments, 0);
+    const userSlotExpenses = wDays.reduce((a, d) => a + d.userSlotExpenses, 0);
+    const adjustments = 0;
+
+    const distinctTransports = Array.from(new Set(wDays.flatMap(d => d.distinctTransports)));
+    const transportSummary = distinctTransports.join(' + ');
 
     weeks.push({
       date: wk,
+      fullDisplayDate: `${wk} (${wDays[0].year || 2026})`,
       dayOfWeek: 'Пн–Вс',
       slotHours,
       ordersCount,
       transport: wDays[0].transport,
       transportKey: wDays[0].transportKey,
+      distinctTransports,
+      transportSummary,
       ordersCost,
       surgePct,
       surgeRub,
@@ -896,6 +1001,7 @@ function buildDatasetsFromOrders(orders) {
       bonuses,
       goals,
       tips: 0,
+      userSlotExpenses,
       adjustments
     });
   });
@@ -919,15 +1025,22 @@ function buildDatasetsFromOrders(orders) {
     const ratingPct = ordersCost > 0 ? Math.round((ratingRub / ordersCost) * 100) : 0;
     const bonuses = mDays.reduce((a, d) => a + d.bonuses, 0);
     const goals = mDays.reduce((a, d) => a + d.goals, 0);
-    const adjustments = mDays.reduce((a, d) => a + d.adjustments, 0);
+    const userSlotExpenses = mDays.reduce((a, d) => a + d.userSlotExpenses, 0);
+    const adjustments = 0;
+
+    const distinctTransports = Array.from(new Set(mDays.flatMap(d => d.distinctTransports)));
+    const transportSummary = distinctTransports.join(' + ');
 
     months.push({
       date: mk,
+      fullDisplayDate: `${mk} ${mDays[0].year || 2026}`,
       dayOfWeek: 'Месяц',
       slotHours,
       ordersCount,
       transport: mDays[0].transport,
       transportKey: mDays[0].transportKey,
+      distinctTransports,
+      transportSummary,
       ordersCost,
       surgePct,
       surgeRub,
@@ -936,12 +1049,21 @@ function buildDatasetsFromOrders(orders) {
       bonuses,
       goals,
       tips: 0,
+      userSlotExpenses,
       adjustments
     });
   });
 
-  // Тепловая карта спроса
-  const heatmapMatrix = JSON.parse(JSON.stringify(baseHeatmapMatrix));
+  // Тепловая карта спроса: ячейки БЕЗ данных отмечаются null (в UI выводятся прочерком)
+  const heatmapMatrix = [
+    { hours: '02:00–06:00', values: [null, null, null, null, null, null, null] },
+    { hours: '06:00–10:00', values: [null, null, null, null, null, null, null] },
+    { hours: '10:00–14:00', values: [null, null, null, null, null, null, null] },
+    { hours: '14:00–18:00', values: [null, null, null, null, null, null, null] },
+    { hours: '18:00–22:00', values: [null, null, null, null, null, null, null] },
+    { hours: '22:00–02:00', values: [null, null, null, null, null, null, null] }
+  ];
+
   const timeBuckets = [
     { r: 0, start: 2 * 3600,  end: 6 * 3600 },
     { r: 1, start: 6 * 3600,  end: 10 * 3600 },
@@ -981,7 +1103,13 @@ function buildDatasetsFromOrders(orders) {
       const list = cellOrderBuckets[r][c];
       if (list.length > 0) {
         const avgSurge = Math.round(list.reduce((a, o) => a + o.surgePct, 0) / list.length);
-        heatmapMatrix[r].values[c] = avgSurge;
+        const sumCost = list.reduce((a, o) => a + o.baseCost + o.surgeRub + o.ratingRub + o.bonus, 0);
+        const sumDur = list.reduce((a, o) => a + o.durationMins, 0);
+        const cellHrs = Math.max(0.4, sumDur / 60);
+        const avgRubHr = Math.round(sumCost / cellHrs);
+        heatmapMatrix[r].values[c] = { pct: avgSurge, rubHr: avgRubHr };
+      } else {
+        heatmapMatrix[r].values[c] = null;
       }
     }
   }
@@ -994,7 +1122,8 @@ function buildDatasetsFromOrders(orders) {
     months,
     heatmapMatrix,
     comparisonDatasets,
-    dominantTransportKey
+    dominantTransportKey,
+    availableSeasons
   };
 }
 
@@ -1161,7 +1290,15 @@ function enrichRow(rawRow, periodKey) {
     name: e.name,
     amount: Math.round(Number(e.value || 0) * factor)
   }));
-  const rowExpense = itemizedExpenses.reduce((a, b) => a + b.amount, 0);
+  const baseExpense = itemizedExpenses.reduce((a, b) => a + b.amount, 0);
+  const userExpense = Math.round(Number(rawRow.userSlotExpenses || 0));
+  if (userExpense > 0) {
+    itemizedExpenses.push({
+      name: 'Расход (по слотам)',
+      amount: userExpense
+    });
+  }
+  const rowExpense = baseExpense + userExpense;
 
   const penaltyAdjustments = -Math.abs(Number(rawRow.adjustments || 0));
   const netProfit = Math.max(0, grossTotal - tax - rowExpense + penaltyAdjustments);
@@ -1211,9 +1348,18 @@ function getAllTimeHourlyProfit() {
 }
 
 function getCellComputedValue(basePct) {
+  if (basePct === null || basePct === undefined) {
+    return null;
+  }
+  if (typeof basePct === 'object') {
+    return {
+      pct: Math.round(basePct.pct || 0),
+      rubHr: Math.round(basePct.rubHr || 0)
+    };
+  }
   const distObj = districtsData.find(d => d.id === state.districtId) || districtsData[0];
   const distFactor = distObj.avgPct / 42;
-  const seasonFactor = seasonMultipliers[state.season].mult;
+  const seasonFactor = seasonMultipliers[state.season]?.mult || 1;
   const weatherAdd = state.weatherBoost ? 16 : 0;
 
   const acctMeta = transportMeta[state.accountTransport] || transportMeta.ebike;
@@ -1227,25 +1373,30 @@ function getSelectedSlotsSummary() {
   const totalHours = count * 4;
   let totalRubEst = 0;
   let totalPctSum = 0;
+  let validCellCount = 0;
   const activeMatrix = (state.usingUserData && state.userDatasets && state.userDatasets.heatmapMatrix)
     ? state.userDatasets.heatmapMatrix
     : baseHeatmapMatrix;
 
-  const items = state.selectedSlotCells.map(key => {
+  const items = [];
+  state.selectedSlotCells.forEach(key => {
     const [r, c] = key.split('-').map(Number);
     const rowObj = activeMatrix[r] || baseHeatmapMatrix[r];
-    const comp = getCellComputedValue(rowObj?.values[c] || 35);
-    totalRubEst += comp.rubHr * 4;
-    totalPctSum += comp.pct;
-    return { day: shortDayNames[c], hours: rowObj ? rowObj.hours : '', comp };
+    const comp = getCellComputedValue(rowObj?.values[c]);
+    if (comp) {
+      totalRubEst += comp.rubHr * 4;
+      totalPctSum += comp.pct;
+      validCellCount++;
+      items.push({ day: shortDayNames[c], hours: rowObj ? rowObj.hours : '', comp });
+    }
   });
 
   return {
     count,
     totalHours,
     totalRubEst,
-    avgHrEst: totalHours > 0 ? Math.round(totalRubEst / totalHours) : 0,
-    avgPctEst: count > 0 ? Math.round(totalPctSum / count) : 0,
+    avgHrEst: validCellCount > 0 ? Math.round(totalRubEst / (validCellCount * 4)) : 0,
+    avgPctEst: validCellCount > 0 ? Math.round(totalPctSum / validCellCount) : 0,
     items
   };
 }
@@ -1358,13 +1509,7 @@ function renderBarChart(data) {
   const yTop = Math.round(maxGrossVal);
   const yMid = Math.round(maxGrossVal / 2);
 
-  let html = `
-    <div class="absolute left-0 top-3 bottom-6 w-8 flex flex-col justify-between text-[9px] pr-1 text-right text-mut">
-      <span>${formatCompact(yTop)}</span>
-      <span>${formatCompact(yMid)}</span>
-      <span>0</span>
-    </div>
-
+  const benchmarkLinesHtml = state.usingUserData ? '' : `
     <div class="absolute left-9 right-1 bottom-6 top-3 pointer-events-none">
       <div style="bottom: ${pctUser}%" class="absolute left-0 right-0 border-t border-dashed border-gray-300/75 z-20">
         <span class="absolute left-1 -top-3.5 text-[8.5px] font-semibold px-1 rounded bg-black/70 text-gray-100 whitespace-nowrap">
@@ -1382,8 +1527,19 @@ function renderBarChart(data) {
         </span>
       </div>
     </div>
+  `;
 
-    <div class="w-full h-full flex items-end justify-around gap-1.5 border-b border-l relative z-10 px-1 border-strong">
+  let html = `
+    <div class="absolute left-0 top-3 bottom-6 w-8 flex flex-col justify-between text-[9px] pr-1 text-right text-mut">
+      <span>${formatCompact(yTop)}</span>
+      <span>${formatCompact(yMid)}</span>
+      <span>0</span>
+    </div>
+
+    ${benchmarkLinesHtml}
+
+    <div id="barScrollContainer" class="w-full h-full overflow-x-auto overflow-y-hidden border-b border-l relative z-10 border-strong custom-scroll">
+      <div class="chart-scroll-track" style="min-width: ${Math.max(100, data.length * 48)}px;">
   `;
 
   data.forEach((d, idx) => {
@@ -1400,12 +1556,12 @@ function renderBarChart(data) {
     const isSelected = idx === state.selectedBarIndex;
 
     html += `
-      <div id="barCol-${idx}" onclick="selectBar(${idx})" class="flex-1 h-full flex flex-col justify-end items-center cursor-pointer group relative">
-        <div id="barValue-${idx}" class="text-[9px] font-bold mb-0.5 ${isSelected ? 'opacity-100' : 'opacity-70'}">
+      <div id="barCol-${idx}" onclick="selectBar(${idx})" class="chart-bar-item flex flex-col justify-end items-center cursor-pointer group relative shrink-0">
+        <div id="barValue-${idx}" class="text-[9px] font-bold mb-0.5 whitespace-nowrap ${isSelected ? 'opacity-100' : 'opacity-70'}">
           ${formatCompact(displayMetric)}
         </div>
 
-        <div class="w-full max-w-[36px] h-full flex items-end justify-center relative">
+        <div class="w-full max-w-[32px] h-full flex items-end justify-center relative">
           ${state.isNet ? `
             <div style="height: ${grossHeightPct}%"
                  class="w-full bg-gray-500/35 border border-dashed border-gray-400/70 rounded-t-lg absolute bottom-0 left-0 right-0">
@@ -1423,15 +1579,23 @@ function renderBarChart(data) {
           </div>
         </div>
 
-        <div id="barDate-${idx}" class="absolute -bottom-5 text-[10px] font-semibold ${isSelected ? 'underline font-extrabold' : 'opacity-65'}">
+        <div id="barDate-${idx}" class="absolute -bottom-5 text-[10px] font-semibold whitespace-nowrap ${isSelected ? 'underline font-extrabold text-[#FCE000]' : 'opacity-65'}">
           ${d.date}
         </div>
       </div>
     `;
   });
 
-  html += `</div>`;
+  html += `  </div>
+    </div>`;
   canvas.innerHTML = html;
+
+  const scrollContainer = document.getElementById('barScrollContainer');
+  const activeBar = document.getElementById(`barCol-${state.selectedBarIndex}`);
+  if (scrollContainer && activeBar) {
+    const leftOffset = activeBar.offsetLeft - (scrollContainer.clientWidth / 2) + (activeBar.clientWidth / 2);
+    scrollContainer.scrollLeft = Math.max(0, leftOffset);
+  }
 
   renderSelectedBarDetails(data[state.selectedBarIndex]);
 }
@@ -1452,11 +1616,13 @@ function renderSelectedBarDetails(sel) {
     deductionBadges.push(`<span class="ya-badge ya-badge-red">Корректировки: <b>-${formatNum(Math.abs(sel.adjustments))} ₽</b></span>`);
   }
 
+  const transportText = sel.transportSummary || sel.transport || 'Курьер';
+
   dom.selectedBarDetails.innerHTML = `
     <div class="flex items-center justify-between">
       <div>
         <span class="font-extrabold">${escapeHtml(sel.date)} (${escapeHtml(sel.dayOfWeek)})</span>
-        <span class="opacity-70 ml-1">• ${escapeHtml(sel.transport)} • ${sel.slotHours} ч • ${sel.ordersCount} зак.</span>
+        <span class="opacity-70 ml-1">• ${escapeHtml(transportText)} • ${sel.slotHours} ч • ${sel.ordersCount} зак.</span>
       </div>
     </div>
     <div class="flex flex-wrap items-center gap-1.5 text-[10px] pt-1">
@@ -1475,7 +1641,7 @@ function renderDetailedTable(data) {
 
   let headHtml = '<tr>';
   enabledCols.forEach((col, i) => {
-    const stickyCls = i === 0 ? 'sticky left-0 z-10 border-r min-w-[54px] border-strong bg-elevated' : 'min-w-[72px] max-w-[90px]';
+    const stickyCls = i === 0 ? 'sticky left-0 z-10 border-r min-w-[70px] border-strong bg-elevated' : 'min-w-[72px] max-w-[90px]';
     headHtml += `<th scope="col" class="py-1.5 px-1 font-bold text-[9.5px] leading-snug whitespace-normal align-middle ${stickyCls}">${escapeHtml(col.label)}</th>`;
   });
   headHtml += '</tr>';
@@ -1499,11 +1665,22 @@ function renderDetailedTable(data) {
   });
   footHtml += '</tr>';
   tfoot.innerHTML = footHtml;
+
+  const scrollContainer = tbody.closest('.table-scroll-container');
+  if (scrollContainer) {
+    scrollContainer.scrollTop = scrollContainer.scrollHeight;
+  }
 }
 
 function formatTableCellValue(row, key) {
   switch (key) {
-    case 'date':        return escapeHtml(row.date);
+    case 'date': {
+      if (row.fullDisplayDate) return escapeHtml(row.fullDisplayDate);
+      if (typeof row.date === 'string' && row.date.length === 5) {
+        return escapeHtml(`${row.date}.2026`);
+      }
+      return escapeHtml(row.date);
+    }
     case 'dayOfWeek':   return escapeHtml(row.dayOfWeek);
     case 'slotHours':   return `${row.slotHours} ч`;
     case 'ordersCount': return row.ordersCount;
@@ -1532,7 +1709,12 @@ function formatTableFootValue(data, key) {
   const avg = k => Math.round(sum(k) / data.length);
   switch (key) {
     case 'dayOfWeek':   return '—';
-    case 'transport':   return 'Электровело';
+    case 'transport': {
+      if (state.usingUserData && state.userDatasets?.distinctTransports?.length) {
+        return escapeHtml(state.userDatasets.distinctTransports.join(' + '));
+      }
+      return 'Электровело';
+    }
     case 'slotHours':   return `${sum('slotHours')} ч`;
     case 'ordersCount': return sum('ordersCount');
     case 'ordersPerHr': return (sum('ordersCount') / sum('slotHours')).toFixed(2);
@@ -1560,33 +1742,57 @@ function renderBlock2() {
     ? 'Средний общий доход в час (с учетом спроса)'
     : 'Средняя доплата за спрос по часам';
 
-  const distObj = districtsData.find(d => d.id === state.districtId) || districtsData[0];
-  const seasonObj = seasonMultipliers[state.season];
-  dom.currentDistrictSeasonSub.textContent = `${distObj.shortName} • ${seasonObj.label}`;
+  if (state.usingUserData) {
+    const availableSeasons = state.userDatasets?.availableSeasons || ['autumn'];
+    const seasonLabels = availableSeasons.map(s => seasonMultipliers[s]?.label || s).join(', ');
+    dom.currentDistrictSeasonSub.textContent = `Локация пользователя • ${seasonLabels}`;
+    if (dom.planningActionContainer) {
+      dom.planningActionContainer.style.display = 'none';
+    }
+  } else {
+    const distObj = districtsData.find(d => d.id === state.districtId) || districtsData[0];
+    const seasonObj = seasonMultipliers[state.season] || seasonMultipliers.autumn;
+    dom.currentDistrictSeasonSub.textContent = `${distObj.shortName} • ${seasonObj.label}`;
+    if (dom.planningActionContainer) {
+      dom.planningActionContainer.style.display = 'grid';
+    }
+  }
 
   const tbody = dom.heatmapTableBody;
   let html = '';
   const activeMatrix = (state.usingUserData && state.userDatasets && state.userDatasets.heatmapMatrix)
     ? state.userDatasets.heatmapMatrix
     : baseHeatmapMatrix;
+
   activeMatrix.forEach((row, rIdx) => {
     html += `<tr><td class="text-left font-medium py-1.5 pl-0.5 pr-1 whitespace-nowrap text-[9.5px] opacity-80">${row.hours}</td>`;
     row.values.forEach((baseVal, cIdx) => {
       const cellKey = `${rIdx}-${cIdx}`;
-      const isSelected = state.selectedSlotCells.includes(cellKey);
       const comp = getCellComputedValue(baseVal);
-      const displayStr = state.heatUnitRub ? `${comp.rubHr}₽` : `+${comp.pct}%`;
-      const colorCls = getHeatCellColor(comp.pct);
 
-      html += `
-        <td>
-          <div data-cell-key="${cellKey}"
-               onclick="toggleHeatCell('${cellKey}')"
-               class="heat-cell rounded-lg py-1.5 px-0 text-[9.5px] font-bold ${colorCls} ${isSelected ? 'heat-cell-selected' : ''}">
-            ${displayStr}
-          </div>
-        </td>
-      `;
+      if (!comp) {
+        html += `
+          <td>
+            <div class="heat-cell rounded-lg py-1.5 px-0 text-[10px] font-medium bg-gray-500/10 text-mut opacity-50 cursor-default">
+              —
+            </div>
+          </td>
+        `;
+      } else {
+        const isSelected = state.selectedSlotCells.includes(cellKey);
+        const displayStr = state.heatUnitRub ? `${comp.rubHr} ₽` : `+${comp.pct}%`;
+        const colorCls = getHeatCellColor(comp.pct);
+
+        html += `
+          <td>
+            <div data-cell-key="${cellKey}"
+                 onclick="toggleHeatCell('${cellKey}')"
+                 class="heat-cell rounded-lg py-1.5 px-0 text-[9.5px] font-bold ${colorCls} ${isSelected ? 'heat-cell-selected' : ''}">
+              ${displayStr}
+            </div>
+          </td>
+        `;
+      }
     });
     html += `</tr>`;
   });
@@ -1618,37 +1824,67 @@ function getHeatCellColor(pct) {
 }
 
 function renderDistrictSeasonScreen() {
+  const availSeasons = (state.usingUserData && state.userDatasets?.availableSeasons)
+    ? state.userDatasets.availableSeasons
+    : ['summer', 'autumn', 'winter', 'spring'];
+
   ['auto', 'summer', 'autumn', 'winter', 'spring'].forEach(s => {
     const btn = $(`btnSeason-${s}`);
-    if (btn) btn.classList.toggle('ya-seg-btn-active', state.season === s);
+    if (btn) {
+      btn.classList.toggle('ya-seg-btn-active', state.season === s);
+      if (state.usingUserData && s !== 'auto') {
+        const isAvail = availSeasons.includes(s);
+        btn.classList.toggle('opacity-30', !isAvail);
+        btn.classList.toggle('pointer-events-none', !isAvail);
+      } else {
+        btn.classList.remove('opacity-30', 'pointer-events-none');
+      }
+    }
   });
 
-  dom.districtListUnitHint.textContent = state.heatUnitRub ? 'Средняя / Пик (₽/ч)' : 'Средняя / Пик (% спроса)';
-
   const listContainer = dom.districtListContainer;
-  listContainer.innerHTML = districtsData.map(d => {
-    const isCurrent = d.id === state.districtId;
-    const stats = getDistrictStats(d);
-
-    return `
-      <div onclick="selectDistrict('${d.id}')"
-           class="ya-subcard p-3 cursor-pointer flex items-center justify-between transition ${
-             isCurrent ? 'ring-2 ring-[#FCE000]' : 'hover:opacity-90'
-           }">
+  if (state.usingUserData) {
+    dom.districtListUnitHint.textContent = 'Локация пользователя';
+    listContainer.innerHTML = `
+      <div class="ya-subcard p-3 flex items-center justify-between ring-2 ring-[#FCE000]">
         <div class="flex items-center gap-2.5 min-w-0">
-          <span class="w-3 h-3 rounded-full shrink-0" style="background-color: ${d.color}"></span>
+          <span class="w-3 h-3 rounded-full shrink-0 bg-[#FCE000]"></span>
           <div class="truncate">
-            <div class="text-xs font-bold truncate">${escapeHtml(d.name)}</div>
-            <div class="text-[10px] text-sec">Сезон: ${seasonMultipliers[state.season].label}</div>
+            <div class="text-xs font-bold truncate">Локация пользователя</div>
+            <div class="text-[10px] text-sec">Спрос и коэффициенты рассчитаны по вашим данным</div>
           </div>
         </div>
-        <div class="text-right text-xs shrink-0 ml-2">
-          <div>Ср.: <b>${stats.avgStr}</b></div>
-          <div class="text-[11px] font-bold text-amber-400">Пик: ${stats.peakStr}</div>
+        <div class="text-right text-xs shrink-0 ml-2 font-bold text-emerald-400">
+          Активно
         </div>
       </div>
     `;
-  }).join('');
+  } else {
+    dom.districtListUnitHint.textContent = state.heatUnitRub ? 'Средняя / Пик (₽/ч)' : 'Средняя / Пик (% спроса)';
+    listContainer.innerHTML = districtsData.map(d => {
+      const isCurrent = d.id === state.districtId;
+      const stats = getDistrictStats(d);
+
+      return `
+        <div onclick="selectDistrict('${d.id}')"
+             class="ya-subcard p-3 cursor-pointer flex items-center justify-between transition ${
+               isCurrent ? 'ring-2 ring-[#FCE000]' : 'hover:opacity-90'
+             }">
+          <div class="flex items-center gap-2.5 min-w-0">
+            <span class="w-3 h-3 rounded-full shrink-0" style="background-color: ${d.color}"></span>
+            <div class="truncate">
+              <div class="text-xs font-bold truncate">${escapeHtml(d.name)}</div>
+              <div class="text-[10px] text-sec">Сезон: ${seasonMultipliers[state.season]?.label || ''}</div>
+            </div>
+          </div>
+          <div class="text-right text-xs shrink-0 ml-2">
+            <div>Ср.: <b>${stats.avgStr}</b></div>
+            <div class="text-[11px] font-bold text-amber-400">Пик: ${stats.peakStr}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
 }
 
 // Блок 3: Сравнение показателей
@@ -1930,15 +2166,14 @@ function initOrUpdateLeafletMap() {
     }).addTo(leafletMap);
 
     districtsData.forEach(d => {
-      const isCurrent = d.id === state.districtId;
       const stats = getDistrictStats(d);
 
       const poly = L.polygon(d.polygon, {
-        color: isCurrent ? '#141518' : d.color,
-        weight: isCurrent ? 3.5 : 2,
+        color: d.color,
+        weight: 2,
         fillColor: d.color,
-        fillOpacity: isCurrent ? 0.45 : 0.22
-      }).addTo(leafletMap);
+        fillOpacity: 0.22
+      });
 
       poly.bindTooltip(
         `<div class="text-center leading-tight">
@@ -1961,14 +2196,27 @@ function initOrUpdateLeafletMap() {
     });
   } else {
     leafletMap.invalidateSize();
-    updateLeafletMapStyles();
   }
 
-  const curDist = districtsData.find(d => d.id === state.districtId) || districtsData[0];
-  dom.mapSelectedDistrictName.textContent = curDist.name;
+  if (state.usingUserData) {
+    leafletPolygons.forEach(p => {
+      if (leafletMap.hasLayer(p)) leafletMap.removeLayer(p);
+    });
+    leafletMap.setView([61.5, 95.0], 3);
+    dom.mapSelectedDistrictName.textContent = 'Локация пользователя (РФ)';
+  } else {
+    leafletPolygons.forEach(p => {
+      if (!leafletMap.hasLayer(p)) p.addTo(leafletMap);
+    });
+    leafletMap.setView([55.742, 37.605], 11);
+    const curDist = districtsData.find(d => d.id === state.districtId) || districtsData[0];
+    dom.mapSelectedDistrictName.textContent = curDist.name;
+    updateLeafletMapStyles();
+  }
 }
 
 function updateLeafletMapStyles() {
+  if (state.usingUserData) return;
   districtsData.forEach(d => {
     const poly = leafletPolygons.get(d.id);
     if (!poly) return;
@@ -2097,6 +2345,14 @@ function toggleHeatUnit() {
 }
 
 function toggleHeatCell(cellKey) {
+  const [r, c] = cellKey.split('-').map(Number);
+  const activeMatrix = (state.usingUserData && state.userDatasets && state.userDatasets.heatmapMatrix)
+    ? state.userDatasets.heatmapMatrix
+    : baseHeatmapMatrix;
+  const rowObj = activeMatrix[r] || baseHeatmapMatrix[r];
+  const comp = getCellComputedValue(rowObj?.values[c]);
+  if (!comp) return;
+
   const idx = state.selectedSlotCells.indexOf(cellKey);
   const cellEl = document.querySelector(`.heat-cell[data-cell-key="${cellKey}"]`);
 
@@ -2126,7 +2382,10 @@ function selectTop5Slots() {
     : baseHeatmapMatrix;
   activeMatrix.forEach((row, rIdx) => {
     row.values.forEach((val, cIdx) => {
-      allCells.push({ key: `${rIdx}-${cIdx}`, val });
+      const comp = getCellComputedValue(val);
+      if (comp) {
+        allCells.push({ key: `${rIdx}-${cIdx}`, val: comp.pct });
+      }
     });
   });
   allCells.sort((a, b) => b.val - a.val);
@@ -2302,6 +2561,13 @@ function confirmAddCustomExpense() {
 }
 
 function setSeason(seasonKey) {
+  if (state.usingUserData && seasonKey !== 'auto') {
+    const avail = state.userDatasets?.availableSeasons || ['autumn'];
+    if (!avail.includes(seasonKey)) {
+      showToast(`В данных доступен только сезон: ${avail.map(s => seasonMultipliers[s]?.label || s).join(', ')}`);
+      return;
+    }
+  }
   if (state.season === seasonKey) return;
   state.season = seasonKey;
   renderBlock2();
@@ -2311,6 +2577,10 @@ function setSeason(seasonKey) {
 }
 
 function selectDistrict(distId) {
+  if (state.usingUserData) {
+    showToast('В режиме пользовательских данных используется локация пользователя');
+    return;
+  }
   if (state.districtId === distId) return;
   state.districtId = distId;
   renderBlock2();
@@ -2336,25 +2606,9 @@ const closeSettingsScreen = () => navigateScreen('main');
 const openDistrictSeasonModal = () => navigateScreen('middle');
 const closeMiddleScreen = () => navigateScreen('main');
 
-// Темы оформления
-function toggleWireframeTheme() {
-  state.wireframeMode = !state.wireframeMode;
-  if (state.wireframeMode) {
-    state.lightMode = false;
-    document.body.classList.remove('light-mode');
-  }
-  document.body.classList.toggle('wireframe-mode', state.wireframeMode);
-  dom.btnWireTheme.textContent = state.wireframeMode ? '📐 Стиль: Ч/Б схема' : '🎨 Стиль: Цветной';
-  renderBlock1();
-}
-
+// Темы оформления (Темная / Светлая)
 function toggleColorTheme() {
   state.lightMode = !state.lightMode;
-  if (state.lightMode) {
-    state.wireframeMode = false;
-    document.body.classList.remove('wireframe-mode');
-    dom.btnWireTheme.textContent = '🎨 Стиль: Цветной';
-  }
   document.body.classList.toggle('light-mode', state.lightMode);
   dom.btnColorTheme.textContent = state.lightMode ? '🌙' : '☀️';
   renderBlock1();
@@ -2403,7 +2657,6 @@ Object.assign(window, {
   triggerUserDataFileInput,
   handleUserDataFileUpload,
   resetToDemoData,
-  toggleWireframeTheme,
   toggleColorTheme,
   showToast,
   openExportModal,

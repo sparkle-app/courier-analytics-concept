@@ -9,6 +9,7 @@ server.py
 data*
 *.xlsx
 *.csv
+*.pdf
 
 # OS & Editor files
 .DS_Store

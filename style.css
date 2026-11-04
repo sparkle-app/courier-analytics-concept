@@ -54,31 +54,6 @@ body.light-mode {
   --badge-red-border: rgba(244, 63, 94, 0.3);
 }
 
-body.wireframe-mode {
-  --bg-outer: #D1D5DB;
-  --bg-shell: #FFFFFF;
-  --bg-card: #FFFFFF;
-  --bg-elevated: #F3F4F6;
-  --bg-pill: #E5E7EB;
-  --border-subtle: #1F2937;
-  --border-strong: #111827;
-  --text-main: #111827;
-  --text-secondary: #374151;
-  --text-muted: #4B5563;
-  --ya-yellow: #111827;
-  --ya-yellow-text: #FFFFFF;
-  --shadow-card: none;
-  --badge-grey-bg: #E5E7EB;
-  --badge-grey-text: #111827;
-  --badge-grey-border: #111827;
-  --badge-green-bg: #D1FAE5;
-  --badge-green-text: #065F46;
-  --badge-green-border: #065F46;
-  --badge-red-bg: #FFE4E6;
-  --badge-red-text: #9F1239;
-  --badge-red-border: #9F1239;
-}
-
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   background-color: var(--bg-outer);
@@ -227,9 +202,6 @@ body {
 input[type="range"] {
   accent-color: #FCE000;
 }
-body.wireframe-mode input[type="range"] {
-  accent-color: #111827;
-}
 
 /* Heatmap Grid */
 .heat-cell {
@@ -353,4 +325,42 @@ body.desktop-mode .desktop-grid-split {
 .area-block3 {
   grid-area: block3;
 }
+
+/* ------------------------------------------------------------------------- */
+/* СКРОЛЛ ДИАГРАММЫ И ТАБЛИЦЫ ДОХОДОВ                                       */
+/* ------------------------------------------------------------------------- */
+.chart-scroll-track {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+.chart-bar-item {
+  min-width: 48px;
+  max-width: 64px;
+  flex: 0 0 auto;
+}
+
+.table-scroll-container {
+  max-height: 380px;
+  overflow-y: auto;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-sticky-header th {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background-color: var(--bg-elevated);
+}
+
+.table-sticky-footer td {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  background-color: var(--bg-elevated);
+}
+
 
