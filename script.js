@@ -1,5 +1,5 @@
 // =============================================================================
-// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.11.1) — ЛОГИКА И СОСТОЯНИЕ (script.js)
+// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.11.2) — ЛОГИКА И СОСТОЯНИЕ (script.js)
 // Оптимизированная и модульная версия с гранулярным рендерингом и кэшированием
 // =============================================================================
 
@@ -111,10 +111,16 @@ function formatNum(n) {
 }
 
 /**
- * Компактный формат для диаграмм (14.2к / 500)
+ * Компактный формат для диаграмм (14.2к / 500 / -12.5к)
  */
 function formatCompact(n) {
-  return n >= 10000 ? (n / 1000).toFixed(1) + 'к' : formatNum(n);
+  const num = Number(n || 0);
+  const abs = Math.abs(num);
+  const sign = num < 0 ? '-' : '';
+  if (abs >= 10000) {
+    return sign + (abs / 1000).toFixed(1) + 'к';
+  }
+  return sign + formatNum(abs);
 }
 
 // -----------------------------------------------------------------------------
@@ -1609,10 +1615,10 @@ function enrichRow(rawRow, periodKey, dayMeta = null) {
   const rowExpense = baseExpense + userExpense;
 
   const penaltyAdjustments = -Math.abs(Number(rawRow.adjustments || 0));
-  const netProfit = Math.max(0, grossTotal - tax - rowExpense + penaltyAdjustments);
-  const ordersPerHr = (rawRow.ordersCount / rawRow.slotHours).toFixed(2);
-  const profitPerHr = Math.round(netProfit / rawRow.slotHours);
-  const grossPerHr = Math.round(grossTotal / rawRow.slotHours);
+  const netProfit = grossTotal - tax - rowExpense + penaltyAdjustments;
+  const ordersPerHr = rawRow.slotHours > 0 ? (rawRow.ordersCount / rawRow.slotHours).toFixed(2) : '0.00';
+  const profitPerHr = rawRow.slotHours > 0 ? Math.round(netProfit / rawRow.slotHours) : 0;
+  const grossPerHr = rawRow.slotHours > 0 ? Math.round(grossTotal / rawRow.slotHours) : 0;
 
   let dayOfWeek = rawRow.dayOfWeek;
   if (periodKey === 'weeks') {
@@ -1706,25 +1712,49 @@ function getAllTimeHourlyProfit() {
   return dataCache.allTimeProfit;
 }
 
+function getCourierHourlyExpense() {
+  const totalWeeklyExpense = getTotalWeeklyExpenses();
+  if (totalWeeklyExpense <= 0) return 0;
+
+  let weeklyHours = 40;
+  if (state.usingUserData && state.userDatasets?.days?.length) {
+    const totalSlotHours = state.userDatasets.days.reduce((a, d) => a + Number(d.slotHours || 0), 0);
+    const weeksCount = Math.max(1, state.userDatasets.weeks?.length || 1);
+    weeklyHours = Math.max(10, Math.round(totalSlotHours / weeksCount));
+  }
+  return Math.round(totalWeeklyExpense / weeklyHours);
+}
+
 function getCellComputedValue(basePct) {
   if (basePct === null || basePct === undefined) {
     return null;
   }
-  if (typeof basePct === 'object') {
-    return {
-      pct: Math.round(basePct.pct || 0),
-      rubHr: Math.round(basePct.rubHr || 0)
-    };
-  }
-  const distObj = districtsData.find(d => d.id === state.districtId) || districtsData[0];
-  const distFactor = distObj.avgPct / 42;
-  const seasonFactor = seasonMultipliers[state.season]?.mult || 1;
-  const weatherAdd = state.weatherBoost ? 16 : 0;
 
-  const acctMeta = transportMeta[state.accountTransport] || transportMeta.ebike;
-  const finalPct = Math.round(basePct * distFactor * seasonFactor + weatherAdd);
-  const rubPerHour = Math.round(acctMeta.baseHourlyRub * (1 + finalPct / 100));
-  return { pct: finalPct, rubHr: rubPerHour };
+  let pct = 0;
+  let grossRubHr = 0;
+
+  if (typeof basePct === 'object') {
+    pct = Math.round(basePct.pct || 0);
+    grossRubHr = Math.round(basePct.rubHr || 0);
+  } else {
+    const distObj = districtsData.find(d => d.id === state.districtId) || districtsData[0];
+    const distFactor = distObj.avgPct / 42;
+    const seasonFactor = seasonMultipliers[state.season]?.mult || 1;
+    const weatherAdd = state.weatherBoost ? 16 : 0;
+    const acctMeta = transportMeta[state.accountTransport] || transportMeta.ebike;
+
+    pct = Math.round(basePct * distFactor * seasonFactor + weatherAdd);
+    grossRubHr = Math.round(acctMeta.baseHourlyRub * (1 + pct / 100));
+  }
+
+  let finalRubHr = grossRubHr;
+  if (state.isNet) {
+    const tax = Math.round(grossRubHr * 0.06);
+    const hourlyExp = getCourierHourlyExpense();
+    finalRubHr = grossRubHr - tax - hourlyExp;
+  }
+
+  return { pct, rubHr: finalRubHr, grossRubHr };
 }
 
 function getSelectedSlotsSummary() {
@@ -1802,7 +1832,13 @@ function getTransportProfitPerHourForComparison(tKey, userHoursInPeriod, cachedD
  */
 function renderHeader() {
   const allTimeProfitHr = getAllTimeHourlyProfit();
-  dom.allTimeHourlyProfit.textContent = `${formatNum(allTimeProfitHr)} ₽/ч`;
+  if (allTimeProfitHr < 0) {
+    dom.allTimeHourlyProfit.textContent = `-${formatNum(Math.abs(allTimeProfitHr))} ₽/ч`;
+    dom.allTimeHourlyProfit.classList.add('text-rose-500');
+  } else {
+    dom.allTimeHourlyProfit.textContent = `${formatNum(allTimeProfitHr)} ₽/ч`;
+    dom.allTimeHourlyProfit.classList.remove('text-rose-500');
+  }
   dom.goalsStatusLabel.textContent = state.includeGoals ? '(с учетом целей)' : '(без учета целей)';
 
   dom.lblGross.classList.toggle('ya-switch-opt-active', !state.isNet);
@@ -1892,6 +1928,9 @@ function renderBarChart(data) {
     </div>
   `;
 
+  const itemWidth = state.period === 'weeks' ? 76 : (state.period === 'months' ? 64 : 42);
+  const itemModifierCls = state.period === 'weeks' ? 'item-weeks' : (state.period === 'months' ? 'item-months' : '');
+
   let html = `
     <div class="absolute left-0 top-3 bottom-6 w-8 flex flex-col justify-between text-[9px] pr-1 text-right text-mut">
       <span>${formatCompact(yTop)}</span>
@@ -1902,26 +1941,61 @@ function renderBarChart(data) {
     ${benchmarkLinesHtml}
 
     <div id="barScrollContainer" class="w-full h-full overflow-x-auto overflow-y-hidden border-b border-l relative z-10 border-strong custom-scroll">
-      <div class="chart-scroll-track ${data.length <= 7 ? 'justify-around' : 'justify-start'}" style="min-width: ${Math.max(100, data.length * 42)}px;">
+      <div class="chart-scroll-track ${data.length <= 7 ? 'justify-around' : 'justify-start'}" style="min-width: ${Math.max(100, data.length * itemWidth)}px;">
   `;
 
   data.forEach((d, idx) => {
     const grossMetric = state.isHourly ? d.grossPerHr : d.grossTotal;
     const netMetric   = state.isHourly ? d.profitPerHr : d.netProfit;
     const displayMetric = state.isNet ? netMetric : grossMetric;
+    const isLoss = displayMetric < 0;
 
-    const grossHeightPct = Math.max(6, Math.round((grossMetric / maxGrossVal) * 100));
-    const netHeightPct   = Math.max(4, Math.round((displayMetric / maxGrossVal) * 100));
+    const grossHeightPct = Math.max(6, Math.min(100, Math.round((grossMetric / maxGrossVal) * 100)));
+    const netHeightPct   = isLoss ? 12 : Math.max(4, Math.min(100, Math.round((displayMetric / maxGrossVal) * 100)));
 
     const totalParts = d.grossTotal || 1;
     const p = key => ((d[key] / totalParts) * 100).toFixed(1);
 
     const isSelected = idx === state.selectedBarIndex;
 
+    const valText = isLoss ? `-${formatCompact(Math.abs(displayMetric))}` : formatCompact(displayMetric);
+    const valClass = isLoss
+      ? 'text-rose-500 font-extrabold'
+      : (isSelected ? 'opacity-100 font-black text-main text-[10px]' : 'opacity-70');
+
+    let barStackHtml = '';
+    if (isLoss) {
+      barStackHtml = `
+        <div id="barStack-${idx}" style="height: ${netHeightPct}%"
+             class="w-full relative z-10 rounded-t-lg overflow-hidden flex flex-col items-center justify-center bg-rose-500/25 border border-rose-500/70 shadow ${isSelected ? 'ring-2 ring-rose-400' : 'opacity-90 group-hover:opacity-100'}"
+             title="Убыток: -${formatNum(Math.abs(displayMetric))} ${unitSuffix}">
+          <span class="text-[8.5px] font-extrabold text-rose-500 leading-none">−</span>
+        </div>
+      `;
+    } else {
+      barStackHtml = `
+        <div id="barStack-${idx}" style="height: ${netHeightPct}%"
+             class="w-full relative z-10 rounded-t-lg overflow-hidden flex flex-col-reverse shadow ${isSelected ? 'ring-2 ring-[#FCE000]' : 'opacity-90 group-hover:opacity-100'}">
+          <div style="height: ${p('ordersCost')}%" class="w-full bg-blue-500"></div>
+          <div style="height: ${p('surgeRub')}%"   class="w-full bg-[#FCE000]"></div>
+          <div style="height: ${p('ratingRub')}%"  class="w-full bg-orange-400"></div>
+          <div style="height: ${p('bonuses')}%"    class="w-full bg-purple-500"></div>
+          ${state.includeGoals ? `<div style="height: ${p('goals')}%" class="w-full bg-pink-500"></div>` : ''}
+          <div style="height: ${p('tips')}%"       class="w-full bg-emerald-400"></div>
+        </div>
+      `;
+    }
+
+    let dateDisplayHtml = escapeHtml(d.date);
+    if (state.period === 'weeks' && typeof d.date === 'string' && d.date.includes('–')) {
+      const pts = d.date.split('–');
+      dateDisplayHtml = `<span class="block leading-tight text-[8px]">${escapeHtml(pts[0])}<br>–${escapeHtml(pts[1])}</span>`;
+    }
+
     html += `
-      <div id="barCol-${idx}" onclick="selectBar(${idx})" class="chart-bar-item cursor-pointer group">
-        <div id="barValue-${idx}" class="text-[9px] font-bold mb-0.5 whitespace-nowrap shrink-0 ${isSelected ? 'opacity-100 font-black text-main text-[10px]' : 'opacity-70'}">
-          ${formatCompact(displayMetric)}
+      <div id="barCol-${idx}" onclick="selectBar(${idx})" class="chart-bar-item ${itemModifierCls} cursor-pointer group">
+        <div id="barValue-${idx}" class="text-[9px] font-bold mb-0.5 whitespace-nowrap shrink-0 ${valClass}">
+          ${valText}
         </div>
 
         <div class="flex-1 w-full max-w-[28px] min-h-0 flex items-end justify-center relative">
@@ -1931,19 +2005,11 @@ function renderBarChart(data) {
             </div>
           ` : ''}
 
-          <div id="barStack-${idx}" style="height: ${netHeightPct}%"
-               class="w-full relative z-10 rounded-t-lg overflow-hidden flex flex-col-reverse shadow ${isSelected ? 'ring-2 ring-[#FCE000]' : 'opacity-90 group-hover:opacity-100'}">
-            <div style="height: ${p('ordersCost')}%" class="w-full bg-blue-500"></div>
-            <div style="height: ${p('surgeRub')}%"   class="w-full bg-[#FCE000]"></div>
-            <div style="height: ${p('ratingRub')}%"  class="w-full bg-orange-400"></div>
-            <div style="height: ${p('bonuses')}%"    class="w-full bg-purple-500"></div>
-            ${state.includeGoals ? `<div style="height: ${p('goals')}%" class="w-full bg-pink-500"></div>` : ''}
-            <div style="height: ${p('tips')}%"       class="w-full bg-emerald-400"></div>
-          </div>
+          ${barStackHtml}
         </div>
 
-        <div id="barDate-${idx}" class="text-[9px] font-semibold whitespace-nowrap text-center mt-1 shrink-0 ${isSelected ? 'opacity-100 font-black text-main text-[10px]' : 'opacity-70'}">
-          ${d.date}
+        <div id="barDate-${idx}" class="text-[9px] font-semibold text-center mt-1 shrink-0 ${isSelected ? 'opacity-100 font-black text-main text-[10px]' : 'opacity-70'}">
+          ${dateDisplayHtml}
         </div>
       </div>
     `;
@@ -1996,6 +2062,10 @@ function renderSelectedBarDetails(sel) {
   const transportText = sel.transportSummary || sel.transport || 'Курьер';
   const selHours = Math.round(Number(sel.slotHours || 0) * 10) / 10;
 
+  const netBadgeHtml = sel.netProfit < 0
+    ? `<span class="ya-badge ya-badge-red font-bold">Чистыми (убыток): <b>-${formatNum(Math.abs(sel.netProfit))} ₽ (-${formatNum(Math.abs(sel.profitPerHr))} ₽/ч)</b></span>`
+    : `<span class="ya-badge ya-badge-green font-bold">Чистыми: <b>${formatNum(sel.netProfit)} ₽ (${formatNum(sel.profitPerHr)} ₽/ч)</b></span>`;
+
   dom.selectedBarDetails.innerHTML = `
     <div class="flex items-center justify-between">
       <div>
@@ -2006,7 +2076,10 @@ function renderSelectedBarDetails(sel) {
     <div class="flex flex-wrap items-center gap-1.5 text-[10px] pt-1 border-t border-subtle">
       <span class="ya-badge ya-badge-grey">Начислено: <b>${formatNum(sel.grossTotal)} ₽</b></span>
       ${deductionBadges.join('')}
-      <span class="ya-badge ya-badge-green">Чистыми: <b>${formatNum(sel.netProfit)} ₽ (${formatNum(sel.profitPerHr)} ₽/ч)</b></span>
+      ${netBadgeHtml}
+    </div>
+  `;
+}
     </div>
   `;
 }
@@ -2069,7 +2142,7 @@ function renderDetailedTable(data) {
 
   let headHtml = '<tr>';
   enabledCols.forEach((col, i) => {
-    const stickyCls = i === 0 ? 'sticky left-0 z-10 border-r min-w-[70px] border-strong bg-elevated' : 'min-w-[72px] max-w-[90px]';
+    const stickyCls = i === 0 ? 'table-col-sticky-first border-r min-w-[76px] border-strong bg-elevated' : 'min-w-[72px] max-w-[90px]';
     const highlightCls = getColHighlightClass(col.key);
     headHtml += `<th scope="col" class="py-1.5 px-1 font-bold text-[9.5px] leading-snug whitespace-normal align-middle ${stickyCls} ${highlightCls}">${escapeHtml(col.label)}</th>`;
   });
@@ -2080,7 +2153,7 @@ function renderDetailedTable(data) {
   data.forEach(row => {
     bodyHtml += '<tr class="hover:opacity-90 transition">';
     enabledCols.forEach((col, i) => {
-      const stickyCls = i === 0 ? 'sticky left-0 font-bold z-10 border-r bg-card border-strong' : '';
+      const stickyCls = i === 0 ? 'table-col-sticky-first font-bold border-r bg-card border-strong' : '';
       const highlightCls = getColHighlightClass(col.key);
       bodyHtml += `<td class="py-1.5 px-1 text-[10px] whitespace-nowrap ${stickyCls} ${highlightCls}">${formatTableCellValue(row, col.key, minProfitHr, maxProfitHr)}</td>`;
     });
@@ -2090,7 +2163,7 @@ function renderDetailedTable(data) {
 
   let footHtml = '<tr>';
   enabledCols.forEach((col, i) => {
-    const stickyCls = i === 0 ? 'sticky left-0 z-10 border-r bg-elevated border-strong' : '';
+    const stickyCls = i === 0 ? 'table-col-sticky-first border-r bg-elevated border-strong' : '';
     const highlightCls = getColHighlightClass(col.key);
     footHtml += `<td class="py-1.5 px-1 text-[10px] whitespace-nowrap ${stickyCls} ${highlightCls}">${i === 0 ? 'ИТОГО / СР.' : formatTableFootValue(data, col.key)}</td>`;
   });
@@ -2126,10 +2199,16 @@ function formatTableCellValue(row, key, minProfitHr, maxProfitHr) {
     case 'tax':
     case 'expenses':    return `<span class="text-rose-400">-${formatNum(row[key])} ₽</span>`;
     case 'adjustments': return row.adjustments === 0 ? '0 ₽' : `<span class="text-rose-400">-${formatNum(Math.abs(row.adjustments))} ₽</span>`;
-    case 'netProfit':   return `<span class="font-extrabold text-[#18191C] dark:text-[#F5F6F8]">${formatNum(row.netProfit)} ₽</span>`;
+    case 'netProfit': {
+      if (row.netProfit < 0) {
+        return `<span class="font-extrabold text-rose-500">-${formatNum(Math.abs(row.netProfit))} ₽</span>`;
+      }
+      return `<span class="font-extrabold text-[#18191C] dark:text-[#F5F6F8]">${formatNum(row.netProfit)} ₽</span>`;
+    }
     case 'profitPerHr': {
       const colColor = getProfitPerHourColor(row.profitPerHr, minProfitHr, maxProfitHr, state.lightMode);
-      return `<span class="font-extrabold" style="color: ${colColor};">${formatNum(row.profitPerHr)} ₽/ч</span>`;
+      const txt = row.profitPerHr < 0 ? `-${formatNum(Math.abs(row.profitPerHr))}` : `${formatNum(row.profitPerHr)}`;
+      return `<span class="font-extrabold" style="color: ${colColor};">${txt} ₽/ч</span>`;
     }
     case 'ordersCost':
     case 'surgeRub':
@@ -2168,9 +2247,18 @@ function formatTableFootValue(data, key) {
       const totNet = sum('netProfit');
       const totHrs = sum('slotHours');
       const rate = totHrs > 0 ? Math.round(totNet / totHrs) : 0;
+      if (rate < 0) {
+        return `<span class="font-extrabold text-rose-500">-${formatNum(Math.abs(rate))} ₽/ч</span>`;
+      }
       return `${formatNum(rate)} ₽/ч`;
     }
-    case 'netProfit':   return `<span class="font-extrabold text-[#18191C] dark:text-[#F5F6F8]">${formatNum(sum('netProfit'))} ₽</span>`;
+    case 'netProfit': {
+      const tot = sum('netProfit');
+      if (tot < 0) {
+        return `<span class="font-extrabold text-rose-500">-${formatNum(Math.abs(tot))} ₽</span>`;
+      }
+      return `<span class="font-extrabold text-[#18191C] dark:text-[#F5F6F8]">${formatNum(tot)} ₽</span>`;
+    }
     case 'adjustments': return sum('adjustments') === 0 ? '0 ₽' : `<span class="text-rose-400">-${formatNum(Math.abs(sum('adjustments')))} ₽</span>`;
     case 'tax':
     case 'expenses':    return `<span class="text-rose-400">-${formatNum(sum(key))} ₽</span>`;
@@ -2224,12 +2312,15 @@ function renderBlock2() {
 
   dom.lblUnitPct.classList.toggle('ya-switch-opt-active', !state.heatUnitRub);
   dom.lblUnitRub.classList.toggle('ya-switch-opt-active', state.heatUnitRub);
+  if (dom.lblUnitRub) {
+    dom.lblUnitRub.textContent = state.isNet ? '₽/ч (чист.)' : '₽/ч (начисл.)';
+  }
   if (heatUnitSwitch) {
     heatUnitSwitch.setAttribute('aria-checked', state.heatUnitRub ? 'true' : 'false');
   }
 
   dom.block2Title.textContent = state.heatUnitRub
-    ? 'Средний общий доход в час (с учетом спроса)'
+    ? (state.isNet ? 'Чистый доход в час с учетом спроса и расходов' : 'Средний общий доход в час (начислено)')
     : 'Средняя доплата за спрос по часам';
 
   const tbody = dom.heatmapTableBody;
@@ -2314,6 +2405,9 @@ function updateHeatmapSummary() {
 function getHeatCellColor(comp, minVal, maxVal) {
   if (!comp) return 'bg-transparent text-mut/40';
   const val = state.heatUnitRub ? comp.rubHr : comp.pct;
+  if (state.heatUnitRub && val < 0) {
+    return 'bg-rose-500/25 text-rose-500 font-extrabold border border-rose-400/40';
+  }
   if (maxVal <= minVal) {
     return val > 0 ? 'bg-[#FCE000] text-[#141518]' : 'bg-gray-500/20 text-sec';
   }
@@ -2864,6 +2958,7 @@ function toggleGrossNet() {
   dom.lblGross.classList.toggle('ya-switch-opt-active', !state.isNet);
   dom.lblNet.classList.toggle('ya-switch-opt-active', state.isNet);
   renderBlock1();
+  renderBlock2();
 }
 
 function toggleSumHourly() {
@@ -3097,6 +3192,7 @@ function applyTransportPreset(presetKey) {
   if (state.selectedPreset === presetKey) return;
   state.selectedPreset = presetKey;
   renderSettingsScreen(false);
+  renderBlock2();
 }
 
 function updateExpense(idx, newVal, syncRange = false) {
@@ -3121,6 +3217,7 @@ function updateExpense(idx, newVal, syncRange = false) {
   // Обновляем зависимые финансовые блоки
   renderHeader();
   renderBlock1();
+  renderBlock2();
   renderBlock3();
 }
 
@@ -3140,6 +3237,7 @@ function deleteExpenseItem(index) {
   renderSettingsScreen(false);
   renderHeader();
   renderBlock1();
+  renderBlock2();
   renderBlock3();
   if (removed) showToast(`Удалена статья «${removed.name}»`);
 }
@@ -3150,6 +3248,7 @@ function resetExpensesToDefault() {
   renderSettingsScreen(false);
   renderHeader();
   renderBlock1();
+  renderBlock2();
   renderBlock3();
   showToast('Расходы всех типов передвижения сброшены по умолчанию');
 }
@@ -3177,6 +3276,7 @@ function confirmAddCustomExpense() {
   renderSettingsScreen(false);
   renderHeader();
   renderBlock1();
+  renderBlock2();
   renderBlock3();
   showToast(`Добавлен расход «${name}»`);
 }

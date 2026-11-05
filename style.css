@@ -506,10 +506,10 @@ body.desktop-mode #presetButtonsContainer {
 }
 
 .chart-bar-item {
-  flex: 0 0 38px !important;
-  width: 38px !important;
-  min-width: 38px !important;
-  max-width: 42px !important;
+  flex: 0 0 42px !important;
+  width: 42px !important;
+  min-width: 42px !important;
+  max-width: 46px !important;
   height: 100% !important;
   display: flex !important;
   flex-direction: column !important;
@@ -517,7 +517,23 @@ body.desktop-mode #presetButtonsContainer {
   align-items: center !important;
   position: relative !important;
   box-sizing: border-box !important;
-  padding: 2px 0 !important;
+  padding: 2px 1px !important;
+}
+
+.chart-bar-item.item-weeks {
+  flex: 0 0 76px !important;
+  width: 76px !important;
+  min-width: 76px !important;
+  max-width: 82px !important;
+  padding: 2px 2px !important;
+}
+
+.chart-bar-item.item-months {
+  flex: 0 0 64px !important;
+  width: 64px !important;
+  min-width: 64px !important;
+  max-width: 72px !important;
+  padding: 2px 2px !important;
 }
 
 .table-scroll-container {
@@ -539,6 +555,31 @@ body.desktop-mode #presetButtonsContainer {
   bottom: 0;
   z-index: 20;
   background-color: var(--bg-elevated);
+}
+
+/* Липкий первый столбец таблицы (Дата / Итого) — фиксирован при горизонтальной прокрутке */
+.table-col-sticky-first {
+  position: sticky !important;
+  left: 0 !important;
+  z-index: 15 !important;
+}
+
+/* Верхний левый угол (Заголовок "Дата"): фиксирован одновременно по вертикали и горизонтали */
+.table-sticky-header th.table-col-sticky-first {
+  position: sticky !important;
+  top: 0 !important;
+  left: 0 !important;
+  z-index: 35 !important;
+  background-color: var(--bg-elevated) !important;
+}
+
+/* Нижний левый угол (Футер "ИТОГО / СР."): фиксирован одновременно по вертикали и горизонтали */
+.table-sticky-footer td.table-col-sticky-first {
+  position: sticky !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  z-index: 35 !important;
+  background-color: var(--bg-elevated) !important;
 }
 
 
