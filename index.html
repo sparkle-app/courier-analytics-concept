@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Независимый исследовательский UI/UX-концепт аналитики дохода для курьеров доставки (версия 13.9.5)" />
-  <meta name="theme-color" content="#141518" />
-  <title>Концепт аналитики дохода курьера (v13.9.5) — Неофициальный UX-прототип</title>
+  <meta name="description" content="Независимый исследовательский UI/UX-концепт аналитики дохода для курьеров доставки (версия 13.9.6)" />
+  <meta name="theme-color" content="#F4F5F7" />
+  <title>Концепт аналитики дохода курьера (v13.9.6) — Неофициальный UX-прототип</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <script src="https://cdn.tailwindcss.com"></script>
@@ -16,7 +16,7 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <link rel="stylesheet" href="style.css" />
 </head>
-<body class="min-h-screen flex flex-col items-center py-3 px-2 sm:px-4">
+<body class="light-mode min-h-screen flex flex-col items-center py-3 px-2 sm:px-4">
 
   <!-- ВЕРХНЯЯ СЕРВИСНАЯ ПЛАШКА СТЕНДА -->
   <div id="topBannerContainer" class="w-full max-w-[430px] mb-3 px-3.5 py-2.5 rounded-2xl ya-card text-xs space-y-1.5 transition-all duration-200">
@@ -25,7 +25,7 @@
 
     <div class="flex flex-wrap items-center justify-between gap-2">
       <div class="flex items-center gap-2">
-        <span class="px-2 py-0.5 rounded-md bg-[#FCE000] text-[#141518] font-extrabold">v13.9.5</span>
+        <span class="px-2 py-0.5 rounded-md bg-[#FCE000] text-[#141518] font-extrabold">v13.9.6</span>
         <span class="font-semibold">UX-концепт аналитики курьера</span>
       </div>
       <div class="flex flex-wrap items-center gap-1.5">
@@ -44,14 +44,14 @@
         </button>
         <!-- ТЕМА ОФОРМЛЕНИЯ -->
         <button type="button" onclick="toggleColorTheme()" id="btnColorTheme" title="Переключить темный / светлый режим" aria-label="Переключить тему" class="w-8 h-8 rounded-xl ya-nav-btn text-base flex items-center justify-center transition">
-          ☀️
+          🌙
         </button>
       </div>
     </div>
 
     <!-- ПОДПИСЬ ИСТОЧНИКА ДАННЫХ (ПЕРЕНЕСЕНА НАД ОГОВОРКОЙ) -->
     <div class="pt-1 border-t text-[11px] border-subtle flex items-center justify-between">
-      <span id="dataStatusBadge" class="font-bold text-sec">Источник: <b class="text-amber-400">Демо-данные</b></span>
+      <span id="dataStatusBadge" class="font-bold text-sec">Источник: <b class="text-amber-500">Демо-данные</b></span>
     </div>
 
     <!-- ОГОВОРКА О НЕЗАВИСИМОСТИ С ПОЛНЫМ ВТОРЫМ ПРЕДЛОЖЕНИЕМ -->

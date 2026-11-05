@@ -306,12 +306,22 @@ body.desktop-mode #screenSettings {
 
 body.desktop-mode .desktop-grid-split {
   display: grid !important;
-  grid-template-columns: minmax(0, 1.35fr) minmax(380px, 1fr) !important;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
   grid-template-areas:
-    "block1 block2"
-    "block3 block2" !important;
+    "block1 block1"
+    "block2 block3" !important;
   gap: 1.25rem !important;
   align-items: start !important;
+}
+
+@media (max-width: 860px) {
+  body.desktop-mode .desktop-grid-split {
+    grid-template-columns: 1fr !important;
+    grid-template-areas:
+      "block1"
+      "block2"
+      "block3" !important;
+  }
 }
 
 .area-block1,
