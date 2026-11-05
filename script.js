@@ -1,5 +1,5 @@
 // =============================================================================
-// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.11.6) — ЛОГИКА И СОСТОЯНИЕ (script.js)
+// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.12.0) — ЛОГИКА И СОСТОЯНИЕ (script.js)
 // Оптимизированная и модульная версия с гранулярным рендерингом и кэшированием
 // =============================================================================
 
@@ -161,7 +161,63 @@ const rawDatasets = {
   days: [
     { date: '19.10', dayOfWeek: 'Пн', slotHours: 8,  ordersCount: 16, transport: 'Электровело', transportKey: 'ebike', ordersCost: 2450, surgePct: 32, surgeRub: 1120, ratingPct: 15, ratingRub: 520, bonuses: 420, goals: 500, tips: 280, adjustments: 0 },
     { date: '20.10', dayOfWeek: 'Вт', slotHours: 7,  ordersCount: 14, transport: 'Электровело', transportKey: 'ebike', ordersCost: 2180, surgePct: 28, surgeRub: 940,  ratingPct: 15, ratingRub: 460, bonuses: 350, goals: 450, tips: 240, adjustments: 0 },
-    { date: '21.10', dayOfWeek: 'Ср', slotHours: 8,  ordersCount: 17, transport: 'Электровело', transportKey: 'ebike', ordersCost: 2600, surgePct: 35, surgeRub: 1250, ratingPct: 15, ratingRub: 560, bonuses: 480, goals: 550, tips: 320, adjustments: -100 },
+    {
+      date: '21.10',
+      dayOfWeek: 'Ср',
+      slotHours: 8,
+      ordersCount: 17,
+      transport: 'Электровело + Пеший',
+      transportKey: 'ebike',
+      distinctTransports: ['Электровело', 'Пеший'],
+      transportSummary: 'Электровело + Пеший',
+      ordersCost: 2600,
+      surgePct: 35,
+      surgeRub: 1250,
+      ratingPct: 15,
+      ratingRub: 560,
+      bonuses: 480,
+      goals: 550,
+      tips: 320,
+      adjustments: -100,
+      subRows: [
+        {
+          date: '21.10',
+          fullDisplayDate: '21.10.2026',
+          dayOfWeek: 'Ср',
+          slotHours: 6.5,
+          ordersCount: 14,
+          transport: 'Электровело',
+          transportKey: 'ebike',
+          ordersCost: 2150,
+          surgePct: 35,
+          surgeRub: 1050,
+          ratingPct: 15,
+          ratingRub: 470,
+          bonuses: 400,
+          goals: 460,
+          tips: 270,
+          adjustments: -80
+        },
+        {
+          date: '21.10',
+          fullDisplayDate: '21.10.2026',
+          dayOfWeek: 'Ср',
+          slotHours: 1.5,
+          ordersCount: 3,
+          transport: 'Пеший',
+          transportKey: 'walk',
+          ordersCost: 450,
+          surgePct: 35,
+          surgeRub: 200,
+          ratingPct: 15,
+          ratingRub: 90,
+          bonuses: 80,
+          goals: 90,
+          tips: 50,
+          adjustments: -20
+        }
+      ]
+    },
     { date: '22.10', dayOfWeek: 'Чт', slotHours: 8,  ordersCount: 18, transport: 'Электровело', transportKey: 'ebike', ordersCost: 2720, surgePct: 38, surgeRub: 1380, ratingPct: 15, ratingRub: 590, bonuses: 510, goals: 600, tips: 360, adjustments: 0 },
     { date: '23.10', dayOfWeek: 'Пт', slotHours: 10, ordersCount: 24, transport: 'Электровело', transportKey: 'ebike', ordersCost: 3580, surgePct: 54, surgeRub: 2140, ratingPct: 15, ratingRub: 780, bonuses: 740, goals: 850, tips: 520, adjustments: -150 },
     { date: '24.10', dayOfWeek: 'Сб', slotHours: 9,  ordersCount: 22, transport: 'Электровело', transportKey: 'ebike', ordersCost: 3320, surgePct: 58, surgeRub: 2050, ratingPct: 15, ratingRub: 720, bonuses: 690, goals: 800, tips: 490, adjustments: 0 }
@@ -335,38 +391,40 @@ const state = {
   isHourly: false,
   viewMode: 'chart',
   period: 'days',
-  selectedBarIndex: 4,
+  selectedBarIndex: 5,
 
   accountTransport: 'ebike',
-  includeGoals: true,
+  includeGoals: false,
   weekStartDay: 0, // 0=Пн .. 6=Вс
   selectedPreset: 'ebike',
+  collapsedDateKeys: new Set(),
   expensesByTransport: cloneExpenses(),
   get expenses() {
     return this.expensesByTransport[this.selectedPreset] || [];
   },
 
   tableColumns: [
-    { key: 'date',        label: 'Дата',                 enabled: true },
-    { key: 'netProfit',   label: 'Прибыль (на руки)',    enabled: true },
-    { key: 'profitPerHr', label: 'Прибыль в час',        enabled: true },
-    { key: 'ordersPerHr', label: 'Заказов в час',        enabled: true },
-    { key: 'slotHours',   label: 'Длит. слота (ч)',      enabled: true },
-    { key: 'ordersCount', label: 'Кол-во заказов',       enabled: true },
-    { key: 'grossTotal',  label: 'Начислено (до расх.)', enabled: true },
-    { key: 'ordersCost',  label: 'Стоимость заказов',    enabled: true },
-    { key: 'surgeRub',    label: 'Доплата (спрос)',      enabled: true },
-    { key: 'ratingRub',   label: 'Доплата (рейтинг)',    enabled: true },
-    { key: 'bonuses',     label: 'Бонусы',               enabled: true },
-    { key: 'goals',       label: 'Цели',                 enabled: true },
-    { key: 'tips',        label: 'Чаевые',               enabled: true },
-    { key: 'tax',         label: 'Налог',                enabled: true },
-    { key: 'adjustments', label: 'Корректировки',        enabled: true },
-    { key: 'expenses',    label: 'Расходы',              enabled: true },
-    { key: 'dayOfWeek',   label: 'День недели',          enabled: false },
-    { key: 'transport',   label: 'Транспорт',            enabled: false },
-    { key: 'surgePct',    label: 'Доплата (спрос; %)',   enabled: false },
-    { key: 'ratingPct',   label: 'Доплата (рейтинг; %)', enabled: false }
+    { key: 'date',               label: 'Дата',                 enabled: true },
+    { key: 'dayOfWeek',          label: 'День недели',          enabled: true },
+    { key: 'slotHours',          label: 'Длит. слота (ч)',      enabled: true },
+    { key: 'ordersCount',        label: 'Кол-во заказов',       enabled: true },
+    { key: 'ordersPerHr',        label: 'Заказов в час',        enabled: true },
+    { key: 'transport',          label: 'Транспорт',            enabled: true },
+    { key: 'grossTotal',         label: 'Начислено (до расх.)', enabled: true },
+    { key: 'ordersCost',         label: 'Стоимость заказов',    enabled: true },
+    { key: 'surgePct',           label: 'Доплата (спрос; %)',   enabled: true },
+    { key: 'surgeRub',           label: 'Доплата (спрос)',      enabled: true },
+    { key: 'ratingPct',          label: 'Доплата (рейтинг; %)', enabled: true },
+    { key: 'ratingRub',          label: 'Доплата (рейтинг)',    enabled: true },
+    { key: 'bonuses',            label: 'Бонусы',               enabled: true },
+    { key: 'tax',                label: 'Налог',                enabled: true },
+    { key: 'netProfit',          label: 'Прибыль (на руки)',    enabled: true },
+    { key: 'profitPerHrNoBonus', label: 'Прибыль/час (без д/б)', enabled: true },
+    { key: 'profitPerHr',        label: 'Прибыль в час',        enabled: true },
+    { key: 'goals',              label: 'Цели',                 enabled: false },
+    { key: 'tips',               label: 'Чаевые',               enabled: false },
+    { key: 'adjustments',        label: 'Корректировки',        enabled: false },
+    { key: 'expenses',           label: 'Расходы',              enabled: false }
   ],
 
   weatherBoost: false,
@@ -1197,6 +1255,79 @@ function buildDatasetsFromOrders(orders) {
     });
     const domTLabel = (transportMeta[domTKey] && transportMeta[domTKey].label) || 'Пеший';
 
+    const subRows = [];
+    if (distinctTransports.length > 1) {
+      distinctTransports.forEach(tLabel => {
+        const tOrders = dayOrders.filter(o => o.transportLabel === tLabel);
+        if (tOrders.length === 0) return;
+        const tKey = tOrders[0].transportKey || 'walk';
+
+        const tSlotsMap = new Map();
+        tOrders.forEach(o => {
+          if (!tSlotsMap.has(o.slotNumber)) tSlotsMap.set(o.slotNumber, []);
+          tSlotsMap.get(o.slotNumber).push(o);
+        });
+
+        let tSlotHours = 0;
+        let tSlotExpenses = 0;
+        tSlotsMap.forEach(slotOrders => {
+          const minStart = Math.min(...slotOrders.map(o => o.startSecs));
+          const maxEnd = Math.max(...slotOrders.map(o => o.endSecs));
+          let durHr = 0;
+          if (maxEnd >= minStart) {
+            durHr = (maxEnd - minStart) / 3600;
+          } else {
+            durHr = (maxEnd + 86400 - minStart) / 3600;
+          }
+          durHr = Math.max(0.3, durHr);
+          tSlotHours += durHr;
+
+          const exps = slotOrders.map(o => o.expense).filter(e => e > 0);
+          if (exps.length > 0) {
+            const allSame = exps.every(e => Math.abs(e - exps[0]) < 0.01);
+            if (allSame) {
+              tSlotExpenses += exps[0];
+            } else {
+              tSlotExpenses += exps.reduce((a, b) => a + b, 0);
+            }
+          }
+        });
+
+        tSlotHours = Math.round(tSlotHours * 10) / 10;
+        if (tSlotHours <= 0) tSlotHours = 0.5;
+
+        const tOrdersCost = Math.round(tOrders.reduce((a, o) => a + o.orderCost + (o.wait || 0), 0));
+        const tSurgeRub = Math.round(tOrders.reduce((a, o) => a + o.surgeRub, 0));
+        const tSurgePct = tOrdersCost > 0 ? Math.round((tSurgeRub / tOrdersCost) * 100) : 0;
+        const tRatingRub = Math.round(tOrders.reduce((a, o) => a + o.ratingRub, 0));
+        const tRatingPct = tOrdersCost > 0 ? Math.round((tRatingRub / tOrdersCost) * 100) : 0;
+        const tBonuses = Math.round(tOrders.reduce((a, o) => a + o.bonus, 0));
+        const tGoals = Math.round(tOrders.reduce((a, o) => a + o.goal, 0));
+
+        subRows.push({
+          date: dateInfo.displayDate,
+          fullDisplayDate: dateInfo.fullDisplayDate,
+          fullDate: dateKey,
+          dayOfWeek: dateInfo.dayOfWeek,
+          slotHours: tSlotHours,
+          ordersCount: tOrders.length,
+          transport: tLabel,
+          transportKey: tKey,
+          ordersCost: tOrdersCost,
+          surgePct: tSurgePct,
+          surgeRub: tSurgeRub,
+          ratingPct: tRatingPct,
+          ratingRub: tRatingRub,
+          bonuses: tBonuses,
+          goals: tGoals,
+          tips: 0,
+          userSlotExpenses: Math.round(tSlotExpenses),
+          adjustments: 0,
+          year: dateInfo.year
+        });
+      });
+    }
+
     days.push({
       date: dateInfo.displayDate,
       fullDisplayDate: dateInfo.fullDisplayDate,
@@ -1218,6 +1349,7 @@ function buildDatasetsFromOrders(orders) {
       tips: 0,
       userSlotExpenses,
       adjustments,
+      subRows: subRows.length > 0 ? subRows : null,
       weekKey: dateInfo.weekKey,
       monthKey: dateInfo.monthKey,
       year: dateInfo.year,
@@ -1635,6 +1767,11 @@ function enrichRow(rawRow, periodKey, dayMeta = null) {
   const profitPerHr = rawRow.slotHours > 0 ? Math.round(netProfit / rawRow.slotHours) : 0;
   const grossPerHr = rawRow.slotHours > 0 ? Math.round(grossTotal / rawRow.slotHours) : 0;
 
+  // Чистая прибыль и ставка в час без доплат и бонусов
+  const surchargesAndBonuses = (rawRow.surgeRub || 0) + (rawRow.ratingRub || 0) + (rawRow.bonuses || 0) + goalsVal;
+  const netProfitNoBonus = netProfit - surchargesAndBonuses;
+  const profitPerHrNoBonus = rawRow.slotHours > 0 ? Math.round(netProfitNoBonus / rawRow.slotHours) : 0;
+
   let dayOfWeek = rawRow.dayOfWeek;
   if (periodKey === 'weeks') {
     const sName = shortDayNames[state.weekStartDay] || 'Пн';
@@ -1653,8 +1790,10 @@ function enrichRow(rawRow, periodKey, dayMeta = null) {
     expenses: rowExpense,
     itemizedExpenses,
     netProfit,
+    netProfitNoBonus,
     ordersPerHr,
-    profitPerHr
+    profitPerHr,
+    profitPerHrNoBonus
   };
 }
 
@@ -1689,8 +1828,87 @@ function enrichDailyDataset(dayRows) {
 
   return dayRows.map((rawRow, idx) => {
     const meta = metaByIndex.get(idx) || { isLastWorkedDay: true, dayPosition: 1, totalWorkedDaysInCycle: 1 };
-    return enrichRow(rawRow, 'days', meta);
+    const enriched = enrichRow(rawRow, 'days', meta);
+    if (Array.isArray(rawRow.subRows) && rawRow.subRows.length > 0) {
+      enriched.subRows = rawRow.subRows.map(sr => enrichRow(sr, 'days', meta));
+    }
+    return enriched;
   });
+}
+
+/**
+ * Вспомогательная функция для агрегации подстрок по видам транспорта в неделях и месяцах
+ */
+function buildSubRowsFromEnrichedItems(items, dateDisplay, fullDisplayDate, dowDisplay, year) {
+  const allTransports = Array.from(new Set(items.flatMap(d => {
+    if (Array.isArray(d.subRows) && d.subRows.length > 0) {
+      return d.subRows.map(sr => sr.transport);
+    }
+    return [d.transport || 'Курьер'];
+  })));
+
+  if (allTransports.length <= 1) return null;
+
+  const subRows = [];
+  allTransports.forEach(tName => {
+    const matching = [];
+    items.forEach(d => {
+      if (Array.isArray(d.subRows) && d.subRows.length > 0) {
+        d.subRows.forEach(sr => {
+          if (sr.transport === tName) matching.push(sr);
+        });
+      } else if (d.transport === tName) {
+        matching.push(d);
+      }
+    });
+
+    if (matching.length === 0) return;
+
+    const sHours = Math.round(matching.reduce((a, x) => a + Number(x.slotHours || 0), 0) * 10) / 10;
+    const sOrders = matching.reduce((a, x) => a + Number(x.ordersCount || 0), 0);
+    const sCost = matching.reduce((a, x) => a + Number(x.ordersCost || 0), 0);
+    const sSurge = matching.reduce((a, x) => a + Number(x.surgeRub || 0), 0);
+    const sRating = matching.reduce((a, x) => a + Number(x.ratingRub || 0), 0);
+    const sBonus = matching.reduce((a, x) => a + Number(x.bonuses || 0), 0);
+    const sGoals = matching.reduce((a, x) => a + Number(x.goals || 0), 0);
+    const sTips = matching.reduce((a, x) => a + Number(x.tips || 0), 0);
+    const sGross = matching.reduce((a, x) => a + Number(x.grossTotal || 0), 0);
+    const sTax = matching.reduce((a, x) => a + Number(x.tax || 0), 0);
+    const sExp = matching.reduce((a, x) => a + Number(x.expenses || 0), 0);
+    const sNet = matching.reduce((a, x) => a + Number(x.netProfit || 0), 0);
+    const sNetNoBonus = matching.reduce((a, x) => a + Number(x.netProfitNoBonus != null ? x.netProfitNoBonus : (x.netProfit - x.surgeRub - x.ratingRub - x.bonuses)), 0);
+
+    subRows.push({
+      date: dateDisplay,
+      fullDisplayDate: fullDisplayDate,
+      dayOfWeek: dowDisplay,
+      slotHours: sHours,
+      ordersCount: sOrders,
+      ordersPerHr: sHours > 0 ? (sOrders / sHours).toFixed(2) : '0.00',
+      transport: tName,
+      transportKey: matching[0].transportKey || 'walk',
+      ordersCost: sCost,
+      surgePct: sCost > 0 ? Math.round((sSurge / sCost) * 100) : 0,
+      surgeRub: sSurge,
+      ratingPct: sCost > 0 ? Math.round((sRating / sCost) * 100) : 0,
+      ratingRub: sRating,
+      bonuses: sBonus,
+      goals: sGoals,
+      tips: sTips,
+      adjustments: 0,
+      grossTotal: sGross,
+      grossPerHr: sHours > 0 ? Math.round(sGross / sHours) : 0,
+      tax: sTax,
+      expenses: sExp,
+      netProfit: sNet,
+      netProfitNoBonus: sNetNoBonus,
+      profitPerHr: sHours > 0 ? Math.round(sNet / sHours) : 0,
+      profitPerHrNoBonus: sHours > 0 ? Math.round(sNetNoBonus / sHours) : 0,
+      year: year || 2026
+    });
+  });
+
+  return subRows.length > 1 ? subRows : null;
 }
 
 /**
@@ -1746,6 +1964,10 @@ function buildEnrichedWeeksFromEnrichedDays(enrichedDays) {
     const profitPerHr = slotHours > 0 ? Math.round(netProfit / slotHours) : 0;
     const grossPerHr = slotHours > 0 ? Math.round(grossTotal / slotHours) : 0;
 
+    const netProfitNoBonus = wDays.reduce((a, d) => a + Number(d.netProfitNoBonus != null ? d.netProfitNoBonus : (d.netProfit - d.surgeRub - d.ratingRub - d.bonuses)), 0);
+    const profitPerHrNoBonus = slotHours > 0 ? Math.round(netProfitNoBonus / slotHours) : 0;
+    const subRows = buildSubRowsFromEnrichedItems(wDays, wkDisplay, `${wkDisplay} (${wDays[0].year || 2026})`, dowDisplay, wDays[0].year || 2026);
+
     weeks.push({
       date: wkDisplay,
       weekCycleKey: wkKey,
@@ -1773,8 +1995,11 @@ function buildEnrichedWeeksFromEnrichedDays(enrichedDays) {
       userSlotExpenses,
       itemizedExpenses,
       netProfit,
+      netProfitNoBonus,
       ordersPerHr,
       profitPerHr,
+      profitPerHrNoBonus,
+      subRows,
       year: wDays[0].year || 2026
     });
   });
@@ -1832,6 +2057,10 @@ function buildEnrichedMonthsFromEnrichedDays(enrichedDays) {
     const profitPerHr = slotHours > 0 ? Math.round(netProfit / slotHours) : 0;
     const grossPerHr = slotHours > 0 ? Math.round(grossTotal / slotHours) : 0;
 
+    const netProfitNoBonus = mDays.reduce((a, d) => a + Number(d.netProfitNoBonus != null ? d.netProfitNoBonus : (d.netProfit - d.surgeRub - d.ratingRub - d.bonuses)), 0);
+    const profitPerHrNoBonus = slotHours > 0 ? Math.round(netProfitNoBonus / slotHours) : 0;
+    const subRows = buildSubRowsFromEnrichedItems(mDays, mk, `${mk} ${mDays[0].year || 2026}`, 'Месяц', mDays[0].year || 2026);
+
     months.push({
       date: mk,
       monthKey: mk,
@@ -1859,8 +2088,11 @@ function buildEnrichedMonthsFromEnrichedDays(enrichedDays) {
       userSlotExpenses,
       itemizedExpenses,
       netProfit,
+      netProfitNoBonus,
       ordersPerHr,
       profitPerHr,
+      profitPerHrNoBonus,
+      subRows,
       year: mDays[0].year || 2026,
       daysCount: mDays.length
     });
@@ -2088,10 +2320,9 @@ function renderBlock1() {
   dom.legendGoalsItem.classList.toggle('hidden', !state.includeGoals);
   dom.legendGrossBg.classList.toggle('hidden', !state.isNet);
 
+  renderDetailedTable(data);
   if (state.viewMode === 'chart') {
     renderBarChart(data);
-  } else {
-    renderDetailedTable(data);
   }
 }
 
@@ -2231,8 +2462,10 @@ function renderBarChart(data) {
   const scrollContainer = document.getElementById('barScrollContainer');
   if (scrollContainer) {
     requestAnimationFrame(() => {
+      if (dom.screenMain.classList.contains('hidden')) return;
+
       const activeBar = document.getElementById(`barCol-${state.selectedBarIndex}`);
-      if (activeBar) {
+      if (activeBar && scrollContainer.clientWidth > 0) {
         const leftOffset = activeBar.offsetLeft - (scrollContainer.clientWidth / 2) + (activeBar.clientWidth / 2);
         scrollContainer.scrollLeft = Math.max(0, leftOffset);
       } else {
@@ -2340,6 +2573,10 @@ function renderDetailedTable(data) {
   const minProfitHr = profitHrVals.length > 0 ? Math.min(...profitHrVals) : 0;
   const maxProfitHr = profitHrVals.length > 0 ? Math.max(...profitHrVals) : 0;
 
+  const profitHrNoBonusVals = data.map(r => Number(r.profitPerHrNoBonus != null ? r.profitPerHrNoBonus : (r.profitPerHr || 0)));
+  const minProfitHrNoBonus = profitHrNoBonusVals.length > 0 ? Math.min(...profitHrNoBonusVals) : 0;
+  const maxProfitHrNoBonus = profitHrNoBonusVals.length > 0 ? Math.max(...profitHrNoBonusVals) : 0;
+
   const getColHighlightClass = (colKey) => {
     if (colKey === 'netProfit') return 'table-col-net';
     if (colKey === 'grossTotal') return 'table-col-gross';
@@ -2348,22 +2585,87 @@ function renderDetailedTable(data) {
 
   let headHtml = '<tr>';
   enabledCols.forEach((col, i) => {
-    const stickyCls = i === 0 ? 'table-col-sticky-first border-r min-w-[76px] border-strong bg-elevated' : 'min-w-[72px] max-w-[90px]';
+    const stickyCls = i === 0 ? 'table-col-sticky-first border-r min-w-[84px] border-strong bg-elevated' : 'min-w-[72px] max-w-[90px]';
     const highlightCls = getColHighlightClass(col.key);
-    headHtml += `<th scope="col" class="py-1.5 px-1 font-bold text-[9.5px] leading-snug whitespace-normal align-middle ${stickyCls} ${highlightCls}">${escapeHtml(col.label)}</th>`;
+    let labelHtml = escapeHtml(col.label);
+    if (col.key === 'date') {
+      labelHtml = `
+        <div class="flex items-center justify-between gap-1 w-full">
+          <span>${escapeHtml(col.label)}</span>
+          <div class="inline-flex items-center gap-0.5 font-normal">
+            <button type="button" onclick="expandAllDateSubRows()" title="Развернуть все подстроки" class="w-3.5 h-3.5 rounded bg-black/10 dark:bg-white/10 hover:bg-[#FCE000] hover:text-black flex items-center justify-center text-[10px] font-extrabold leading-none active:scale-95">+</button>
+            <button type="button" onclick="collapseAllDateSubRows()" title="Свернуть все подстроки" class="w-3.5 h-3.5 rounded bg-black/10 dark:bg-white/10 hover:bg-[#FCE000] hover:text-black flex items-center justify-center text-[10px] font-extrabold leading-none active:scale-95">−</button>
+          </div>
+        </div>
+      `;
+    }
+    headHtml += `<th scope="col" class="py-1.5 px-1 font-bold text-[9.5px] leading-snug whitespace-normal align-middle ${stickyCls} ${highlightCls}">${labelHtml}</th>`;
   });
   headHtml += '</tr>';
   thead.innerHTML = headHtml;
 
   let bodyHtml = '';
   data.forEach(row => {
-    bodyHtml += '<tr class="hover:opacity-90 transition">';
-    enabledCols.forEach((col, i) => {
-      const stickyCls = i === 0 ? 'table-col-sticky-first font-bold border-r bg-card border-strong' : '';
-      const highlightCls = getColHighlightClass(col.key);
-      bodyHtml += `<td class="py-1.5 px-1 text-[10px] whitespace-nowrap ${stickyCls} ${highlightCls}">${formatTableCellValue(row, col.key, minProfitHr, maxProfitHr)}</td>`;
-    });
-    bodyHtml += '</tr>';
+    const rowKey = row.fullDate || row.weekCycleKey || row.monthKey || row.date;
+    const hasSubRows = Array.isArray(row.subRows) && row.subRows.length > 1;
+    const isExpanded = hasSubRows ? !state.collapsedDateKeys.has(rowKey) : false;
+
+    if (hasSubRows && isExpanded) {
+      row.subRows.forEach((subRow, sIdx) => {
+        bodyHtml += '<tr class="hover:opacity-90 transition table-subrow">';
+        enabledCols.forEach((col, i) => {
+          const stickyCls = i === 0 ? 'table-col-sticky-first font-bold border-r bg-card border-strong' : '';
+          const highlightCls = getColHighlightClass(col.key);
+          let cellContent = '';
+          if (col.key === 'date') {
+            const dateStr = subRow.fullDisplayDate || (typeof subRow.date === 'string' && subRow.date.length === 5 ? `${subRow.date}.2026` : subRow.date);
+            if (sIdx === 0) {
+              cellContent = `
+                <div class="flex items-center gap-1">
+                  <button type="button" onclick="toggleRowExpansion('${escapeHtml(rowKey)}')" title="Свернуть подстроки" class="w-3.5 h-3.5 shrink-0 rounded border border-gray-400/40 bg-black/5 dark:bg-white/10 hover:bg-[#FCE000] hover:text-black hover:border-black font-extrabold text-[10px] flex items-center justify-center leading-none">−</button>
+                  <span class="truncate">${escapeHtml(dateStr)}</span>
+                </div>
+              `;
+            } else {
+              cellContent = `
+                <div class="flex items-center gap-1">
+                  <span class="w-3.5 shrink-0 text-center text-sec text-[9px] font-bold">↳</span>
+                  <span class="truncate opacity-75">${escapeHtml(dateStr)}</span>
+                </div>
+              `;
+            }
+          } else {
+            cellContent = formatTableCellValue(subRow, col.key, minProfitHr, maxProfitHr, minProfitHrNoBonus, maxProfitHrNoBonus);
+          }
+          bodyHtml += `<td class="py-1.5 px-1 text-[10px] whitespace-nowrap ${stickyCls} ${highlightCls}">${cellContent}</td>`;
+        });
+        bodyHtml += '</tr>';
+      });
+    } else {
+      bodyHtml += '<tr class="hover:opacity-90 transition">';
+      enabledCols.forEach((col, i) => {
+        const stickyCls = i === 0 ? 'table-col-sticky-first font-bold border-r bg-card border-strong' : '';
+        const highlightCls = getColHighlightClass(col.key);
+        let cellContent = '';
+        if (col.key === 'date') {
+          const dateStr = row.fullDisplayDate || (typeof row.date === 'string' && row.date.length === 5 ? `${row.date}.2026` : row.date);
+          if (hasSubRows) {
+            cellContent = `
+              <div class="flex items-center gap-1">
+                <button type="button" onclick="toggleRowExpansion('${escapeHtml(rowKey)}')" title="Развернуть по типам транспорта" class="w-3.5 h-3.5 shrink-0 rounded border border-gray-400/40 bg-black/5 dark:bg-white/10 hover:bg-[#FCE000] hover:text-black hover:border-black font-extrabold text-[10px] flex items-center justify-center leading-none">+</button>
+                <span class="truncate">${escapeHtml(dateStr)}</span>
+              </div>
+            `;
+          } else {
+            cellContent = escapeHtml(dateStr);
+          }
+        } else {
+          cellContent = formatTableCellValue(row, col.key, minProfitHr, maxProfitHr, minProfitHrNoBonus, maxProfitHrNoBonus);
+        }
+        bodyHtml += `<td class="py-1.5 px-1 text-[10px] whitespace-nowrap ${stickyCls} ${highlightCls}">${cellContent}</td>`;
+      });
+      bodyHtml += '</tr>';
+    }
   });
   tbody.innerHTML = bodyHtml;
 
@@ -2382,7 +2684,7 @@ function renderDetailedTable(data) {
   }
 }
 
-function formatTableCellValue(row, key, minProfitHr, maxProfitHr) {
+function formatTableCellValue(row, key, minProfitHr, maxProfitHr, minProfitHrNoBonus = 0, maxProfitHrNoBonus = 0) {
   switch (key) {
     case 'date': {
       if (row.fullDisplayDate) return escapeHtml(row.fullDisplayDate);
@@ -2410,6 +2712,12 @@ function formatTableCellValue(row, key, minProfitHr, maxProfitHr) {
         return `<span class="font-extrabold text-rose-500">-${formatNum(Math.abs(row.netProfit))} ₽</span>`;
       }
       return `<span class="font-extrabold text-[#18191C] dark:text-[#F5F6F8]">${formatNum(row.netProfit)} ₽</span>`;
+    }
+    case 'profitPerHrNoBonus': {
+      const val = row.profitPerHrNoBonus != null ? row.profitPerHrNoBonus : (row.profitPerHr || 0);
+      const colColor = getProfitPerHourColor(val, minProfitHrNoBonus, maxProfitHrNoBonus, state.lightMode);
+      const txt = val < 0 ? `-${formatNum(Math.abs(val))}` : `${formatNum(val)}`;
+      return `<span class="font-extrabold" style="color: ${colColor};">${txt} ₽/ч</span>`;
     }
     case 'profitPerHr': {
       const colColor = getProfitPerHourColor(row.profitPerHr, minProfitHr, maxProfitHr, state.lightMode);
@@ -2449,6 +2757,15 @@ function formatTableFootValue(data, key) {
     case 'ordersPerHr': return (sum('ordersCount') / sum('slotHours')).toFixed(2);
     case 'surgePct':    return `+${avg('surgePct')}%`;
     case 'ratingPct':   return `+${avg('ratingPct')}%`;
+    case 'profitPerHrNoBonus': {
+      const totNetNoBonus = sum('netProfitNoBonus');
+      const totHrs = sum('slotHours');
+      const rate = totHrs > 0 ? Math.round(totNetNoBonus / totHrs) : 0;
+      if (rate < 0) {
+        return `<span class="font-extrabold text-rose-500">-${formatNum(Math.abs(rate))} ₽/ч</span>`;
+      }
+      return `${formatNum(rate)} ₽/ч`;
+    }
     case 'profitPerHr': {
       const totNet = sum('netProfit');
       const totHrs = sum('slotHours');
@@ -2525,9 +2842,10 @@ function renderBlock2() {
     heatUnitSwitch.setAttribute('aria-checked', state.heatUnitRub ? 'true' : 'false');
   }
 
-  dom.block2Title.textContent = state.heatUnitRub
+  const userSuffix = state.usingUserData ? ' (по данным пользователя)' : '';
+  dom.block2Title.textContent = (state.heatUnitRub
     ? (state.isNet ? 'Чистый доход в час с учетом спроса и расходов' : 'Средний общий доход в час (начислено)')
-    : 'Средняя доплата за спрос по часам';
+    : 'Средняя доплата за спрос по часам') + userSuffix;
 
   const tbody = dom.heatmapTableBody;
   let html = '';
@@ -3570,13 +3888,70 @@ function navigateScreen(screen) {
 
   if (screen !== 'main') {
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  } else {
+    requestAnimationFrame(() => {
+      const scrollContainer = document.getElementById('barScrollContainer');
+      if (scrollContainer) {
+        const activeBar = document.getElementById(`barCol-${state.selectedBarIndex}`);
+        if (activeBar && scrollContainer.clientWidth > 0) {
+          const leftOffset = activeBar.offsetLeft - (scrollContainer.clientWidth / 2) + (activeBar.clientWidth / 2);
+          scrollContainer.scrollLeft = Math.max(0, leftOffset);
+        } else {
+          scrollContainer.scrollLeft = scrollContainer.scrollWidth;
+        }
+      }
+    });
   }
 }
 
 const openSettingsScreen = () => navigateScreen('settings');
-const closeSettingsScreen = () => navigateScreen('main');
+const closeSettingsScreen = () => {
+  navigateScreen('main');
+  requestAnimationFrame(() => {
+    const scrollContainer = document.getElementById('barScrollContainer');
+    if (scrollContainer) {
+      const activeBar = document.getElementById(`barCol-${state.selectedBarIndex}`);
+      if (activeBar && scrollContainer.clientWidth > 0) {
+        const leftOffset = activeBar.offsetLeft - (scrollContainer.clientWidth / 2) + (activeBar.clientWidth / 2);
+        scrollContainer.scrollLeft = Math.max(0, leftOffset);
+      } else {
+        scrollContainer.scrollLeft = scrollContainer.scrollWidth;
+      }
+    }
+  });
+};
 const openDistrictSeasonModal = () => navigateScreen('middle');
 const closeMiddleScreen = () => navigateScreen('main');
+
+// Управление разворачиванием подстрок таблицы по видам транспорта
+function toggleRowExpansion(rowKey) {
+  if (state.collapsedDateKeys.has(rowKey)) {
+    state.collapsedDateKeys.delete(rowKey);
+  } else {
+    state.collapsedDateKeys.add(rowKey);
+  }
+  renderDetailedTable(getCurrentDataset());
+}
+
+function expandAllDateSubRows() {
+  state.collapsedDateKeys.clear();
+  renderDetailedTable(getCurrentDataset());
+}
+
+function collapseAllDateSubRows() {
+  const data = getCurrentDataset();
+  data.forEach(r => {
+    if (Array.isArray(r.subRows) && r.subRows.length > 1) {
+      const k = r.fullDate || r.weekCycleKey || r.monthKey || r.date;
+      state.collapsedDateKeys.add(k);
+    }
+  });
+  renderDetailedTable(getCurrentDataset());
+}
+
+window.toggleRowExpansion = toggleRowExpansion;
+window.expandAllDateSubRows = expandAllDateSubRows;
+window.collapseAllDateSubRows = collapseAllDateSubRows;
 
 // Темы оформления (Темная / Светлая)
 function toggleColorTheme() {

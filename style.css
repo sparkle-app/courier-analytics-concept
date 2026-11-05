@@ -566,4 +566,15 @@ body.desktop-mode #presetButtonsContainer {
   background-color: var(--bg-elevated) !important;
 }
 
+/* Подстроки при разбивке даты по видам транспорта */
+.table-subrow {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+body:not(.light-mode) .table-subrow {
+  background-color: rgba(255, 255, 255, 0.025);
+}
+.table-subrow td.table-col-sticky-first {
+  background-color: var(--bg-card) !important;
+}
+
 

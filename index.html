@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Независимый исследовательский UI/UX-концепт аналитики дохода для курьеров доставки (версия 13.11.6)" />
+  <meta name="description" content="Независимый исследовательский UI/UX-концепт аналитики дохода для курьеров доставки (версия 13.12.0)" />
   <meta name="theme-color" content="#F4F5F7" />
-  <title>Концепт аналитики дохода курьера (v13.11.6) — Неофициальный UX-прототип</title>
+  <title>Концепт аналитики дохода курьера (v13.12.0) — Неофициальный UX-прототип</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <script src="https://cdn.tailwindcss.com"></script>
@@ -25,7 +25,7 @@
 
     <div class="flex flex-wrap items-center justify-between gap-2">
       <div class="flex items-center gap-2">
-        <span class="px-2 py-0.5 rounded-md bg-[#FCE000] text-[#141518] font-extrabold">v13.11.6</span>
+        <span class="px-2 py-0.5 rounded-md bg-[#FCE000] text-[#141518] font-extrabold">v13.12.0</span>
         <span class="font-semibold">UX-концепт аналитики курьера</span>
       </div>
       <div class="flex flex-wrap items-center gap-1.5">
@@ -83,7 +83,7 @@
 
         <!-- 2. Второстепенная строка: Прибыль в час за все время -->
         <div class="px-1.5 text-[11px] leading-tight text-mut">
-          Прибыль в час за все время <span id="goalsStatusLabel">(с учетом целей)</span>:
+          Прибыль в час за все время <span id="goalsStatusLabel">(без учета целей)</span>:
           <span id="allTimeHourlyProfit" class="font-medium">694 ₽/ч</span>
         </div>
 
@@ -388,7 +388,7 @@
               <div class="text-xs sm:text-sm font-bold">Учитывать цели</div>
               <div class="text-[10px] text-sec">Включать бонусные цели в расчет прибыли и графиков</div>
             </div>
-            <input type="checkbox" id="chkIncludeGoals" checked onchange="onToggleGoals(this.checked)" class="w-5 h-5 rounded accent-[#FCE000] cursor-pointer" />
+            <input type="checkbox" id="chkIncludeGoals" onchange="onToggleGoals(this.checked)" class="w-5 h-5 rounded accent-[#FCE000] cursor-pointer" />
           </label>
         </div>
 
