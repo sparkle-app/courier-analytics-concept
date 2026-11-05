@@ -1,5 +1,5 @@
 // =============================================================================
-// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.14.0) — ЛОГИКА И СОСТОЯНИЕ (script.js)
+// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.14.1) — ЛОГИКА И СОСТОЯНИЕ (script.js)
 // Оптимизированная и модульная версия с гранулярным рендерингом и кэшированием
 // =============================================================================
 
@@ -546,12 +546,18 @@ function parseDateInfo(val) {
   } else if (typeof val === 'string') {
     const s = val.trim();
     const dotMatch = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2,4})/);
+    const dotShortMatch = s.match(/^(\d{1,2})\.(\d{1,2})$/);
     const isoMatch = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
     if (dotMatch) {
       const day = parseInt(dotMatch[1], 10);
       const month = parseInt(dotMatch[2], 10) - 1;
       let year = parseInt(dotMatch[3], 10);
       if (year < 100) year += 2000;
+      d = new Date(year, month, day, 12, 0, 0);
+    } else if (dotShortMatch) {
+      const day = parseInt(dotShortMatch[1], 10);
+      const month = parseInt(dotShortMatch[2], 10) - 1;
+      const year = 2026;
       d = new Date(year, month, day, 12, 0, 0);
     } else if (isoMatch) {
       const year = parseInt(isoMatch[1], 10);
@@ -842,10 +848,15 @@ function parseOrdersFromRows(rawRows) {
       dateInfo,
       date: dateInfo.isoDate,
       displayDate: dateInfo.displayDate,
+      fullDisplayDate: dateInfo.fullDisplayDate,
       dayOfWeek: dateInfo.dayOfWeek,
       dowIdx: dateInfo.dowIdx,
       monthKey: dateInfo.monthKey,
       weekKey: dateInfo.weekKey,
+      year: dateInfo.year,
+      seasonKey: dateInfo.seasonKey,
+      dateKey: dateInfo.isoDate,
+      weekCycleKey: (getWeekCycleInfo(dateInfo.dateObj, state.weekStartDay) || {}).cycleKey || dateInfo.weekKey,
       startSecs,
       endSecs,
       durationMins,
@@ -1227,7 +1238,7 @@ function getResolvedSeasonInfo(seasonKey) {
   const allOrders = isUser ? state.userDatasets.orders : null;
 
   if (seasonKey === 'auto') {
-    const latestYear = isUser ? (allOrders[allOrders.length - 1]?.year || 2026) : 2026;
+    const latestYear = isUser ? (allOrders[allOrders.length - 1]?.year || allOrders[allOrders.length - 1]?.dateInfo?.year || 2026) : 2026;
     return {
       seasonKey: 'auto',
       targetYear: latestYear,
@@ -1242,19 +1253,27 @@ function getResolvedSeasonInfo(seasonKey) {
   let targetYear = 2026;
 
   if (isUser && allOrders) {
-    const years = Array.from(new Set(allOrders.map(o => o.year || 2026))).sort((a, b) => b - a);
+    const years = Array.from(new Set(allOrders.map(o => o.year || o.dateInfo?.year || 2026))).sort((a, b) => b - a);
     const latestYear = years[0] || 2026;
 
     // Считаем количество недель в текущем (последнем) году для данного сезона
-    const currYearSeasonOrders = allOrders.filter(o => o.seasonKey === seasonKey && (o.year || 2026) === latestYear);
-    const distinctWeeksCurr = new Set(currYearSeasonOrders.map(o => o.weekCycleKey || o.weekKey)).size;
+    const currYearSeasonOrders = allOrders.filter(o => {
+      const oSeason = o.seasonKey || o.dateInfo?.seasonKey;
+      const oYear = o.year || o.dateInfo?.year || 2026;
+      return oSeason === seasonKey && oYear === latestYear;
+    });
+    const distinctWeeksCurr = new Set(currYearSeasonOrders.map(o => o.weekCycleKey || o.weekKey || o.dateInfo?.weekKey)).size;
 
     if (distinctWeeksCurr >= 4) {
       targetYear = latestYear;
     } else {
       // Если меньше 4 недель — проверяем предыдущий год
       const prevYear = latestYear - 1;
-      const prevYearSeasonOrders = allOrders.filter(o => o.seasonKey === seasonKey && (o.year || 2026) === prevYear);
+      const prevYearSeasonOrders = allOrders.filter(o => {
+        const oSeason = o.seasonKey || o.dateInfo?.seasonKey;
+        const oYear = o.year || o.dateInfo?.year || 2026;
+        return oSeason === seasonKey && oYear === prevYear;
+      });
       if (prevYearSeasonOrders.length > 0) {
         targetYear = prevYear;
       } else {
@@ -1370,14 +1389,21 @@ function getActiveHeatmapMatrix() {
   if (state.usingUserData && state.userDatasets && state.userDatasets.orders?.length > 0) {
     const allOrders = state.userDatasets.orders;
     if (state.season === 'auto') {
-      const weekKeys = Array.from(new Set(allOrders.map(o => o.weekCycleKey || o.weekKey)));
+      const weekKeys = Array.from(new Set(allOrders.map(o => o.weekCycleKey || o.weekKey || o.dateInfo?.weekKey)));
       const last4WeekKeys = new Set(weekKeys.slice(-4));
-      const filteredOrders = allOrders.filter(o => last4WeekKeys.has(o.weekCycleKey || o.weekKey));
+      const filteredOrders = allOrders.filter(o => last4WeekKeys.has(o.weekCycleKey || o.weekKey || o.dateInfo?.weekKey));
       return computeHeatmapMatrixFromOrders(filteredOrders.length > 0 ? filteredOrders : allOrders);
     } else {
       const seasonInfo = getResolvedSeasonInfo(state.season);
-      const filteredOrders = allOrders.filter(o => o.seasonKey === state.season && (o.year || 2026) === seasonInfo.targetYear);
-      return computeHeatmapMatrixFromOrders(filteredOrders);
+      let filteredOrders = allOrders.filter(o => {
+        const oSeason = o.seasonKey || o.dateInfo?.seasonKey;
+        const oYear = o.year || o.dateInfo?.year || 2026;
+        return oSeason === state.season && oYear === seasonInfo.targetYear;
+      });
+      if (filteredOrders.length === 0) {
+        filteredOrders = allOrders.filter(o => (o.seasonKey || o.dateInfo?.seasonKey) === state.season);
+      }
+      return computeHeatmapMatrixFromOrders(filteredOrders.length > 0 ? filteredOrders : allOrders);
     }
   }
   return baseHeatmapMatrix;
