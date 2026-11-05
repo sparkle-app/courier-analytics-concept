@@ -325,40 +325,47 @@ body.desktop-mode #screenSettings {
 body.desktop-mode #block1ControlsWrapper {
   display: flex !important;
   flex-direction: row !important;
-  flex-wrap: wrap !important;
+  flex-wrap: nowrap !important;
   align-items: center !important;
-  gap: 0.65rem !important;
+  justify-content: flex-start !important;
+  gap: 0.75rem !important;
   width: auto !important;
 }
 
 body.desktop-mode #block1PeriodButtons {
   order: 1 !important;
-  width: auto !important;
-  min-width: 210px !important;
-  display: flex !important;
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  width: 240px !important;
+  min-width: 240px !important;
+  flex-shrink: 0 !important;
 }
 
 body.desktop-mode #block1PeriodButtons .ya-seg-btn {
-  padding-left: 0.85rem !important;
-  padding-right: 0.85rem !important;
+  padding: 0.35rem 0.65rem !important;
+  text-align: center !important;
 }
 
 body.desktop-mode #block1SwitchCards {
   order: 2 !important;
-  width: auto !important;
   display: flex !important;
   flex-direction: row !important;
+  align-items: center !important;
   gap: 0.5rem !important;
+  width: auto !important;
+  flex-shrink: 0 !important;
 }
 
 body.desktop-mode #block1SwitchCards .ya-switch-card {
-  width: 118px !important;
+  width: 114px !important;
+  flex-shrink: 0 !important;
 }
 
 body.desktop-mode #block1SwitchCards button.ya-card {
-  width: 88px !important;
+  width: 84px !important;
   padding-top: 4px !important;
   padding-bottom: 4px !important;
+  flex-shrink: 0 !important;
 }
 
 .desktop-grid-split {
@@ -369,7 +376,7 @@ body.desktop-mode #block1SwitchCards button.ya-card {
 
 body.desktop-mode .desktop-grid-split {
   display: grid !important;
-  grid-template-columns: minmax(0, 1fr) minmax(max-content, 35%) !important;
+  grid-template-columns: minmax(0, 1fr) minmax(415px, 35%) !important;
   grid-template-areas:
     "block1 block1"
     "block3 block2" !important;
@@ -378,23 +385,26 @@ body.desktop-mode .desktop-grid-split {
 }
 
 body.desktop-mode .area-block2 {
-  min-width: max-content !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
 }
 
 body.desktop-mode .area-block2 table {
   min-width: 380px !important;
 }
 
-@media (max-width: 900px) {
+body.desktop-mode .area-block3 {
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+@media (max-width: 960px) {
   body.desktop-mode .desktop-grid-split {
     grid-template-columns: 1fr !important;
     grid-template-areas:
       "block1"
       "block3"
       "block2" !important;
-  }
-  body.desktop-mode .area-block2 {
-    min-width: 0 !important;
   }
 }
 
