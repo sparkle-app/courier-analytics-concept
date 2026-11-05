@@ -300,21 +300,21 @@ body.light-mode .table-sticky-footer td.table-col-net {
   background-color: #E2F2E5 !important;
 }
 
-/* Деликатная синяя подсветка (Начислено) */
+/* Нейтральная серая подсветка столбца Начислено (в тон заголовкам таблицы) */
 .table-col-gross {
-  background-color: rgba(59, 130, 246, 0.07) !important;
+  background-color: rgba(255, 255, 255, 0.04) !important;
 }
 body.light-mode .table-col-gross {
-  background-color: #EEF4FD !important;
+  background-color: #ECEEF2 !important;
 }
 
 .table-sticky-header th.table-col-gross,
 .table-sticky-footer td.table-col-gross {
-  background-color: #1A273C !important;
+  background-color: #262930 !important;
 }
 body.light-mode .table-sticky-header th.table-col-gross,
 body.light-mode .table-sticky-footer td.table-col-gross {
-  background-color: #E4EEFB !important;
+  background-color: #ECEEF2 !important;
 }
 
 /* ------------------------------------------------------------------------- */

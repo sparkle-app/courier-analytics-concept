@@ -1,5 +1,5 @@
 // =============================================================================
-// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.12.0) — ЛОГИКА И СОСТОЯНИЕ (script.js)
+// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.12.1) — ЛОГИКА И СОСТОЯНИЕ (script.js)
 // Оптимизированная и модульная версия с гранулярным рендерингом и кэшированием
 // =============================================================================
 
@@ -1525,8 +1525,27 @@ function buildDatasetsFromOrders(orders) {
       if (list.length > 0) {
         const avgSurge = Math.round(list.reduce((a, o) => a + o.surgePct, 0) / list.length);
         const sumCost = list.reduce((a, o) => a + o.baseCost + o.surgeRub + o.ratingRub + o.bonus, 0);
-        const sumDur = list.reduce((a, o) => a + o.durationMins, 0);
-        const cellHrs = Math.max(0.4, sumDur / 60);
+
+        // Расчет фактически отработанного времени курьера на слотах внутри этого временного окна
+        // Группируем заказы ячейки по дням и слотам, определяя полный интервал смены (maxEnd - minStart)
+        const daySlotGroups = new Map();
+        list.forEach(o => {
+          const k = `${o.dateKey || o.date}_${o.slotNumber || 1}`;
+          if (!daySlotGroups.has(k)) daySlotGroups.set(k, []);
+          daySlotGroups.get(k).push(o);
+        });
+
+        let totalWorkingSecs = 0;
+        daySlotGroups.forEach(slotOrders => {
+          const minStart = Math.min(...slotOrders.map(o => o.startSecs));
+          const maxEnd = Math.max(...slotOrders.map(o => o.endSecs));
+          let spanSecs = maxEnd >= minStart ? (maxEnd - minStart) : (maxEnd + 86400 - minStart);
+          const sumOrderDur = slotOrders.reduce((a, o) => a + ((o.durationMins || 20) * 60), 0);
+          spanSecs = Math.max(spanSecs, sumOrderDur);
+          totalWorkingSecs += spanSecs;
+        });
+
+        const cellHrs = Math.max(0.4, totalWorkingSecs / 3600);
         const avgRubHr = Math.round(sumCost / cellHrs);
         heatmapMatrix[r].values[c] = { pct: avgSurge, rubHr: avgRubHr };
       } else {
@@ -2563,11 +2582,61 @@ function getProfitPerHourColor(val, minVal, maxVal, isLightMode) {
   return `rgb(${r}, ${g}, ${b})`;
 }
 
-function renderDetailedTable(data) {
+const tableHeaderLabels = {
+  date: 'Дата',
+  dayOfWeek: 'День<br>недели',
+  slotHours: 'Длит.<br>слота',
+  ordersCount: 'Кол-во<br>заказов',
+  ordersPerHr: 'Заказов<br>в час',
+  transport: 'Транспорт',
+  grossTotal: 'Начислено<br>(до расх.)',
+  ordersCost: 'Стоимость<br>заказов',
+  surgePct: 'Спрос<br>(%)',
+  surgeRub: 'Доплата<br>(спрос)',
+  ratingPct: 'Рейтинг<br>(%)',
+  ratingRub: 'Доплата<br>(рейтинг)',
+  bonuses: 'Бонусы',
+  tax: 'Налог',
+  netProfit: 'Прибыль<br>(на руки)',
+  profitPerHrNoBonus: 'Прибыль/ч<br>(без д/б)',
+  profitPerHr: 'Прибыль<br>в час',
+  goals: 'Цели',
+  tips: 'Чаевые',
+  adjustments: 'Коррект.',
+  expenses: 'Расходы'
+};
+
+const getColWidthClass = (colKey, isFirst) => {
+  if (isFirst) return 'table-col-sticky-first border-r min-w-[76px] max-w-[84px]';
+  switch (colKey) {
+    case 'dayOfWeek':          return 'min-w-[44px] max-w-[50px] text-center';
+    case 'slotHours':          return 'min-w-[50px] max-w-[58px] text-center';
+    case 'ordersCount':        return 'min-w-[48px] max-w-[56px] text-center';
+    case 'ordersPerHr':        return 'min-w-[50px] max-w-[58px] text-center';
+    case 'transport':          return 'min-w-[70px] max-w-[85px] text-left';
+    case 'grossTotal':         return 'min-w-[68px] max-w-[78px] text-right';
+    case 'ordersCost':         return 'min-w-[64px] max-w-[74px] text-right';
+    case 'surgePct':           return 'min-w-[46px] max-w-[52px] text-center';
+    case 'surgeRub':           return 'min-w-[60px] max-w-[70px] text-right';
+    case 'ratingPct':          return 'min-w-[46px] max-w-[52px] text-center';
+    case 'ratingRub':          return 'min-w-[60px] max-w-[70px] text-right';
+    case 'bonuses':            return 'min-w-[54px] max-w-[62px] text-right';
+    case 'tax':                return 'min-w-[52px] max-w-[60px] text-right';
+    case 'netProfit':          return 'min-w-[72px] max-w-[82px] text-right';
+    case 'profitPerHrNoBonus': return 'min-w-[74px] max-w-[84px] text-right';
+    case 'profitPerHr':        return 'min-w-[72px] max-w-[82px] text-right';
+    default:                   return 'min-w-[60px] max-w-[75px] text-right';
+  }
+};
+
+function renderDetailedTable(data, preserveScroll = true) {
   const enabledCols = state.tableColumns.filter(c => c.enabled);
   const thead = dom.detailedTableHead;
   const tbody = dom.detailedTableBody;
   const tfoot = dom.detailedTableFoot;
+
+  const scrollContainer = tbody?.closest('.table-scroll-container');
+  const prevScrollTop = (preserveScroll && scrollContainer) ? scrollContainer.scrollTop : 0;
 
   const profitHrVals = data.map(r => Number(r.profitPerHr || 0));
   const minProfitHr = profitHrVals.length > 0 ? Math.min(...profitHrVals) : 0;
@@ -2585,13 +2654,14 @@ function renderDetailedTable(data) {
 
   let headHtml = '<tr>';
   enabledCols.forEach((col, i) => {
-    const stickyCls = i === 0 ? 'table-col-sticky-first border-r min-w-[84px] border-strong bg-elevated' : 'min-w-[72px] max-w-[90px]';
+    const widthCls = getColWidthClass(col.key, i === 0);
+    const bgCls = i === 0 ? 'bg-elevated' : '';
     const highlightCls = getColHighlightClass(col.key);
-    let labelHtml = escapeHtml(col.label);
+    let labelHtml = tableHeaderLabels[col.key] || escapeHtml(col.label);
     if (col.key === 'date') {
       labelHtml = `
         <div class="flex items-center justify-between gap-1 w-full">
-          <span>${escapeHtml(col.label)}</span>
+          <span>${tableHeaderLabels.date}</span>
           <div class="inline-flex items-center gap-0.5 font-normal">
             <button type="button" onclick="expandAllDateSubRows()" title="Развернуть все подстроки" class="w-3.5 h-3.5 rounded bg-black/10 dark:bg-white/10 hover:bg-[#FCE000] hover:text-black flex items-center justify-center text-[10px] font-extrabold leading-none active:scale-95">+</button>
             <button type="button" onclick="collapseAllDateSubRows()" title="Свернуть все подстроки" class="w-3.5 h-3.5 rounded bg-black/10 dark:bg-white/10 hover:bg-[#FCE000] hover:text-black flex items-center justify-center text-[10px] font-extrabold leading-none active:scale-95">−</button>
@@ -2599,7 +2669,7 @@ function renderDetailedTable(data) {
         </div>
       `;
     }
-    headHtml += `<th scope="col" class="py-1.5 px-1 font-bold text-[9.5px] leading-snug whitespace-normal align-middle ${stickyCls} ${highlightCls}">${labelHtml}</th>`;
+    headHtml += `<th scope="col" class="py-1.5 px-1 font-bold text-[9.5px] leading-tight whitespace-normal align-middle ${widthCls} ${bgCls} ${highlightCls}">${labelHtml}</th>`;
   });
   headHtml += '</tr>';
   thead.innerHTML = headHtml;
@@ -2614,6 +2684,7 @@ function renderDetailedTable(data) {
       row.subRows.forEach((subRow, sIdx) => {
         bodyHtml += '<tr class="hover:opacity-90 transition table-subrow">';
         enabledCols.forEach((col, i) => {
+          const widthCls = getColWidthClass(col.key, i === 0);
           const stickyCls = i === 0 ? 'table-col-sticky-first font-bold border-r bg-card border-strong' : '';
           const highlightCls = getColHighlightClass(col.key);
           let cellContent = '';
@@ -2637,13 +2708,14 @@ function renderDetailedTable(data) {
           } else {
             cellContent = formatTableCellValue(subRow, col.key, minProfitHr, maxProfitHr, minProfitHrNoBonus, maxProfitHrNoBonus);
           }
-          bodyHtml += `<td class="py-1.5 px-1 text-[10px] whitespace-nowrap ${stickyCls} ${highlightCls}">${cellContent}</td>`;
+          bodyHtml += `<td class="py-1.5 px-1 text-[10px] whitespace-nowrap ${widthCls} ${stickyCls} ${highlightCls}">${cellContent}</td>`;
         });
         bodyHtml += '</tr>';
       });
     } else {
       bodyHtml += '<tr class="hover:opacity-90 transition">';
       enabledCols.forEach((col, i) => {
+        const widthCls = getColWidthClass(col.key, i === 0);
         const stickyCls = i === 0 ? 'table-col-sticky-first font-bold border-r bg-card border-strong' : '';
         const highlightCls = getColHighlightClass(col.key);
         let cellContent = '';
@@ -2662,7 +2734,7 @@ function renderDetailedTable(data) {
         } else {
           cellContent = formatTableCellValue(row, col.key, minProfitHr, maxProfitHr, minProfitHrNoBonus, maxProfitHrNoBonus);
         }
-        bodyHtml += `<td class="py-1.5 px-1 text-[10px] whitespace-nowrap ${stickyCls} ${highlightCls}">${cellContent}</td>`;
+        bodyHtml += `<td class="py-1.5 px-1 text-[10px] whitespace-nowrap ${widthCls} ${stickyCls} ${highlightCls}">${cellContent}</td>`;
       });
       bodyHtml += '</tr>';
     }
@@ -2671,16 +2743,16 @@ function renderDetailedTable(data) {
 
   let footHtml = '<tr>';
   enabledCols.forEach((col, i) => {
+    const widthCls = getColWidthClass(col.key, i === 0);
     const stickyCls = i === 0 ? 'table-col-sticky-first border-r bg-elevated border-strong' : '';
     const highlightCls = getColHighlightClass(col.key);
-    footHtml += `<td class="py-1.5 px-1 text-[10px] whitespace-nowrap ${stickyCls} ${highlightCls}">${i === 0 ? 'ИТОГО / СР.' : formatTableFootValue(data, col.key)}</td>`;
+    footHtml += `<td class="py-1.5 px-1 text-[10px] whitespace-nowrap ${widthCls} ${stickyCls} ${highlightCls}">${i === 0 ? 'ИТОГО / СР.' : formatTableFootValue(data, col.key)}</td>`;
   });
   footHtml += '</tr>';
   tfoot.innerHTML = footHtml;
 
-  const scrollContainer = tbody.closest('.table-scroll-container');
-  if (scrollContainer) {
-    scrollContainer.scrollTop = scrollContainer.scrollHeight;
+  if (scrollContainer && preserveScroll) {
+    scrollContainer.scrollTop = prevScrollTop;
   }
 }
 
@@ -2693,17 +2765,22 @@ function formatTableCellValue(row, key, minProfitHr, maxProfitHr, minProfitHrNoB
       }
       return escapeHtml(row.date);
     }
-    case 'dayOfWeek':   return escapeHtml(row.dayOfWeek);
+    case 'dayOfWeek':   return `<span class="block text-center">${escapeHtml(row.dayOfWeek)}</span>`;
     case 'slotHours':   {
       const h = Math.round(Number(row.slotHours || 0) * 10) / 10;
-      return `${h} ч`;
+      return `<span class="block text-center">${h} ч</span>`;
     }
-    case 'ordersCount': return row.ordersCount;
-    case 'ordersPerHr': return row.ordersPerHr;
-    case 'transport':   return escapeHtml(row.transport);
+    case 'ordersCount': return `<span class="block text-center">${row.ordersCount}</span>`;
+    case 'ordersPerHr': return `<span class="block text-center">${row.ordersPerHr}</span>`;
+    case 'transport': {
+      if (Array.isArray(row.distinctTransports) && row.distinctTransports.length > 1) {
+        return escapeHtml(row.transportSummary || row.distinctTransports.join(' + '));
+      }
+      return escapeHtml(row.transportSummary || row.transport || '—');
+    }
     case 'grossTotal':  return `<span class="font-semibold">${formatNum(row.grossTotal)} ₽</span>`;
     case 'surgePct':
-    case 'ratingPct':   return `+${row[key]}%`;
+    case 'ratingPct':   return `<span class="block text-center">+${row[key]}%</span>`;
     case 'tax':
     case 'expenses':    return `<span class="text-rose-400">-${formatNum(row[key])} ₽</span>`;
     case 'adjustments': return row.adjustments === 0 ? '0 ₽' : `<span class="text-rose-400">-${formatNum(Math.abs(row.adjustments))} ₽</span>`;
@@ -3056,6 +3133,17 @@ function renderBlock3(precomputedAllTimeProfitHr) {
   const tbody = dom.compareTableBody;
   const tfoot = dom.compareTableFoot;
 
+  const formatHeaderWithParens = (str) => {
+    if (!str) return '';
+    const idx = str.indexOf('(');
+    if (idx > 0) {
+      const mainPart = str.substring(0, idx).trim();
+      const parenPart = str.substring(idx).trim();
+      return `<span class="whitespace-nowrap">${escapeHtml(mainPart)}</span><br><span class="text-[9px] font-normal opacity-80 whitespace-nowrap">${escapeHtml(parenPart)}</span>`;
+    }
+    return escapeHtml(str);
+  };
+
   let headHtml = `<tr><th scope="col" class="py-1.5 px-2.5 font-bold text-[10px] leading-snug whitespace-normal sticky left-0 z-10 border-r min-w-[105px] max-w-[125px] bg-elevated border-strong">Показатель</th>`;
   ds.columns.forEach(colItem => {
     if (typeof colItem === 'object') {
@@ -3063,13 +3151,13 @@ function renderBlock3(precomputedAllTimeProfitHr) {
         headHtml += `
           <th scope="col" class="py-1.5 px-2 font-bold text-[10px] leading-snug text-center whitespace-normal align-middle min-w-[65px] max-w-[95px]">
             <div class="inline-flex items-center justify-center gap-1 flex-wrap">
-              <span>${escapeHtml(colItem.title)}</span>
+              <span>${formatHeaderWithParens(colItem.title)}</span>
               <button type="button" onclick="openForecastInfoModal()" title="Как рассчитывается прогноз" class="w-4 h-4 rounded-full bg-[#FCE000] text-[#141518] font-extrabold text-[9px] inline-flex items-center justify-center shadow hover:opacity-90 active:scale-95 transition">?</button>
             </div>
           </th>
         `;
       } else {
-        headHtml += `<th scope="col" class="py-1.5 px-2 font-bold text-[10px] leading-snug text-center whitespace-normal align-middle min-w-[65px] max-w-[95px]">${escapeHtml(colItem.title)}</th>`;
+        headHtml += `<th scope="col" class="py-1.5 px-2 font-bold text-[10px] leading-snug text-center whitespace-normal align-middle min-w-[65px] max-w-[95px]">${formatHeaderWithParens(colItem.title)}</th>`;
       }
     } else {
       let resolvedColName = colItem;
@@ -3078,7 +3166,7 @@ function renderBlock3(precomputedAllTimeProfitHr) {
       if (colItem === 'TOP_DIST_COL')       resolvedColName = `Топ-20% района (${periodTag})`;
       if (colItem === 'AVG_CITY_COL')       resolvedColName = `Ср. город (${periodTag})`;
       if (colItem === 'TOP_CITY_COL')       resolvedColName = `Топ-20% города (${periodTag})`;
-      headHtml += `<th scope="col" class="py-1.5 px-2 font-bold text-[10px] leading-snug text-center whitespace-normal align-middle min-w-[65px] max-w-[95px]">${escapeHtml(resolvedColName)}</th>`;
+      headHtml += `<th scope="col" class="py-1.5 px-2 font-bold text-[10px] leading-snug text-center whitespace-normal align-middle min-w-[65px] max-w-[95px]">${formatHeaderWithParens(resolvedColName)}</th>`;
     }
   });
   headHtml += `</tr>`;
