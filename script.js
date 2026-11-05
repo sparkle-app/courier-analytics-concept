@@ -1,5 +1,5 @@
 // =============================================================================
-// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.12.1) — ЛОГИКА И СОСТОЯНИЕ (script.js)
+// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.12.2) — ЛОГИКА И СОСТОЯНИЕ (script.js)
 // Оптимизированная и модульная версия с гранулярным рендерингом и кэшированием
 // =============================================================================
 
@@ -918,8 +918,8 @@ function calculateTransportStats(orders) {
       const oList = seg.orders;
       const startS = Math.min(...oList.map(o => o.startSecs));
       const maxEnd = Math.max(...oList.map(o => o.endSecs));
-      let segDur = (maxEnd >= startS ? maxEnd - startS : maxEnd + 86400 - startS) / 3600;
-      segDur = Math.max(0.3, segDur);
+      const spanSecs = Math.max(15 * 60, (maxEnd >= startS ? maxEnd - startS : maxEnd + 86400 - startS));
+      const segDur = Math.max(0.3, spanSecs / 3600);
       durHr += segDur;
       ordersCount += oList.length;
 
@@ -1022,8 +1022,8 @@ function calculateSlotStats(orders) {
     const oList = slot.orders;
     const startS = Math.min(...oList.map(o => o.startSecs));
     const maxEnd = Math.max(...oList.map(o => o.endSecs));
-    let durHr = (maxEnd >= startS ? maxEnd - startS : maxEnd + 86400 - startS) / 3600;
-    durHr = Math.max(0.3, durHr);
+    const spanSecs = Math.max(15 * 60, (maxEnd >= startS ? maxEnd - startS : maxEnd + 86400 - startS));
+    const durHr = Math.max(0.3, spanSecs / 3600);
 
     let sGross = 0;
     const exps = oList.map(o => o.expense).filter(e => e > 0);
@@ -1201,13 +1201,8 @@ function buildDatasetsFromOrders(orders) {
     dayObj.slotsMap.forEach(slotOrders => {
       const minStart = Math.min(...slotOrders.map(o => o.startSecs));
       const maxEnd = Math.max(...slotOrders.map(o => o.endSecs));
-      let durHr = 0;
-      if (maxEnd >= minStart) {
-        durHr = (maxEnd - minStart) / 3600;
-      } else {
-        durHr = (maxEnd + 86400 - minStart) / 3600;
-      }
-      durHr = Math.max(0.3, durHr);
+      const spanSecs = Math.max(15 * 60, (maxEnd >= minStart ? maxEnd - minStart : maxEnd + 86400 - minStart));
+      const durHr = Math.max(0.3, spanSecs / 3600);
       totalSlotHours += durHr;
 
       const exps = slotOrders.map(o => o.expense).filter(e => e > 0);
@@ -1273,13 +1268,8 @@ function buildDatasetsFromOrders(orders) {
         tSlotsMap.forEach(slotOrders => {
           const minStart = Math.min(...slotOrders.map(o => o.startSecs));
           const maxEnd = Math.max(...slotOrders.map(o => o.endSecs));
-          let durHr = 0;
-          if (maxEnd >= minStart) {
-            durHr = (maxEnd - minStart) / 3600;
-          } else {
-            durHr = (maxEnd + 86400 - minStart) / 3600;
-          }
-          durHr = Math.max(0.3, durHr);
+          const spanSecs = Math.max(15 * 60, (maxEnd >= minStart ? maxEnd - minStart : maxEnd + 86400 - minStart));
+          const durHr = Math.max(0.3, spanSecs / 3600);
           tSlotHours += durHr;
 
           const exps = slotOrders.map(o => o.expense).filter(e => e > 0);
@@ -1525,9 +1515,10 @@ function buildDatasetsFromOrders(orders) {
       if (list.length > 0) {
         const avgSurge = Math.round(list.reduce((a, o) => a + o.surgePct, 0) / list.length);
         const sumCost = list.reduce((a, o) => a + o.baseCost + o.surgeRub + o.ratingRub + o.bonus, 0);
+        const sumGoals = list.reduce((a, o) => a + (o.goal || 0), 0);
 
         // Расчет фактически отработанного времени курьера на слотах внутри этого временного окна
-        // Группируем заказы ячейки по дням и слотам, определяя полный интервал смены (maxEnd - minStart)
+        // Группируем заказы ячейки по дням и слотам, определяя полный рабочий интервал смены (maxEnd - minStart)
         const daySlotGroups = new Map();
         list.forEach(o => {
           const k = `${o.dateKey || o.date}_${o.slotNumber || 1}`;
@@ -1539,15 +1530,14 @@ function buildDatasetsFromOrders(orders) {
         daySlotGroups.forEach(slotOrders => {
           const minStart = Math.min(...slotOrders.map(o => o.startSecs));
           const maxEnd = Math.max(...slotOrders.map(o => o.endSecs));
-          let spanSecs = maxEnd >= minStart ? (maxEnd - minStart) : (maxEnd + 86400 - minStart);
-          const sumOrderDur = slotOrders.reduce((a, o) => a + ((o.durationMins || 20) * 60), 0);
-          spanSecs = Math.max(spanSecs, sumOrderDur);
+          const spanSecs = Math.max(15 * 60, maxEnd >= minStart ? (maxEnd - minStart) : (maxEnd + 86400 - minStart));
           totalWorkingSecs += spanSecs;
         });
 
         const cellHrs = Math.max(0.4, totalWorkingSecs / 3600);
         const avgRubHr = Math.round(sumCost / cellHrs);
-        heatmapMatrix[r].values[c] = { pct: avgSurge, rubHr: avgRubHr };
+        const goalsRubHr = Math.round(sumGoals / cellHrs);
+        heatmapMatrix[r].values[c] = { pct: avgSurge, rubHr: avgRubHr, goalsRubHr };
       } else {
         heatmapMatrix[r].values[c] = null;
       }
@@ -2190,7 +2180,8 @@ function getCellComputedValue(basePct) {
 
   if (typeof basePct === 'object') {
     pct = Math.round(basePct.pct || 0);
-    grossRubHr = Math.round(basePct.rubHr || 0);
+    const goalsAdd = (state.includeGoals && basePct.goalsRubHr) ? basePct.goalsRubHr : 0;
+    grossRubHr = Math.round(basePct.rubHr || 0) + goalsAdd;
   } else {
     const distObj = districtsData.find(d => d.id === state.districtId) || districtsData[0];
     const distFactor = distObj.avgPct / 42;
@@ -2607,25 +2598,29 @@ const tableHeaderLabels = {
 };
 
 const getColWidthClass = (colKey, isFirst) => {
-  if (isFirst) return 'table-col-sticky-first border-r min-w-[76px] max-w-[84px]';
+  if (isFirst || colKey === 'date') return 'table-col-sticky-first border-r min-w-[76px] max-w-[84px] text-left';
   switch (colKey) {
     case 'dayOfWeek':          return 'min-w-[44px] max-w-[50px] text-center';
     case 'slotHours':          return 'min-w-[50px] max-w-[58px] text-center';
     case 'ordersCount':        return 'min-w-[48px] max-w-[56px] text-center';
     case 'ordersPerHr':        return 'min-w-[50px] max-w-[58px] text-center';
-    case 'transport':          return 'min-w-[70px] max-w-[85px] text-left';
-    case 'grossTotal':         return 'min-w-[68px] max-w-[78px] text-right';
-    case 'ordersCost':         return 'min-w-[64px] max-w-[74px] text-right';
+    case 'transport':          return 'min-w-[72px] max-w-[88px] text-center';
+    case 'grossTotal':         return 'min-w-[68px] max-w-[78px] text-center';
+    case 'ordersCost':         return 'min-w-[64px] max-w-[74px] text-center';
     case 'surgePct':           return 'min-w-[46px] max-w-[52px] text-center';
-    case 'surgeRub':           return 'min-w-[60px] max-w-[70px] text-right';
+    case 'surgeRub':           return 'min-w-[60px] max-w-[70px] text-center';
     case 'ratingPct':          return 'min-w-[46px] max-w-[52px] text-center';
-    case 'ratingRub':          return 'min-w-[60px] max-w-[70px] text-right';
-    case 'bonuses':            return 'min-w-[54px] max-w-[62px] text-right';
-    case 'tax':                return 'min-w-[52px] max-w-[60px] text-right';
-    case 'netProfit':          return 'min-w-[72px] max-w-[82px] text-right';
-    case 'profitPerHrNoBonus': return 'min-w-[74px] max-w-[84px] text-right';
-    case 'profitPerHr':        return 'min-w-[72px] max-w-[82px] text-right';
-    default:                   return 'min-w-[60px] max-w-[75px] text-right';
+    case 'ratingRub':          return 'min-w-[60px] max-w-[70px] text-center';
+    case 'bonuses':            return 'min-w-[54px] max-w-[62px] text-center';
+    case 'tax':                return 'min-w-[52px] max-w-[60px] text-center';
+    case 'netProfit':          return 'min-w-[72px] max-w-[82px] text-center';
+    case 'profitPerHrNoBonus': return 'min-w-[74px] max-w-[84px] text-center';
+    case 'profitPerHr':        return 'min-w-[72px] max-w-[82px] text-center';
+    case 'goals':              return 'min-w-[54px] max-w-[64px] text-center';
+    case 'tips':               return 'min-w-[52px] max-w-[62px] text-center';
+    case 'adjustments':        return 'min-w-[56px] max-w-[66px] text-center';
+    case 'expenses':           return 'min-w-[58px] max-w-[68px] text-center';
+    default:                   return 'min-w-[60px] max-w-[75px] text-center';
   }
 };
 
@@ -2654,13 +2649,15 @@ function renderDetailedTable(data, preserveScroll = true) {
 
   let headHtml = '<tr>';
   enabledCols.forEach((col, i) => {
-    const widthCls = getColWidthClass(col.key, i === 0);
-    const bgCls = i === 0 ? 'bg-elevated' : '';
+    const isFirst = (i === 0 || col.key === 'date');
+    const widthCls = getColWidthClass(col.key, isFirst);
+    const bgCls = isFirst ? 'bg-elevated' : '';
     const highlightCls = getColHighlightClass(col.key);
+    const alignCls = isFirst ? 'text-left' : 'text-center';
     let labelHtml = tableHeaderLabels[col.key] || escapeHtml(col.label);
     if (col.key === 'date') {
       labelHtml = `
-        <div class="flex items-center justify-between gap-1 w-full">
+        <div class="flex items-center justify-between gap-1 w-full text-left">
           <span>${tableHeaderLabels.date}</span>
           <div class="inline-flex items-center gap-0.5 font-normal">
             <button type="button" onclick="expandAllDateSubRows()" title="Развернуть все подстроки" class="w-3.5 h-3.5 rounded bg-black/10 dark:bg-white/10 hover:bg-[#FCE000] hover:text-black flex items-center justify-center text-[10px] font-extrabold leading-none active:scale-95">+</button>
@@ -2669,7 +2666,7 @@ function renderDetailedTable(data, preserveScroll = true) {
         </div>
       `;
     }
-    headHtml += `<th scope="col" class="py-1.5 px-1 font-bold text-[9.5px] leading-tight whitespace-normal align-middle ${widthCls} ${bgCls} ${highlightCls}">${labelHtml}</th>`;
+    headHtml += `<th scope="col" class="py-1.5 px-1 font-bold text-[9.5px] leading-tight whitespace-normal align-middle ${alignCls} ${widthCls} ${bgCls} ${highlightCls}">${labelHtml}</th>`;
   });
   headHtml += '</tr>';
   thead.innerHTML = headHtml;
@@ -2684,9 +2681,11 @@ function renderDetailedTable(data, preserveScroll = true) {
       row.subRows.forEach((subRow, sIdx) => {
         bodyHtml += '<tr class="hover:opacity-90 transition table-subrow">';
         enabledCols.forEach((col, i) => {
-          const widthCls = getColWidthClass(col.key, i === 0);
-          const stickyCls = i === 0 ? 'table-col-sticky-first font-bold border-r bg-card border-strong' : '';
+          const isFirst = (i === 0 || col.key === 'date');
+          const widthCls = getColWidthClass(col.key, isFirst);
+          const stickyCls = isFirst ? 'table-col-sticky-first font-bold border-r bg-card border-strong text-left' : '';
           const highlightCls = getColHighlightClass(col.key);
+          const alignCls = isFirst ? 'text-left' : 'text-center';
           let cellContent = '';
           if (col.key === 'date') {
             const dateStr = subRow.fullDisplayDate || (typeof subRow.date === 'string' && subRow.date.length === 5 ? `${subRow.date}.2026` : subRow.date);
@@ -2708,16 +2707,18 @@ function renderDetailedTable(data, preserveScroll = true) {
           } else {
             cellContent = formatTableCellValue(subRow, col.key, minProfitHr, maxProfitHr, minProfitHrNoBonus, maxProfitHrNoBonus);
           }
-          bodyHtml += `<td class="py-1.5 px-1 text-[10px] whitespace-nowrap ${widthCls} ${stickyCls} ${highlightCls}">${cellContent}</td>`;
+          bodyHtml += `<td class="py-1.5 px-1 text-[10px] whitespace-nowrap align-middle ${alignCls} ${widthCls} ${stickyCls} ${highlightCls}">${cellContent}</td>`;
         });
         bodyHtml += '</tr>';
       });
     } else {
       bodyHtml += '<tr class="hover:opacity-90 transition">';
       enabledCols.forEach((col, i) => {
-        const widthCls = getColWidthClass(col.key, i === 0);
-        const stickyCls = i === 0 ? 'table-col-sticky-first font-bold border-r bg-card border-strong' : '';
+        const isFirst = (i === 0 || col.key === 'date');
+        const widthCls = getColWidthClass(col.key, isFirst);
+        const stickyCls = isFirst ? 'table-col-sticky-first font-bold border-r bg-card border-strong text-left' : '';
         const highlightCls = getColHighlightClass(col.key);
+        const alignCls = isFirst ? 'text-left' : 'text-center';
         let cellContent = '';
         if (col.key === 'date') {
           const dateStr = row.fullDisplayDate || (typeof row.date === 'string' && row.date.length === 5 ? `${row.date}.2026` : row.date);
@@ -2734,7 +2735,7 @@ function renderDetailedTable(data, preserveScroll = true) {
         } else {
           cellContent = formatTableCellValue(row, col.key, minProfitHr, maxProfitHr, minProfitHrNoBonus, maxProfitHrNoBonus);
         }
-        bodyHtml += `<td class="py-1.5 px-1 text-[10px] whitespace-nowrap ${widthCls} ${stickyCls} ${highlightCls}">${cellContent}</td>`;
+        bodyHtml += `<td class="py-1.5 px-1 text-[10px] whitespace-nowrap align-middle ${alignCls} ${widthCls} ${stickyCls} ${highlightCls}">${cellContent}</td>`;
       });
       bodyHtml += '</tr>';
     }
@@ -2743,10 +2744,12 @@ function renderDetailedTable(data, preserveScroll = true) {
 
   let footHtml = '<tr>';
   enabledCols.forEach((col, i) => {
-    const widthCls = getColWidthClass(col.key, i === 0);
-    const stickyCls = i === 0 ? 'table-col-sticky-first border-r bg-elevated border-strong' : '';
+    const isFirst = (i === 0 || col.key === 'date');
+    const widthCls = getColWidthClass(col.key, isFirst);
+    const stickyCls = isFirst ? 'table-col-sticky-first border-r bg-elevated border-strong text-left' : '';
     const highlightCls = getColHighlightClass(col.key);
-    footHtml += `<td class="py-1.5 px-1 text-[10px] whitespace-nowrap ${widthCls} ${stickyCls} ${highlightCls}">${i === 0 ? 'ИТОГО / СР.' : formatTableFootValue(data, col.key)}</td>`;
+    const alignCls = isFirst ? 'text-left' : 'text-center';
+    footHtml += `<td class="py-1.5 px-1 text-[10px] whitespace-nowrap align-middle ${alignCls} ${widthCls} ${stickyCls} ${highlightCls}">${isFirst ? 'ИТОГО / СР.' : formatTableFootValue(data, col.key)}</td>`;
   });
   footHtml += '</tr>';
   tfoot.innerHTML = footHtml;
@@ -2765,13 +2768,13 @@ function formatTableCellValue(row, key, minProfitHr, maxProfitHr, minProfitHrNoB
       }
       return escapeHtml(row.date);
     }
-    case 'dayOfWeek':   return `<span class="block text-center">${escapeHtml(row.dayOfWeek)}</span>`;
+    case 'dayOfWeek':   return escapeHtml(row.dayOfWeek);
     case 'slotHours':   {
       const h = Math.round(Number(row.slotHours || 0) * 10) / 10;
-      return `<span class="block text-center">${h} ч</span>`;
+      return `${h} ч`;
     }
-    case 'ordersCount': return `<span class="block text-center">${row.ordersCount}</span>`;
-    case 'ordersPerHr': return `<span class="block text-center">${row.ordersPerHr}</span>`;
+    case 'ordersCount': return row.ordersCount;
+    case 'ordersPerHr': return row.ordersPerHr;
     case 'transport': {
       if (Array.isArray(row.distinctTransports) && row.distinctTransports.length > 1) {
         return escapeHtml(row.transportSummary || row.distinctTransports.join(' + '));
@@ -2780,7 +2783,7 @@ function formatTableCellValue(row, key, minProfitHr, maxProfitHr, minProfitHrNoB
     }
     case 'grossTotal':  return `<span class="font-semibold">${formatNum(row.grossTotal)} ₽</span>`;
     case 'surgePct':
-    case 'ratingPct':   return `<span class="block text-center">+${row[key]}%</span>`;
+    case 'ratingPct':   return `+${row[key]}%`;
     case 'tax':
     case 'expenses':    return `<span class="text-rose-400">-${formatNum(row[key])} ₽</span>`;
     case 'adjustments': return row.adjustments === 0 ? '0 ₽' : `<span class="text-rose-400">-${formatNum(Math.abs(row.adjustments))} ₽</span>`;
