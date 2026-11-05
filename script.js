@@ -1,5 +1,5 @@
 // =============================================================================
-// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.11.4) — ЛОГИКА И СОСТОЯНИЕ (script.js)
+// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.11.5) — ЛОГИКА И СОСТОЯНИЕ (script.js)
 // Оптимизированная и модульная версия с гранулярным рендерингом и кэшированием
 // =============================================================================
 
@@ -1693,19 +1693,208 @@ function enrichDailyDataset(dayRows) {
   });
 }
 
+/**
+ * Агрегация недель напрямую из обогащенных дней (Bottom-Up)
+ * Гарантирует, что сумма чистой прибыли и расходов дней недели в точности равна показателям недели
+ */
+function buildEnrichedWeeksFromEnrichedDays(enrichedDays) {
+  if (!enrichedDays || enrichedDays.length === 0) return [];
+
+  const weeksMap = new Map();
+  enrichedDays.forEach(d => {
+    const cycle = getWeekCycleInfo(d.dateObj || getDayDateObj(d), state.weekStartDay);
+    const wkKey = cycle ? cycle.cycleKey : (d.weekKey || d.date);
+    if (!weeksMap.has(wkKey)) {
+      weeksMap.set(wkKey, { cycle, days: [] });
+    }
+    weeksMap.get(wkKey).days.push(d);
+  });
+
+  const weeks = [];
+  weeksMap.forEach(({ cycle, days: wDays }, wkKey) => {
+    const slotHours = Math.round(wDays.reduce((a, d) => a + Number(d.slotHours || 0), 0) * 10) / 10;
+    const ordersCount = wDays.reduce((a, d) => a + Number(d.ordersCount || 0), 0);
+    const ordersCost = wDays.reduce((a, d) => a + Number(d.ordersCost || 0), 0);
+    const surgeRub = wDays.reduce((a, d) => a + Number(d.surgeRub || 0), 0);
+    const surgePct = ordersCost > 0 ? Math.round((surgeRub / ordersCost) * 100) : 0;
+    const ratingRub = wDays.reduce((a, d) => a + Number(d.ratingRub || 0), 0);
+    const ratingPct = ordersCost > 0 ? Math.round((ratingRub / ordersCost) * 100) : 0;
+    const bonuses = wDays.reduce((a, d) => a + Number(d.bonuses || 0), 0);
+    const goals = wDays.reduce((a, d) => a + Number(d.goals || 0), 0);
+    const tips = wDays.reduce((a, d) => a + Number(d.tips || 0), 0);
+    const adjustments = wDays.reduce((a, d) => a + Number(d.adjustments || 0), 0);
+    const grossTotal = wDays.reduce((a, d) => a + Number(d.grossTotal || 0), 0);
+    const tax = wDays.reduce((a, d) => a + Number(d.tax || 0), 0);
+    const expenses = wDays.reduce((a, d) => a + Number(d.expenses || 0), 0);
+    const userSlotExpenses = wDays.reduce((a, d) => a + Number(d.userSlotExpenses || 0), 0);
+    const netProfit = wDays.reduce((a, d) => a + Number(d.netProfit || 0), 0);
+
+    const expMap = new Map();
+    wDays.forEach(d => {
+      (d.itemizedExpenses || []).forEach(e => {
+        expMap.set(e.name, (expMap.get(e.name) || 0) + Number(e.amount || 0));
+      });
+    });
+    const itemizedExpenses = Array.from(expMap.entries()).map(([name, amount]) => ({ name, amount }));
+
+    const distinctTransports = Array.from(new Set(wDays.flatMap(d => d.distinctTransports || [d.transport || 'Курьер'])));
+    const transportSummary = distinctTransports.join(' + ');
+    const wkDisplay = cycle ? cycle.label : (wDays[0].weekKey || 'Неделя');
+    const dowDisplay = cycle ? cycle.dayRangeLabel : 'Пн–Вс';
+
+    const ordersPerHr = slotHours > 0 ? (ordersCount / slotHours).toFixed(2) : '0.00';
+    const profitPerHr = slotHours > 0 ? Math.round(netProfit / slotHours) : 0;
+    const grossPerHr = slotHours > 0 ? Math.round(grossTotal / slotHours) : 0;
+
+    weeks.push({
+      date: wkDisplay,
+      weekCycleKey: wkKey,
+      fullDisplayDate: `${wkDisplay} (${wDays[0].year || 2026})`,
+      dayOfWeek: dowDisplay,
+      slotHours,
+      ordersCount,
+      transport: wDays[0].transport || 'Курьер',
+      transportKey: wDays[0].transportKey || 'walk',
+      distinctTransports,
+      transportSummary,
+      ordersCost,
+      surgePct,
+      surgeRub,
+      ratingPct,
+      ratingRub,
+      bonuses,
+      goals,
+      tips,
+      adjustments,
+      grossTotal,
+      grossPerHr,
+      tax,
+      expenses,
+      userSlotExpenses,
+      itemizedExpenses,
+      netProfit,
+      ordersPerHr,
+      profitPerHr,
+      year: wDays[0].year || 2026
+    });
+  });
+
+  return weeks;
+}
+
+/**
+ * Агрегация месяцев напрямую из обогащенных дней (Bottom-Up)
+ * Гарантирует, что сумма чистой прибыли и расходов дней месяца в точности равна показателям месяца
+ */
+function buildEnrichedMonthsFromEnrichedDays(enrichedDays) {
+  if (!enrichedDays || enrichedDays.length === 0) return [];
+
+  const monthsMap = new Map();
+  enrichedDays.forEach(d => {
+    const mk = d.monthKey || (d.dateObj ? d.dateObj.toLocaleString('ru-RU', { month: 'long' }) : 'Месяц');
+    if (!monthsMap.has(mk)) {
+      monthsMap.set(mk, []);
+    }
+    monthsMap.get(mk).push(d);
+  });
+
+  const months = [];
+  monthsMap.forEach((mDays, mk) => {
+    const slotHours = Math.round(mDays.reduce((a, d) => a + Number(d.slotHours || 0), 0) * 10) / 10;
+    const ordersCount = mDays.reduce((a, d) => a + Number(d.ordersCount || 0), 0);
+    const ordersCost = mDays.reduce((a, d) => a + Number(d.ordersCost || 0), 0);
+    const surgeRub = mDays.reduce((a, d) => a + Number(d.surgeRub || 0), 0);
+    const surgePct = ordersCost > 0 ? Math.round((surgeRub / ordersCost) * 100) : 0;
+    const ratingRub = mDays.reduce((a, d) => a + Number(d.ratingRub || 0), 0);
+    const ratingPct = ordersCost > 0 ? Math.round((ratingRub / ordersCost) * 100) : 0;
+    const bonuses = mDays.reduce((a, d) => a + Number(d.bonuses || 0), 0);
+    const goals = mDays.reduce((a, d) => a + Number(d.goals || 0), 0);
+    const tips = mDays.reduce((a, d) => a + Number(d.tips || 0), 0);
+    const adjustments = mDays.reduce((a, d) => a + Number(d.adjustments || 0), 0);
+    const grossTotal = mDays.reduce((a, d) => a + Number(d.grossTotal || 0), 0);
+    const tax = mDays.reduce((a, d) => a + Number(d.tax || 0), 0);
+    const expenses = mDays.reduce((a, d) => a + Number(d.expenses || 0), 0);
+    const userSlotExpenses = mDays.reduce((a, d) => a + Number(d.userSlotExpenses || 0), 0);
+    const netProfit = mDays.reduce((a, d) => a + Number(d.netProfit || 0), 0);
+
+    const expMap = new Map();
+    mDays.forEach(d => {
+      (d.itemizedExpenses || []).forEach(e => {
+        expMap.set(e.name, (expMap.get(e.name) || 0) + Number(e.amount || 0));
+      });
+    });
+    const itemizedExpenses = Array.from(expMap.entries()).map(([name, amount]) => ({ name, amount }));
+
+    const distinctTransports = Array.from(new Set(mDays.flatMap(d => d.distinctTransports || [d.transport || 'Курьер'])));
+    const transportSummary = distinctTransports.join(' + ');
+
+    const ordersPerHr = slotHours > 0 ? (ordersCount / slotHours).toFixed(2) : '0.00';
+    const profitPerHr = slotHours > 0 ? Math.round(netProfit / slotHours) : 0;
+    const grossPerHr = slotHours > 0 ? Math.round(grossTotal / slotHours) : 0;
+
+    months.push({
+      date: mk,
+      monthKey: mk,
+      fullDisplayDate: `${mk} ${mDays[0].year || 2026}`,
+      dayOfWeek: 'Месяц',
+      slotHours,
+      ordersCount,
+      transport: mDays[0].transport || 'Курьер',
+      transportKey: mDays[0].transportKey || 'walk',
+      distinctTransports,
+      transportSummary,
+      ordersCost,
+      surgePct,
+      surgeRub,
+      ratingPct,
+      ratingRub,
+      bonuses,
+      goals,
+      tips,
+      adjustments,
+      grossTotal,
+      grossPerHr,
+      tax,
+      expenses,
+      userSlotExpenses,
+      itemizedExpenses,
+      netProfit,
+      ordersPerHr,
+      profitPerHr,
+      year: mDays[0].year || 2026,
+      daysCount: mDays.length
+    });
+  });
+
+  return months;
+}
+
 function getCurrentDataset() {
   const cacheKey = `${state.period}_${state.includeGoals}_${state.usingUserData ? 'user' : 'demo'}_ws${state.weekStartDay}`;
   if (dataCache.enriched.has(cacheKey)) {
     return dataCache.enriched.get(cacheKey);
   }
   const sourceDatasets = (state.usingUserData && state.userDatasets) ? state.userDatasets : rawDatasets;
-  const list = sourceDatasets[state.period] || sourceDatasets.days || [];
   let enriched = [];
-  if (state.period === 'days') {
-    enriched = enrichDailyDataset(list);
+
+  if (state.usingUserData && state.userDatasets) {
+    const enrichedDays = enrichDailyDataset(state.userDatasets.days || []);
+    if (state.period === 'days') {
+      enriched = enrichedDays;
+    } else if (state.period === 'weeks') {
+      enriched = buildEnrichedWeeksFromEnrichedDays(enrichedDays);
+    } else if (state.period === 'months') {
+      enriched = buildEnrichedMonthsFromEnrichedDays(enrichedDays);
+    }
   } else {
-    enriched = list.map(r => enrichRow(r, state.period));
+    const list = sourceDatasets[state.period] || sourceDatasets.days || [];
+    if (state.period === 'days') {
+      enriched = enrichDailyDataset(list);
+    } else {
+      enriched = list.map(r => enrichRow(r, state.period));
+    }
   }
+
   dataCache.enriched.set(cacheKey, enriched);
   return enriched;
 }
@@ -1973,10 +2162,11 @@ function renderBarChart(data) {
 
     const isSelected = idx === state.selectedBarIndex;
 
-    const valText = isLoss ? `-${formatCompact(Math.abs(displayMetric))}` : formatCompact(displayMetric);
+    const valCompact = isLoss ? `-${formatCompact(Math.abs(displayMetric))}` : formatCompact(displayMetric);
+    const valText = `${valCompact} ${unitSuffix}`;
     const valClass = isLoss
-      ? 'text-rose-500 font-extrabold'
-      : (isSelected ? 'opacity-100 font-black text-main text-[10px]' : 'opacity-70');
+      ? 'text-rose-500 font-extrabold text-[8px] sm:text-[8.5px]'
+      : (isSelected ? 'opacity-100 font-black text-main text-[8.5px] sm:text-[9px]' : 'opacity-75 font-semibold text-[8px] sm:text-[8.5px]');
 
     let barStackHtml = '';
     if (isLoss) {
@@ -2057,33 +2247,63 @@ function renderBarChart(data) {
 function renderSelectedBarDetails(sel) {
   if (!sel) return;
 
-  // Динамические цифры в легенде диаграммы
-  if (dom.legValOrders) dom.legValOrders.textContent = `${formatNum(sel.ordersCost)} ₽`;
-  if (dom.legValSurge) dom.legValSurge.textContent = `+${formatNum(sel.surgeRub)} ₽`;
-  if (dom.legValRating) dom.legValRating.textContent = `+${formatNum(sel.ratingRub)} ₽`;
-  if (dom.legValBonuses) dom.legValBonuses.textContent = `+${formatNum(sel.bonuses)} ₽`;
-  if (dom.legValGoals) dom.legValGoals.textContent = state.includeGoals && sel.goals > 0 ? `+${formatNum(sel.goals)} ₽` : '';
-  if (dom.legValTips) dom.legValTips.textContent = sel.tips > 0 ? `+${formatNum(sel.tips)} ₽` : '';
+  const selHours = Math.max(0.1, Math.round(Number(sel.slotHours || 0) * 10) / 10);
+  const isHr = state.isHourly;
+
+  // Динамические цифры в легенде диаграммы: синхронизированы с режимом Сумма / В час
+  const legVal = val => isHr
+    ? `${formatNum(Math.round(val / selHours))} ₽/ч`
+    : `${formatNum(val)} ₽`;
+
+  if (dom.legValOrders) dom.legValOrders.textContent = legVal(sel.ordersCost);
+  if (dom.legValSurge) dom.legValSurge.textContent = `+${legVal(sel.surgeRub)}`;
+  if (dom.legValRating) dom.legValRating.textContent = `+${legVal(sel.ratingRub)}`;
+  if (dom.legValBonuses) dom.legValBonuses.textContent = `+${legVal(sel.bonuses)}`;
+  if (dom.legValGoals) dom.legValGoals.textContent = state.includeGoals && sel.goals > 0 ? `+${legVal(sel.goals)}` : '';
+  if (dom.legValTips) dom.legValTips.textContent = sel.tips > 0 ? `+${legVal(sel.tips)}` : '';
 
   const deductionBadges = [];
   if (sel.tax > 0) {
-    deductionBadges.push(`<span class="ya-badge ya-badge-red">Налог (6%): <b>-${formatNum(sel.tax)} ₽</b></span>`);
+    const taxHr = Math.round(sel.tax / selHours);
+    const taxBadge = isHr
+      ? `<span class="ya-badge ya-badge-red">Налог (6%): <b>-${formatNum(taxHr)} ₽/ч</b> <span class="opacity-70 font-normal text-[9px]">(-${formatNum(sel.tax)} ₽)</span></span>`
+      : `<span class="ya-badge ya-badge-red">Налог (6%): <b>-${formatNum(sel.tax)} ₽</b> <span class="opacity-70 font-normal text-[9px]">(-${formatNum(taxHr)} ₽/ч)</span></span>`;
+    deductionBadges.push(taxBadge);
   }
   sel.itemizedExpenses.forEach(expItem => {
     if (expItem.amount > 0) {
-      deductionBadges.push(`<span class="ya-badge ya-badge-red">${escapeHtml(expItem.name)}: <b>-${formatNum(expItem.amount)} ₽</b></span>`);
+      const expHr = Math.round(expItem.amount / selHours);
+      const expBadge = isHr
+        ? `<span class="ya-badge ya-badge-red">${escapeHtml(expItem.name)}: <b>-${formatNum(expHr)} ₽/ч</b> <span class="opacity-70 font-normal text-[9px]">(-${formatNum(expItem.amount)} ₽)</span></span>`
+        : `<span class="ya-badge ya-badge-red">${escapeHtml(expItem.name)}: <b>-${formatNum(expItem.amount)} ₽</b> <span class="opacity-70 font-normal text-[9px]">(-${formatNum(expHr)} ₽/ч)</span></span>`;
+      deductionBadges.push(expBadge);
     }
   });
   if (sel.adjustments < 0) {
-    deductionBadges.push(`<span class="ya-badge ya-badge-red">Корректировки: <b>-${formatNum(Math.abs(sel.adjustments))} ₽</b></span>`);
+    const adjAbs = Math.abs(sel.adjustments);
+    const adjHr = Math.round(adjAbs / selHours);
+    const adjBadge = isHr
+      ? `<span class="ya-badge ya-badge-red">Корректировки: <b>-${formatNum(adjHr)} ₽/ч</b> <span class="opacity-70 font-normal text-[9px]">(-${formatNum(adjAbs)} ₽)</span></span>`
+      : `<span class="ya-badge ya-badge-red">Корректировки: <b>-${formatNum(adjAbs)} ₽</b> <span class="opacity-70 font-normal text-[9px]">(-${formatNum(adjHr)} ₽/ч)</span></span>`;
+    deductionBadges.push(adjBadge);
   }
 
   const transportText = sel.transportSummary || sel.transport || 'Курьер';
-  const selHours = Math.round(Number(sel.slotHours || 0) * 10) / 10;
 
-  const netBadgeHtml = sel.netProfit < 0
-    ? `<span class="ya-badge ya-badge-red font-bold">Чистыми (убыток): <b>-${formatNum(Math.abs(sel.netProfit))} ₽ (-${formatNum(Math.abs(sel.profitPerHr))} ₽/ч)</b></span>`
-    : `<span class="ya-badge ya-badge-green font-bold">Чистыми: <b>${formatNum(sel.netProfit)} ₽ (${formatNum(sel.profitPerHr)} ₽/ч)</b></span>`;
+  const grossBadge = isHr
+    ? `<span class="ya-badge ya-badge-grey">Начислено: <b>${formatNum(sel.grossPerHr)} ₽/ч</b> <span class="opacity-70 font-normal text-[9px]">(${formatNum(sel.grossTotal)} ₽)</span></span>`
+    : `<span class="ya-badge ya-badge-grey">Начислено: <b>${formatNum(sel.grossTotal)} ₽</b> <span class="opacity-70 font-normal text-[9px]">(${formatNum(sel.grossPerHr)} ₽/ч)</span></span>`;
+
+  let netBadgeHtml = '';
+  if (sel.netProfit < 0) {
+    netBadgeHtml = isHr
+      ? `<span class="ya-badge ya-badge-red font-bold">Чистыми (убыток): <b>-${formatNum(Math.abs(sel.profitPerHr))} ₽/ч</b> <span class="opacity-75 font-normal text-[9.5px]">(-${formatNum(Math.abs(sel.netProfit))} ₽)</span></span>`
+      : `<span class="ya-badge ya-badge-red font-bold">Чистыми (убыток): <b>-${formatNum(Math.abs(sel.netProfit))} ₽</b> <span class="opacity-75 font-normal text-[9.5px]">(-${formatNum(Math.abs(sel.profitPerHr))} ₽/ч)</span></span>`;
+  } else {
+    netBadgeHtml = isHr
+      ? `<span class="ya-badge ya-badge-green font-bold">Чистыми: <b>${formatNum(sel.profitPerHr)} ₽/ч</b> <span class="opacity-75 font-normal text-[9.5px]">(${formatNum(sel.netProfit)} ₽)</span></span>`
+      : `<span class="ya-badge ya-badge-green font-bold">Чистыми: <b>${formatNum(sel.netProfit)} ₽</b> <span class="opacity-75 font-normal text-[9.5px]">(${formatNum(sel.profitPerHr)} ₽/ч)</span></span>`;
+  }
 
   dom.selectedBarDetails.innerHTML = `
     <div class="flex items-center justify-between">
@@ -2093,7 +2313,7 @@ function renderSelectedBarDetails(sel) {
       </div>
     </div>
     <div class="flex flex-wrap items-center gap-1.5 text-[10px] pt-1 border-t border-subtle">
-      <span class="ya-badge ya-badge-grey">Начислено: <b>${formatNum(sel.grossTotal)} ₽</b></span>
+      ${grossBadge}
       ${deductionBadges.join('')}
       ${netBadgeHtml}
     </div>
@@ -3036,6 +3256,13 @@ function selectBar(idx) {
   const prevIdx = state.selectedBarIndex;
   state.selectedBarIndex = idx;
 
+  const data = getCurrentDataset();
+  const prevItem = data[prevIdx];
+  const newItem = data[idx];
+
+  const prevMetric = prevItem ? (state.isNet ? (state.isHourly ? prevItem.profitPerHr : prevItem.netProfit) : (state.isHourly ? prevItem.grossPerHr : prevItem.grossTotal)) : 0;
+  const newMetric = newItem ? (state.isNet ? (state.isHourly ? newItem.profitPerHr : newItem.netProfit) : (state.isHourly ? newItem.grossPerHr : newItem.grossTotal)) : 0;
+
   // Быстрое обновление DOM без перерисовки всей диаграммы
   const prevCol = $(`barCol-${prevIdx}`);
   const prevStack = $(`barStack-${prevIdx}`);
@@ -3043,12 +3270,16 @@ function selectBar(idx) {
   const prevDate = $(`barDate-${prevIdx}`);
 
   if (prevStack) {
-    prevStack.classList.remove('ring-2', 'ring-[#FCE000]');
+    prevStack.classList.remove('ring-2', 'ring-[#FCE000]', 'ring-rose-400');
     prevStack.classList.add('opacity-90');
   }
   if (prevVal) {
-    prevVal.classList.remove('opacity-100', 'font-black', 'text-main', 'text-[10px]');
-    prevVal.classList.add('opacity-70', 'font-bold', 'text-[9px]');
+    prevVal.classList.remove('opacity-100', 'font-black', 'text-[8.5px]', 'sm:text-[9px]', 'text-[10px]');
+    prevVal.classList.add('opacity-75', 'text-[8px]', 'sm:text-[8.5px]');
+    if (prevMetric < 0) {
+      prevVal.classList.add('text-rose-500', 'font-extrabold');
+      prevVal.classList.remove('text-main');
+    }
   }
   if (prevDate) {
     prevDate.classList.remove('opacity-100', 'font-black', 'text-main', 'text-[10px]');
@@ -3060,19 +3291,29 @@ function selectBar(idx) {
   const newDate = $(`barDate-${idx}`);
 
   if (newStack) {
-    newStack.classList.add('ring-2', 'ring-[#FCE000]');
     newStack.classList.remove('opacity-90');
+    if (newMetric < 0) {
+      newStack.classList.add('ring-2', 'ring-rose-400');
+    } else {
+      newStack.classList.add('ring-2', 'ring-[#FCE000]');
+    }
   }
   if (newVal) {
-    newVal.classList.remove('opacity-70', 'font-bold', 'text-[9px]');
-    newVal.classList.add('opacity-100', 'font-black', 'text-main', 'text-[10px]');
+    newVal.classList.remove('opacity-75', 'text-[8px]', 'sm:text-[8.5px]');
+    newVal.classList.add('opacity-100', 'font-black', 'text-[8.5px]', 'sm:text-[9px]');
+    if (newMetric < 0) {
+      newVal.classList.add('text-rose-500', 'font-extrabold');
+      newVal.classList.remove('text-main');
+    } else {
+      newVal.classList.add('text-main');
+      newVal.classList.remove('text-rose-500', 'font-extrabold');
+    }
   }
   if (newDate) {
     newDate.classList.remove('opacity-70', 'font-semibold', 'text-[9px]');
     newDate.classList.add('opacity-100', 'font-black', 'text-main', 'text-[10px]');
   }
 
-  const data = getCurrentDataset();
   renderSelectedBarDetails(data[idx]);
   renderBlock3();
 
