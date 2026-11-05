@@ -1,5 +1,5 @@
 // =============================================================================
-// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.13.0) — ЛОГИКА И СОСТОЯНИЕ (script.js)
+// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.14.0) — ЛОГИКА И СОСТОЯНИЕ (script.js)
 // Оптимизированная и модульная версия с гранулярным рендерингом и кэшированием
 // =============================================================================
 
@@ -74,6 +74,11 @@ const dom = {
   planModalAvg:             $('planModalAvg'),
   planModalSlotsList:       $('planModalSlotsList'),
   forecastInfoModal:        $('forecastInfoModal'),
+  expenseInfoModal:         $('expenseInfoModal'),
+  expenseInfoTitle:         $('expenseInfoTitle'),
+  expenseInfoSubtitle:      $('expenseInfoSubtitle'),
+  expenseInfoBody:          $('expenseInfoBody'),
+  expenseInfoFooter:        $('expenseInfoFooter'),
   toastBox:                 $('toastBox'),
   toastText:                $('toastText'),
   fileLoadingOverlay:       $('fileLoadingOverlay'),
@@ -299,12 +304,47 @@ const districtsData = [
 ];
 
 const seasonMultipliers = {
-  auto:   { label: 'Авто (4 нед.)', mult: 1.00 },
-  summer: { label: 'Лето',          mult: 0.88 },
-  autumn: { label: 'Осень',         mult: 1.06 },
-  winter: { label: 'Зима',          mult: 1.22 },
-  spring: { label: 'Весна',         mult: 0.96 }
+  auto:   { label: 'Авто (4 нед.)', baseLabel: 'Авто', mult: 1.00 },
+  summer: { label: 'Лето',          baseLabel: 'Лето', mult: 0.88 },
+  autumn: { label: 'Осень',         baseLabel: 'Осень', mult: 1.06 },
+  winter: { label: 'Зима',          baseLabel: 'Зима', mult: 1.22 },
+  spring: { label: 'Весна',         baseLabel: 'Весна', mult: 0.96 }
 };
+
+const demoAdjustmentsData = [
+  {
+    id: 'ADJ-849204',
+    date: '21.10.2026',
+    orderNum: '№849204',
+    restaurant: 'Бистро «Уютный Дворик»',
+    reason: 'Перерасчет времени ожидания выдачи заказа на кухне',
+    amount: -80
+  },
+  {
+    id: 'ADJ-849312',
+    date: '21.10.2026',
+    orderNum: '№849312',
+    restaurant: '— (общее удержание смены)',
+    reason: 'Корректировка веса крупногабаритной посылки',
+    amount: -20
+  },
+  {
+    id: 'ADJ-851108',
+    date: '23.10.2026',
+    orderNum: '№851108',
+    restaurant: 'Пекарня «Золотой Колос»',
+    reason: 'Автоматическая корректировка по отмене заказа клиентом в пути',
+    amount: -150
+  },
+  {
+    id: 'ADJ-837490',
+    date: '15.10.2026',
+    orderNum: '№837490',
+    restaurant: 'Столовая «Сытный Обед»',
+    reason: 'Перерасчет тарифа при повторном изменении адреса доставки клиентом',
+    amount: -100
+  }
+];
 
 const baseHeatmapMatrix = [
   { hours: '02:00–06:00', values: [14, 13, 14, 16, 20, 22, 18] },
@@ -441,6 +481,8 @@ const state = {
   heatUnitRub: false,
   season: 'auto',
   districtId: 'center_south',
+  pendingMapDistrictId: null,
+  disputedAdjustmentIds: new Set(),
   selectedSlotCells: ['4-4', '4-5', '4-6', '2-4', '2-5'],
   compareMode: 'transport',
 
@@ -1178,6 +1220,170 @@ function buildComparisonDatasets(orders, days) {
 }
 
 /**
+ * Определение целевого года и параметров сезона (Авто 4 недели / Сезоны с откатом на пред. год при <4 нед.)
+ */
+function getResolvedSeasonInfo(seasonKey) {
+  const isUser = Boolean(state.usingUserData && state.userDatasets && state.userDatasets.orders?.length > 0);
+  const allOrders = isUser ? state.userDatasets.orders : null;
+
+  if (seasonKey === 'auto') {
+    const latestYear = isUser ? (allOrders[allOrders.length - 1]?.year || 2026) : 2026;
+    return {
+      seasonKey: 'auto',
+      targetYear: latestYear,
+      label: 'Авто (4 нед.)',
+      shortLabel: 'Авто (4н)',
+      mult: 1.0
+    };
+  }
+
+  const sMeta = seasonMultipliers[seasonKey] || seasonMultipliers.autumn;
+  const sName = sMeta.baseLabel || sMeta.label;
+  let targetYear = 2026;
+
+  if (isUser && allOrders) {
+    const years = Array.from(new Set(allOrders.map(o => o.year || 2026))).sort((a, b) => b - a);
+    const latestYear = years[0] || 2026;
+
+    // Считаем количество недель в текущем (последнем) году для данного сезона
+    const currYearSeasonOrders = allOrders.filter(o => o.seasonKey === seasonKey && (o.year || 2026) === latestYear);
+    const distinctWeeksCurr = new Set(currYearSeasonOrders.map(o => o.weekCycleKey || o.weekKey)).size;
+
+    if (distinctWeeksCurr >= 4) {
+      targetYear = latestYear;
+    } else {
+      // Если меньше 4 недель — проверяем предыдущий год
+      const prevYear = latestYear - 1;
+      const prevYearSeasonOrders = allOrders.filter(o => o.seasonKey === seasonKey && (o.year || 2026) === prevYear);
+      if (prevYearSeasonOrders.length > 0) {
+        targetYear = prevYear;
+      } else {
+        targetYear = latestYear;
+      }
+    }
+  } else {
+    // В демо-данных осень 2026 года содержит 4 недели (Нед 39-42), лето 2026 - 3 месяца
+    targetYear = 2026;
+  }
+
+  const label = `${sName} (${targetYear})`;
+  return {
+    seasonKey,
+    targetYear,
+    label,
+    shortLabel: `${sName.substring(0, 3)} (${targetYear})`,
+    mult: sMeta.mult || 1.0
+  };
+}
+
+/**
+ * Расчет 6x7 матрицы спроса (процент доплаты и часовой доход) из массива заказов
+ */
+function computeHeatmapMatrixFromOrders(ordersList) {
+  const heatmapMatrix = [
+    { hours: '02:00–06:00', values: [null, null, null, null, null, null, null] },
+    { hours: '06:00–10:00', values: [null, null, null, null, null, null, null] },
+    { hours: '10:00–14:00', values: [null, null, null, null, null, null, null] },
+    { hours: '14:00–18:00', values: [null, null, null, null, null, null, null] },
+    { hours: '18:00–22:00', values: [null, null, null, null, null, null, null] },
+    { hours: '22:00–02:00', values: [null, null, null, null, null, null, null] }
+  ];
+
+  if (!ordersList || ordersList.length === 0) {
+    return heatmapMatrix;
+  }
+
+  const timeBuckets = [
+    { r: 0, start: 2 * 3600,  end: 6 * 3600 },
+    { r: 1, start: 6 * 3600,  end: 10 * 3600 },
+    { r: 2, start: 10 * 3600, end: 14 * 3600 },
+    { r: 3, start: 14 * 3600, end: 18 * 3600 },
+    { r: 4, start: 18 * 3600, end: 22 * 3600 },
+    { r: 5, start: 22 * 3600, end: 2 * 3600 }
+  ];
+
+  const cellOrderBuckets = Array.from({ length: 6 }, () => Array.from({ length: 7 }, () => []));
+
+  ordersList.forEach(o => {
+    const s = o.startSecs;
+    const c = o.dowIdx;
+    let matchedR = -1;
+    for (let i = 0; i < timeBuckets.length; i++) {
+      const b = timeBuckets[i];
+      if (b.r === 5) {
+        if (s >= 22 * 3600 || s < 2 * 3600) {
+          matchedR = 5;
+          break;
+        }
+      } else {
+        if (s >= b.start && s < b.end) {
+          matchedR = b.r;
+          break;
+        }
+      }
+    }
+    if (matchedR >= 0 && c >= 0 && c <= 6) {
+      cellOrderBuckets[matchedR][c].push(o);
+    }
+  });
+
+  for (let r = 0; r < 6; r++) {
+    for (let c = 0; c < 7; c++) {
+      const list = cellOrderBuckets[r][c];
+      if (list.length > 0) {
+        const avgSurge = Math.round(list.reduce((a, o) => a + o.surgePct, 0) / list.length);
+        const sumCost = list.reduce((a, o) => a + (o.orderCost || o.baseCost || 0) + (o.wait || 0) + o.surgeRub + o.ratingRub + o.bonus, 0);
+        const sumGoals = list.reduce((a, o) => a + (o.goal || 0), 0);
+
+        const daySlotGroups = new Map();
+        list.forEach(o => {
+          const k = `${o.dateKey || o.date}_${o.slotNumber || 1}`;
+          if (!daySlotGroups.has(k)) daySlotGroups.set(k, []);
+          daySlotGroups.get(k).push(o);
+        });
+
+        let totalWorkingSecs = 0;
+        daySlotGroups.forEach(slotOrders => {
+          const minStart = Math.min(...slotOrders.map(o => o.startSecs));
+          const maxEnd = Math.max(...slotOrders.map(o => o.endSecs));
+          const spanSecs = Math.max(15 * 60, maxEnd >= minStart ? (maxEnd - minStart) : (maxEnd + 86400 - minStart));
+          totalWorkingSecs += spanSecs;
+        });
+
+        const cellHrs = Math.max(0.4, totalWorkingSecs / 3600);
+        const avgRubHr = Math.round(sumCost / cellHrs);
+        const goalsRubHr = Math.round(sumGoals / cellHrs);
+        heatmapMatrix[r].values[c] = { pct: avgSurge, rubHr: avgRubHr, goalsRubHr };
+      } else {
+        heatmapMatrix[r].values[c] = null;
+      }
+    }
+  }
+
+  return heatmapMatrix;
+}
+
+/**
+ * Получение текущей активной тепловой матрицы с учетом выбранного сезона и фильтрации заказов
+ */
+function getActiveHeatmapMatrix() {
+  if (state.usingUserData && state.userDatasets && state.userDatasets.orders?.length > 0) {
+    const allOrders = state.userDatasets.orders;
+    if (state.season === 'auto') {
+      const weekKeys = Array.from(new Set(allOrders.map(o => o.weekCycleKey || o.weekKey)));
+      const last4WeekKeys = new Set(weekKeys.slice(-4));
+      const filteredOrders = allOrders.filter(o => last4WeekKeys.has(o.weekCycleKey || o.weekKey));
+      return computeHeatmapMatrixFromOrders(filteredOrders.length > 0 ? filteredOrders : allOrders);
+    } else {
+      const seasonInfo = getResolvedSeasonInfo(state.season);
+      const filteredOrders = allOrders.filter(o => o.seasonKey === state.season && (o.year || 2026) === seasonInfo.targetYear);
+      return computeHeatmapMatrixFromOrders(filteredOrders);
+    }
+  }
+  return baseHeatmapMatrix;
+}
+
+/**
  * Агрегация заказов по дням, неделям, месяцам, тепловой карте и сравнению
  */
 function buildDatasetsFromOrders(orders) {
@@ -1479,84 +1685,8 @@ function buildDatasetsFromOrders(orders) {
     });
   });
 
-  // Тепловая карта спроса: ячейки БЕЗ данных отмечаются null (в UI выводятся прочерком)
-  const heatmapMatrix = [
-    { hours: '02:00–06:00', values: [null, null, null, null, null, null, null] },
-    { hours: '06:00–10:00', values: [null, null, null, null, null, null, null] },
-    { hours: '10:00–14:00', values: [null, null, null, null, null, null, null] },
-    { hours: '14:00–18:00', values: [null, null, null, null, null, null, null] },
-    { hours: '18:00–22:00', values: [null, null, null, null, null, null, null] },
-    { hours: '22:00–02:00', values: [null, null, null, null, null, null, null] }
-  ];
-
-  const timeBuckets = [
-    { r: 0, start: 2 * 3600,  end: 6 * 3600 },
-    { r: 1, start: 6 * 3600,  end: 10 * 3600 },
-    { r: 2, start: 10 * 3600, end: 14 * 3600 },
-    { r: 3, start: 14 * 3600, end: 18 * 3600 },
-    { r: 4, start: 18 * 3600, end: 22 * 3600 },
-    { r: 5, start: 22 * 3600, end: 2 * 3600 }
-  ];
-
-  const cellOrderBuckets = Array.from({ length: 6 }, () => Array.from({ length: 7 }, () => []));
-
-  orders.forEach(o => {
-    const s = o.startSecs;
-    const c = o.dowIdx;
-    let matchedR = -1;
-    for (let i = 0; i < timeBuckets.length; i++) {
-      const b = timeBuckets[i];
-      if (b.r === 5) {
-        if (s >= 22 * 3600 || s < 2 * 3600) {
-          matchedR = 5;
-          break;
-        }
-      } else {
-        if (s >= b.start && s < b.end) {
-          matchedR = b.r;
-          break;
-        }
-      }
-    }
-    if (matchedR >= 0 && c >= 0 && c <= 6) {
-      cellOrderBuckets[matchedR][c].push(o);
-    }
-  });
-
-  for (let r = 0; r < 6; r++) {
-    for (let c = 0; c < 7; c++) {
-      const list = cellOrderBuckets[r][c];
-      if (list.length > 0) {
-        const avgSurge = Math.round(list.reduce((a, o) => a + o.surgePct, 0) / list.length);
-        const sumCost = list.reduce((a, o) => a + o.baseCost + o.surgeRub + o.ratingRub + o.bonus, 0);
-        const sumGoals = list.reduce((a, o) => a + (o.goal || 0), 0);
-
-        // Расчет фактически отработанного времени курьера на слотах внутри этого временного окна
-        // Группируем заказы ячейки по дням и слотам, определяя полный рабочий интервал смены (maxEnd - minStart)
-        const daySlotGroups = new Map();
-        list.forEach(o => {
-          const k = `${o.dateKey || o.date}_${o.slotNumber || 1}`;
-          if (!daySlotGroups.has(k)) daySlotGroups.set(k, []);
-          daySlotGroups.get(k).push(o);
-        });
-
-        let totalWorkingSecs = 0;
-        daySlotGroups.forEach(slotOrders => {
-          const minStart = Math.min(...slotOrders.map(o => o.startSecs));
-          const maxEnd = Math.max(...slotOrders.map(o => o.endSecs));
-          const spanSecs = Math.max(15 * 60, maxEnd >= minStart ? (maxEnd - minStart) : (maxEnd + 86400 - minStart));
-          totalWorkingSecs += spanSecs;
-        });
-
-        const cellHrs = Math.max(0.4, totalWorkingSecs / 3600);
-        const avgRubHr = Math.round(sumCost / cellHrs);
-        const goalsRubHr = Math.round(sumGoals / cellHrs);
-        heatmapMatrix[r].values[c] = { pct: avgSurge, rubHr: avgRubHr, goalsRubHr };
-      } else {
-        heatmapMatrix[r].values[c] = null;
-      }
-    }
-  }
+  // Тепловая карта спроса по всем заказам
+  const heatmapMatrix = computeHeatmapMatrixFromOrders(orders);
 
   const comparisonDatasets = buildComparisonDatasets(orders, days);
   const distinctTransports = Array.from(new Set(orders.map(o => o.transportLabel)));
@@ -2256,9 +2386,7 @@ function getSelectedSlotsSummary() {
   let totalRubEst = 0;
   let totalPctSum = 0;
   let validCellCount = 0;
-  const activeMatrix = (state.usingUserData && state.userDatasets && state.userDatasets.heatmapMatrix)
-    ? state.userDatasets.heatmapMatrix
-    : baseHeatmapMatrix;
+  const activeMatrix = getActiveHeatmapMatrix();
 
   const items = [];
   state.selectedSlotCells.forEach(key => {
@@ -2284,17 +2412,69 @@ function getSelectedSlotsSummary() {
 }
 
 function getDistrictStats(d) {
-  const seasonFactor = seasonMultipliers[state.season].mult;
+  const sInfo = getResolvedSeasonInfo(state.season);
+  const seasonFactor = sInfo.mult;
   const weatherAdd = state.weatherBoost ? 16 : 0;
   const acctMeta = transportMeta[state.accountTransport] || transportMeta.ebike;
   const avgPct  = Math.round(d.avgPct * seasonFactor + weatherAdd);
   const peakPct = Math.round(d.peakPct * seasonFactor + weatherAdd);
-  const avgRub  = Math.round(acctMeta.baseHourlyRub * (1 + avgPct / 100));
-  const peakRub = Math.round(acctMeta.baseHourlyRub * (1 + peakPct / 100));
+  let avgRub  = Math.round(acctMeta.baseHourlyRub * (1 + avgPct / 100));
+  let peakRub = Math.round(acctMeta.baseHourlyRub * (1 + peakPct / 100));
+
+  if (state.isNet) {
+    const hourlyExp = getCourierHourlyExpense();
+    avgRub = avgRub - Math.round(avgRub * 0.06) - hourlyExp;
+    peakRub = peakRub - Math.round(peakRub * 0.06) - hourlyExp;
+  }
+
   return {
-    avgStr: state.heatUnitRub ? `${avgRub} ₽/ч` : `+${avgPct}%`,
-    peakStr: state.heatUnitRub ? `${peakRub} ₽/ч` : `+${peakPct}%`
+    avgPct,
+    peakPct,
+    avgRub,
+    peakRub,
+    avgStr: state.heatUnitRub ? `${formatNum(avgRub)} ₽/ч` : `+${avgPct}%`,
+    peakStr: state.heatUnitRub ? `${formatNum(peakRub)} ₽/ч` : `+${peakPct}%`
   };
+}
+
+function getUserDataDistrictStats() {
+  const activeMatrix = getActiveHeatmapMatrix();
+  const validComps = [];
+  activeMatrix.forEach(row => {
+    row.values.forEach(v => {
+      const comp = getCellComputedValue(v);
+      if (comp) validComps.push(comp);
+    });
+  });
+
+  if (validComps.length === 0) {
+    return {
+      avgStr: '—',
+      peakStr: '—',
+      avgVal: 0,
+      peakVal: 0
+    };
+  }
+
+  if (state.heatUnitRub) {
+    const avgRub = Math.round(validComps.reduce((a, c) => a + c.rubHr, 0) / validComps.length);
+    const peakRub = Math.max(...validComps.map(c => c.rubHr));
+    return {
+      avgStr: `${formatNum(avgRub)} ₽/ч`,
+      peakStr: `${formatNum(peakRub)} ₽/ч`,
+      avgVal: avgRub,
+      peakVal: peakRub
+    };
+  } else {
+    const avgPct = Math.round(validComps.reduce((a, c) => a + c.pct, 0) / validComps.length);
+    const peakPct = Math.max(...validComps.map(c => c.pct));
+    return {
+      avgStr: `+${avgPct}%`,
+      peakStr: `+${peakPct}%`,
+      avgVal: avgPct,
+      peakVal: peakPct
+    };
+  }
 }
 
 function getTransportProfitPerHourForComparison(tKey, userHoursInPeriod, cachedDataset) {
@@ -2469,7 +2649,7 @@ function renderBarChart(data) {
     } else {
       barStackHtml = `
         <div id="barStack-${idx}" style="height: ${netHeightPct}%"
-             class="w-full relative z-10 rounded-t-lg overflow-hidden flex flex-col-reverse shadow ${isSelected ? 'ring-2 ring-[#FCE000]' : 'opacity-90 group-hover:opacity-100'}">
+             class="w-full relative z-10 rounded-t-lg overflow-hidden flex flex-col-reverse shadow ${isSelected ? 'ring-2 ring-black' : 'opacity-90 group-hover:opacity-100'}">
           <div style="height: ${p('ordersCost')}%" class="w-full bg-blue-500"></div>
           <div style="height: ${p('surgeRub')}%"   class="w-full bg-[#FCE000]"></div>
           <div style="height: ${p('ratingRub')}%"  class="w-full bg-orange-400"></div>
@@ -2491,7 +2671,7 @@ function renderBarChart(data) {
     }
 
     html += `
-      <div id="barCol-${idx}" onclick="selectBar(${idx})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectBar(${idx});}" tabindex="0" role="button" aria-label="Период ${escapeHtml(d.date)}, прибыль ${valText}" class="chart-bar-item cursor-pointer group focus:outline-none focus:ring-2 focus:ring-[#FCE000] rounded">
+      <div id="barCol-${idx}" onclick="selectBar(${idx})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectBar(${idx});}" tabindex="0" role="button" aria-label="Период ${escapeHtml(d.date)}, прибыль ${valText}" class="chart-bar-item cursor-pointer group focus:outline-none focus-visible:outline-none">
         <div id="barValue-${idx}" class="text-[9px] font-bold mb-0.5 whitespace-nowrap shrink-0 ${valClass}">
           ${valText}
         </div>
@@ -2548,15 +2728,32 @@ function renderSelectedBarDetails(sel) {
 
   const deductionBadges = [];
   if (sel.tax > 0) {
-    deductionBadges.push(`<span class="ya-badge ya-badge-red">Налог (6%): <b>-${formatNum(sel.tax)} ₽</b></span>`);
+    deductionBadges.push(`
+      <span class="ya-badge ya-badge-red inline-flex items-center gap-1">
+        <span>Налог (6%): <b>-${formatNum(sel.tax)} ₽</b></span>
+        <button type="button" onclick="openExpenseInfoModal('tax', ${sel.tax})" class="expense-help-btn" title="Справка о налоге">?</button>
+      </span>
+    `);
   }
   sel.itemizedExpenses.forEach(expItem => {
     if (expItem.amount > 0) {
-      deductionBadges.push(`<span class="ya-badge ya-badge-red">${escapeHtml(expItem.name)}: <b>-${formatNum(expItem.amount)} ₽</b></span>`);
+      const eNameEscaped = escapeHtml(expItem.name);
+      deductionBadges.push(`
+        <span class="ya-badge ya-badge-red inline-flex items-center gap-1">
+          <span>${eNameEscaped}: <b>-${formatNum(expItem.amount)} ₽</b></span>
+          <button type="button" onclick="openExpenseInfoModal('${eNameEscaped}', ${expItem.amount})" class="expense-help-btn" title="Справка о расходе">?</button>
+        </span>
+      `);
     }
   });
   if (sel.adjustments < 0) {
-    deductionBadges.push(`<span class="ya-badge ya-badge-red">Корректировки: <b>-${formatNum(Math.abs(sel.adjustments))} ₽</b></span>`);
+    const adjAbs = Math.abs(sel.adjustments);
+    deductionBadges.push(`
+      <span class="ya-badge ya-badge-red inline-flex items-center gap-1">
+        <span>Коррект.: <b>-${formatNum(adjAbs)} ₽</b></span>
+        <button type="button" onclick="openExpenseInfoModal('adjustments', ${adjAbs})" class="expense-help-btn" title="Справка и оспаривание">?</button>
+      </span>
+    `);
   }
 
   const transportText = sel.transportSummary || sel.transport || 'Курьер';
@@ -2974,6 +3171,8 @@ function renderBlock2() {
   const heatUnitSwitch = dom.heatUnitSwitchContainer;
   const districtSeasonBtn = dom.btnDistrictSeasonContainer;
 
+  const seasonInfo = getResolvedSeasonInfo(state.season);
+
   if (state.usingUserData) {
     if (btnWeather) btnWeather.classList.add('hidden');
     if (heatUnitSwitch) {
@@ -2984,9 +3183,7 @@ function renderBlock2() {
       districtSeasonBtn.classList.remove('col-span-6');
       districtSeasonBtn.classList.add('col-span-8');
     }
-    const availableSeasons = state.userDatasets?.availableSeasons || ['autumn'];
-    const seasonLabels = availableSeasons.map(s => seasonMultipliers[s]?.label || s).join(', ');
-    dom.currentDistrictSeasonSub.textContent = `Локация пользователя • ${seasonLabels}`;
+    dom.currentDistrictSeasonSub.textContent = `Локация пользователя • ${seasonInfo.label}`;
     if (dom.planningActionContainer) {
       dom.planningActionContainer.style.display = 'none';
     }
@@ -3005,8 +3202,7 @@ function renderBlock2() {
       districtSeasonBtn.classList.add('col-span-6');
     }
     const distObj = districtsData.find(d => d.id === state.districtId) || districtsData[0];
-    const seasonObj = seasonMultipliers[state.season] || seasonMultipliers.autumn;
-    dom.currentDistrictSeasonSub.textContent = `${distObj.shortName} • ${seasonObj.label}`;
+    dom.currentDistrictSeasonSub.textContent = `${distObj.shortName} • ${seasonInfo.label}`;
     if (dom.planningActionContainer) {
       dom.planningActionContainer.style.display = 'grid';
     }
@@ -3028,9 +3224,7 @@ function renderBlock2() {
 
   const tbody = dom.heatmapTableBody;
   let html = '';
-  const activeMatrix = (state.usingUserData && state.userDatasets && state.userDatasets.heatmapMatrix)
-    ? state.userDatasets.heatmapMatrix
-    : baseHeatmapMatrix;
+  const activeMatrix = getActiveHeatmapMatrix();
 
   // Динамический сбор всех доступных значений матрицы для относительного цветового градиента
   const validCells = [];
@@ -3130,6 +3324,12 @@ function renderDistrictSeasonScreen() {
     const btn = $(`btnSeason-${s}`);
     if (btn) {
       btn.classList.toggle('ya-seg-btn-active', state.season === s);
+      const sInfo = getResolvedSeasonInfo(s);
+      if (s === 'auto') {
+        btn.innerHTML = `Авто<br><span class="text-[8.5px] font-normal opacity-80">(4 нед.)</span>`;
+      } else {
+        btn.innerHTML = `${seasonMultipliers[s]?.baseLabel || seasonMultipliers[s]?.label}<br><span class="text-[8.5px] font-normal opacity-80">(${sInfo.targetYear})</span>`;
+      }
       if (state.usingUserData && s !== 'auto') {
         const isAvail = availSeasons.includes(s);
         btn.classList.toggle('opacity-30', !isAvail);
@@ -3142,18 +3342,21 @@ function renderDistrictSeasonScreen() {
 
   const listContainer = dom.districtListContainer;
   if (state.usingUserData) {
-    dom.districtListUnitHint.textContent = 'Локация пользователя';
+    const userStats = getUserDataDistrictStats();
+    const seasonInfo = getResolvedSeasonInfo(state.season);
+    dom.districtListUnitHint.textContent = state.heatUnitRub ? 'Средняя / Пик (₽/ч)' : 'Средняя / Пик (% спроса)';
     listContainer.innerHTML = `
       <div class="ya-subcard p-3 flex items-center justify-between ring-2 ring-[#FCE000]">
         <div class="flex items-center gap-2.5 min-w-0">
           <span class="w-3 h-3 rounded-full shrink-0 bg-[#FCE000]"></span>
           <div class="truncate">
             <div class="text-xs font-bold truncate">Локация пользователя</div>
-            <div class="text-[10px] text-sec">Спрос и коэффициенты рассчитаны по вашим данным</div>
+            <div class="text-[10px] text-sec">Сезон: ${seasonInfo.label}</div>
           </div>
         </div>
-        <div class="text-right text-xs shrink-0 ml-2 font-bold text-emerald-400">
-          Активно
+        <div class="text-right text-xs shrink-0 ml-2">
+          <div>Ср.: <b>${userStats.avgStr}</b></div>
+          <div class="text-[11px] font-bold text-amber-400">Пик: ${userStats.peakStr}</div>
         </div>
       </div>
     `;
@@ -3162,6 +3365,7 @@ function renderDistrictSeasonScreen() {
     listContainer.innerHTML = districtsData.map(d => {
       const isCurrent = d.id === state.districtId;
       const stats = getDistrictStats(d);
+      const seasonInfo = getResolvedSeasonInfo(state.season);
 
       return `
         <div onclick="selectDistrict('${d.id}')"
@@ -3172,7 +3376,7 @@ function renderDistrictSeasonScreen() {
             <span class="w-3 h-3 rounded-full shrink-0" style="background-color: ${d.color}"></span>
             <div class="truncate">
               <div class="text-xs font-bold truncate">${escapeHtml(d.name)}</div>
-              <div class="text-[10px] text-sec">Сезон: ${seasonMultipliers[state.season]?.label || ''}</div>
+              <div class="text-[10px] text-sec">Сезон: ${seasonInfo.label}</div>
             </div>
           </div>
           <div class="text-right text-xs shrink-0 ml-2">
@@ -3594,11 +3798,26 @@ let leafletMap = null;
 const leafletPolygons = new Map();
 
 function openRealMapModal() {
+  state.pendingMapDistrictId = state.districtId;
   dom.realMapModal.classList.remove('hidden');
   setTimeout(() => initOrUpdateLeafletMap(), 60);
 }
 
 function closeRealMapModal() {
+  cancelRealMapModal();
+}
+
+function cancelRealMapModal() {
+  state.pendingMapDistrictId = null;
+  dom.realMapModal.classList.add('hidden');
+}
+
+function confirmRealMapDistrict() {
+  const targetId = state.pendingMapDistrictId || state.districtId;
+  if (targetId && targetId !== state.districtId) {
+    selectDistrict(targetId);
+  }
+  state.pendingMapDistrictId = null;
   dom.realMapModal.classList.add('hidden');
 }
 
@@ -3644,8 +3863,8 @@ function initOrUpdateLeafletMap() {
       );
 
       poly.on('click', () => {
-        selectDistrict(d.id);
-        updateLeafletMapStyles();
+        state.pendingMapDistrictId = d.id;
+        updateLeafletMapStyles(d.id);
       });
 
       leafletPolygons.set(d.id, poly);
@@ -3665,18 +3884,20 @@ function initOrUpdateLeafletMap() {
       if (!leafletMap.hasLayer(p)) p.addTo(leafletMap);
     });
     leafletMap.setView([55.742, 37.605], 11);
-    const curDist = districtsData.find(d => d.id === state.districtId) || districtsData[0];
+    const activeId = state.pendingMapDistrictId || state.districtId;
+    const curDist = districtsData.find(d => d.id === activeId) || districtsData[0];
     dom.mapSelectedDistrictName.textContent = curDist.name;
-    updateLeafletMapStyles();
+    updateLeafletMapStyles(activeId);
   }
 }
 
-function updateLeafletMapStyles() {
+function updateLeafletMapStyles(activeId = null) {
   if (state.usingUserData) return;
+  const effectiveId = activeId || state.pendingMapDistrictId || state.districtId;
   districtsData.forEach(d => {
     const poly = leafletPolygons.get(d.id);
     if (!poly) return;
-    const isCurrent = d.id === state.districtId;
+    const isCurrent = d.id === effectiveId;
     const stats = getDistrictStats(d);
 
     poly.setStyle({
@@ -3694,7 +3915,7 @@ function updateLeafletMapStyles() {
     );
   });
 
-  const curDist = districtsData.find(d => d.id === state.districtId) || districtsData[0];
+  const curDist = districtsData.find(d => d.id === effectiveId) || districtsData[0];
   dom.mapSelectedDistrictName.textContent = curDist.name;
 }
 
@@ -3728,6 +3949,14 @@ function toggleChartTable() {
   dom.lblTable.classList.toggle('ya-switch-opt-active', state.viewMode === 'table');
   if (dom.switchChartTable) dom.switchChartTable.setAttribute('aria-checked', state.viewMode === 'table' ? 'true' : 'false');
   renderBlock1();
+  if (state.viewMode === 'table') {
+    requestAnimationFrame(() => {
+      const scrollContainer = dom.detailedTableBody?.closest('.table-scroll-container');
+      if (scrollContainer) {
+        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+      }
+    });
+  }
 }
 
 function setPeriod(p) {
@@ -3744,6 +3973,15 @@ function setPeriod(p) {
 
   renderBlock1();
   renderBlock3();
+
+  if (state.viewMode === 'table') {
+    requestAnimationFrame(() => {
+      const scrollContainer = dom.detailedTableBody?.closest('.table-scroll-container');
+      if (scrollContainer) {
+        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+      }
+    });
+  }
 }
 
 function selectBar(idx) {
@@ -3767,7 +4005,7 @@ function selectBar(idx) {
   const prevDate = $(`barDate-${prevIdx}`);
 
   if (prevStack) {
-    prevStack.classList.remove('ring-2', 'ring-[#FCE000]', 'ring-rose-400');
+    prevStack.classList.remove('ring-2', 'ring-black', 'ring-[#FCE000]', 'ring-rose-400');
     prevStack.classList.add('opacity-90');
   }
   if (prevVal) {
@@ -3792,7 +4030,7 @@ function selectBar(idx) {
     if (newMetric < 0) {
       newStack.classList.add('ring-2', 'ring-rose-400');
     } else {
-      newStack.classList.add('ring-2', 'ring-[#FCE000]');
+      newStack.classList.add('ring-2', 'ring-black');
     }
   }
   if (newVal) {
@@ -3840,9 +4078,7 @@ function toggleHeatUnit() {
 
 function toggleHeatCell(cellKey) {
   const [r, c] = cellKey.split('-').map(Number);
-  const activeMatrix = (state.usingUserData && state.userDatasets && state.userDatasets.heatmapMatrix)
-    ? state.userDatasets.heatmapMatrix
-    : baseHeatmapMatrix;
+  const activeMatrix = getActiveHeatmapMatrix();
   const rowObj = activeMatrix[r] || baseHeatmapMatrix[r];
   const comp = getCellComputedValue(rowObj?.values[c]);
   if (!comp) return;
@@ -3871,9 +4107,7 @@ function clearSelectedSlots() {
 
 function selectTop5Slots() {
   const allCells = [];
-  const activeMatrix = (state.usingUserData && state.userDatasets && state.userDatasets.heatmapMatrix)
-    ? state.userDatasets.heatmapMatrix
-    : baseHeatmapMatrix;
+  const activeMatrix = getActiveHeatmapMatrix();
   activeMatrix.forEach((row, rIdx) => {
     row.values.forEach((val, cIdx) => {
       const comp = getCellComputedValue(val);
@@ -3936,6 +4170,126 @@ function openForecastInfoModal() {
 
 function closeForecastInfoModal() {
   dom.forecastInfoModal.classList.add('hidden');
+}
+
+function openExpenseInfoModal(type, amount) {
+  if (!dom.expenseInfoModal) return;
+
+  let title = 'Справка о расходах';
+  let subtitle = 'Откуда берутся данные и как рассчитываются';
+  let bodyHtml = '';
+
+  if (type === 'tax') {
+    title = 'Налог самозанятого (НПД 6%)';
+    subtitle = `Сумма за выбранный период: -${formatNum(amount || 0)} ₽`;
+    bodyHtml = `
+      <div class="p-3 rounded-2xl bg-black/5 dark:bg-white/5 space-y-1.5 border border-subtle">
+        <div class="font-extrabold text-[#FCE000] text-xs">🏛️ Налог на профессиональный доход</div>
+        <p class="text-sec">Автоматический расчет для самозанятых курьеров (плательщиков НПД), сотрудничающих напрямую с сервисом или партнерами (юрлицами).</p>
+      </div>
+      <div class="space-y-1">
+        <div class="font-bold text-main">Формула расчета:</div>
+        <div class="p-2 rounded-xl bg-black/10 dark:bg-white/10 font-mono text-[11px] text-amber-400">
+          Налог = Начислено (Gross) × 6%
+        </div>
+        <p class="text-[11px] text-sec">Рассчитывается от полной начисленной суммы вознаграждения до вычета расходов на транспорт и аренду.</p>
+      </div>
+      <div class="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-[11px] text-sec">
+        💡 <b>Налоговый вычет:</b> Если вы недавно зарегистрировали самозанятость и расходуете бонус от ФНС (10 000 ₽), эффективная ставка налога составляет 4%. Базовая ставка без бонуса — 6%.
+      </div>
+    `;
+  } else if (type === 'adjustments') {
+    title = 'Корректировки и удержания';
+    subtitle = `Сумма за выбранный период: -${formatNum(amount || 0)} ₽`;
+
+    if (!state.usingUserData) {
+      const disputedSet = state.disputedAdjustmentIds || new Set();
+      const adjItemsHtml = demoAdjustmentsData.map(adj => {
+        const isDisputed = disputedSet.has(adj.id);
+        const actionHtml = isDisputed
+          ? `<span class="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">✓ Заявка подана</span>`
+          : `<button type="button" onclick="disputeAdjustment('${adj.id}')" class="px-2.5 py-1 rounded-lg text-[10px] font-extrabold ya-badge-red hover:opacity-90 active:scale-95 transition">Оспорить</button>`;
+
+        return `
+          <div class="p-2.5 rounded-2xl bg-black/5 dark:bg-white/5 border border-subtle space-y-1.5">
+            <div class="flex items-center justify-between text-[11px]">
+              <span class="font-bold text-main">${escapeHtml(adj.date)} • Заказ ${escapeHtml(adj.orderNum)}</span>
+              <span class="font-extrabold text-rose-500">${adj.amount} ₽</span>
+            </div>
+            <div class="text-[11px] text-sec">
+              <div><b>Ресторан/Партнер:</b> ${escapeHtml(adj.restaurant)}</div>
+              <div><b>Причина:</b> ${escapeHtml(adj.reason)}</div>
+            </div>
+            <div class="flex items-center justify-between pt-1 border-t border-subtle">
+              <span class="text-[10px] font-mono text-sec/75">ID: ${escapeHtml(adj.id)}</span>
+              ${actionHtml}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      bodyHtml = `
+        <div class="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/20 space-y-1">
+          <div class="font-extrabold text-rose-400 text-xs">⚠️ Удержания сервиса</div>
+          <p class="text-[11px] text-sec">Списания за нарушение стандартов, перерасчет времени ожидания или отмены заказов. Вы можете подать апелляцию по любой спорной строке.</p>
+        </div>
+        <div class="space-y-2 pt-1">
+          <div class="font-bold text-main">Детализация корректировок:</div>
+          <div class="space-y-2">
+            ${adjItemsHtml}
+          </div>
+        </div>
+      `;
+    } else {
+      bodyHtml = `
+        <div class="p-3 rounded-2xl bg-black/5 dark:bg-white/5 space-y-1.5 border border-subtle">
+          <div class="font-extrabold text-rose-400 text-xs">⚠️ Корректировки из вашего отчета</div>
+          <p class="text-sec">Значения загружены напрямую из вашего файла курьерских начислений (столбец удержаний/корректировок).</p>
+        </div>
+        <div class="space-y-1">
+          <div class="font-bold text-main">Как оспорить:</div>
+          <p class="text-[11px] text-sec">Если вы не согласны со списанием, откройте в приложении <b>Яндекс Про</b> раздел <i>«Профиль → Поддержка → Начисления и выплаты»</i> и выберите конкретный заказ для отправки обращения диспетчеру.</p>
+        </div>
+      `;
+    }
+  } else {
+    title = `Расход: ${escapeHtml(type)}`;
+    subtitle = `Сумма за выбранный период: -${formatNum(amount || 0)} ₽`;
+    bodyHtml = `
+      <div class="p-3 rounded-2xl bg-black/5 dark:bg-white/5 space-y-1.5 border border-subtle">
+        <div class="font-extrabold text-[#FCE000] text-xs">⚙️ Статья расходов курьера</div>
+        <p class="text-sec">Персонализированная статья расходов, заданная для типа транспорта «${escapeHtml(transportMeta[state.accountTransport]?.label || 'Курьер')}».</p>
+      </div>
+      <div class="space-y-1.5">
+        <div class="font-bold text-main">Как рассчитывается в выбранном периоде:</div>
+        <p class="text-[11px] text-sec">Базовые расходы задаются в настройках как сумма в неделю. Они пропорционально распределяются на дни, недели или месяцы:</p>
+        <div class="p-2 rounded-xl bg-black/10 dark:bg-white/10 font-mono text-[11px] text-amber-400">
+          Дневной расход = (Недельная ставка / 7)
+        </div>
+        <p class="text-[11px] text-sec">В режиме пользовательских данных расходы по слотам распределяются строго пропорционально реально отработанным часам.</p>
+      </div>
+      <div class="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-sec">
+        ⚙️ <b>Редактирование:</b> Изменить сумму этой статьи или отключить ее можно в любой момент в «Настройках» (значок ⚙️ вверху экрана).
+      </div>
+    `;
+  }
+
+  dom.expenseInfoTitle.textContent = title;
+  dom.expenseInfoSubtitle.textContent = subtitle;
+  dom.expenseInfoBody.innerHTML = bodyHtml;
+  dom.expenseInfoModal.classList.remove('hidden');
+}
+
+function closeExpenseInfoModal() {
+  if (dom.expenseInfoModal) dom.expenseInfoModal.classList.add('hidden');
+}
+
+function disputeAdjustment(adjId) {
+  if (!state.disputedAdjustmentIds) state.disputedAdjustmentIds = new Set();
+  state.disputedAdjustmentIds.add(adjId);
+  const adj = demoAdjustmentsData.find(a => a.id === adjId);
+  showToast(`Заявка по списанию ${adj ? adj.orderNum : adjId} отправлена в поддержку!`);
+  openExpenseInfoModal('adjustments', adj ? Math.abs(adj.amount) : 0);
 }
 
 function setCompareMode(mode) {
@@ -4210,8 +4564,10 @@ function showToast(msg) {
 
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
-    if (!dom.realMapModal.classList.contains('hidden')) {
-      closeRealMapModal();
+    if (!dom.expenseInfoModal.classList.contains('hidden')) {
+      closeExpenseInfoModal();
+    } else if (!dom.realMapModal.classList.contains('hidden')) {
+      cancelRealMapModal();
     } else if (!dom.planSlotsModal.classList.contains('hidden')) {
       closePlanSlotsModal();
     } else if (!dom.forecastInfoModal.classList.contains('hidden')) {
@@ -4251,6 +4607,11 @@ Object.assign(window, {
   setSeason,
   openRealMapModal,
   closeRealMapModal,
+  cancelRealMapModal,
+  confirmRealMapDistrict,
+  openExpenseInfoModal,
+  closeExpenseInfoModal,
+  disputeAdjustment,
   resetExpensesToDefault,
   applyTransportPreset,
   confirmAddCustomExpense,

@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Независимый исследовательский UI/UX-концепт аналитики дохода для курьеров доставки (версия 13.13.0)" />
+  <meta name="description" content="Независимый исследовательский UI/UX-концепт аналитики дохода для курьеров доставки (версия 13.14.0)" />
   <meta name="theme-color" content="#F4F5F7" />
-  <title>Концепт аналитики дохода курьера (v13.13.0) — Неофициальный UX-прототип</title>
+  <title>Концепт аналитики дохода курьера (v13.14.0) — Неофициальный UX-прототип</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <script src="https://cdn.tailwindcss.com"></script>
@@ -25,7 +25,7 @@
 
     <div class="flex flex-wrap items-center justify-between gap-2">
       <div class="flex items-center gap-2">
-        <span class="px-2 py-0.5 rounded-md bg-[#FCE000] text-[#141518] font-extrabold">v13.13.0</span>
+        <span class="px-2 py-0.5 rounded-md bg-[#FCE000] text-[#141518] font-extrabold">v13.14.0</span>
         <span class="font-semibold">UX-концепт аналитики курьера</span>
       </div>
       <div class="flex flex-wrap items-center gap-1.5">
@@ -410,14 +410,14 @@
   </div>
 
   <!-- МОДАЛЬНОЕ ОКНО: РЕАЛЬНАЯ КАРТА (LEAFLET) -->
-  <div id="realMapModal" onclick="if(event.target===this) closeRealMapModal()" class="fixed inset-0 z-50 hidden bg-black/75 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="realMapTitle">
+  <div id="realMapModal" onclick="if(event.target===this) cancelRealMapModal()" class="fixed inset-0 z-50 hidden bg-black/75 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="realMapTitle">
     <div class="app-shell w-full max-w-lg rounded-[28px] overflow-hidden flex flex-col shadow-2xl border border-white/15">
       <div class="p-3.5 flex items-center justify-between border-b border-subtle">
         <div>
           <h3 id="realMapTitle" class="text-sm font-extrabold">Карта районов доставки</h3>
           <p id="realMapSubtitle" class="text-[11px] text-sec">Нажмите на выделенный район для выбора</p>
         </div>
-        <button type="button" onclick="closeRealMapModal()" aria-label="Закрыть" class="ya-nav-btn w-8 h-8 flex items-center justify-center text-sm font-bold">✕</button>
+        <button type="button" onclick="cancelRealMapModal()" aria-label="Закрыть" class="ya-nav-btn w-8 h-8 flex items-center justify-center text-sm font-bold">✕</button>
       </div>
       <div class="relative w-full h-[380px] bg-[#181A20]">
         <div id="leafletMapContainer" class="w-full h-full z-10"></div>
@@ -427,7 +427,7 @@
           <div class="text-[10px] text-sec">Выбранный полигон:</div>
           <div id="mapSelectedDistrictName" class="text-xs font-extrabold truncate">Центр-Юг (Хамовники / Якиманка)</div>
         </div>
-        <button type="button" onclick="closeRealMapModal()" class="px-4 py-2 rounded-xl text-xs font-extrabold shrink-0 btn-primary">Применить район</button>
+        <button type="button" onclick="confirmRealMapDistrict()" class="px-4 py-2 rounded-xl text-xs font-extrabold shrink-0 btn-primary">Применить район</button>
       </div>
     </div>
   </div>
@@ -506,6 +506,25 @@
       </div>
       <div class="p-3.5 border-t border-subtle bg-card">
         <button type="button" onclick="closeForecastInfoModal()" class="w-full py-2.5 px-4 rounded-xl text-xs font-extrabold active:scale-95 transition btn-primary">Понятно</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- МОДАЛЬНОЕ ОКНО: СПРАВКА О СТАТЬЕ РАСХОДОВ И КОРРЕКТИРОВКАХ -->
+  <div id="expenseInfoModal" onclick="if(event.target===this) closeExpenseInfoModal()" class="fixed inset-0 z-50 hidden bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="expenseInfoTitle">
+    <div class="app-shell w-full max-w-md rounded-[28px] overflow-hidden flex flex-col shadow-2xl border border-white/15">
+      <div class="p-4 flex items-center justify-between border-b border-subtle">
+        <div class="min-w-0 pr-2">
+          <h3 id="expenseInfoTitle" class="text-sm font-extrabold truncate">Справка о расходах</h3>
+          <p id="expenseInfoSubtitle" class="text-[11px] text-sec truncate">Откуда берутся данные и как рассчитываются</p>
+        </div>
+        <button type="button" onclick="closeExpenseInfoModal()" aria-label="Закрыть" class="ya-nav-btn w-8 h-8 flex items-center justify-center text-sm font-bold shrink-0">✕</button>
+      </div>
+      <div id="expenseInfoBody" class="p-4 space-y-3 text-xs leading-relaxed max-h-[70vh] overflow-y-auto custom-scroll">
+        <!-- Контент генерируется динамически в script.js -->
+      </div>
+      <div id="expenseInfoFooter" class="p-3.5 border-t border-subtle bg-card flex items-center justify-end gap-2">
+        <button type="button" onclick="closeExpenseInfoModal()" class="py-2.5 px-4 rounded-xl text-xs font-extrabold active:scale-95 transition btn-primary">Понятно</button>
       </div>
     </div>
   </div>
