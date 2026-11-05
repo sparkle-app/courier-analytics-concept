@@ -429,28 +429,40 @@ body.desktop-mode .area-block3 {
   }
 }
 
-/* Настройки расходов: на десктопе статьи слева, пресеты транспорта справа в столбик */
+/* Настройки расходов: в мобильной версии пресеты вверху, день старта внизу; в ПК — статьи слева, пресеты и день старта справа в столбик */
 #settingsExpensesSplit {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.25rem;
 }
 
 body.desktop-mode #settingsExpensesSplit {
   display: grid !important;
   grid-template-columns: minmax(0, 1fr) 280px !important;
-  gap: 1.5rem !important;
+  grid-template-rows: auto auto 1fr;
+  grid-template-areas:
+    "expenses presets"
+    "expenses weekstart"
+    "expenses ." !important;
+  gap: 1.25rem 1.5rem !important;
   align-items: start !important;
 }
 
 body.desktop-mode #settingsExpensesLeft {
-  order: 1 !important;
+  grid-area: expenses !important;
   min-width: 0 !important;
 }
 
-body.desktop-mode #settingsPresetsRight {
-  order: 2 !important;
+body.desktop-mode #settingsPresetsBlock {
+  grid-area: presets !important;
   min-width: 0 !important;
+}
+
+body.desktop-mode #weekStartBlock {
+  grid-area: weekstart !important;
+  min-width: 0 !important;
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 0.75rem;
 }
 
 body.desktop-mode #presetButtonsContainer {

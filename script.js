@@ -1,5 +1,5 @@
 // =============================================================================
-// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.11.0) — ЛОГИКА И СОСТОЯНИЕ (script.js)
+// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.11.1) — ЛОГИКА И СОСТОЯНИЕ (script.js)
 // Оптимизированная и модульная версия с гранулярным рендерингом и кэшированием
 // =============================================================================
 
@@ -1643,7 +1643,7 @@ function enrichDailyDataset(dayRows) {
   // Группировка дней по 7-дневным недельным циклам от выбранного state.weekStartDay
   const cycleMap = new Map();
   dayRows.forEach((row, idx) => {
-    const dObj = getDayDateObj(row);
+    const dObj = row.dateObj || getDayDateObj(row);
     const cycle = getWeekCycleInfo(dObj, state.weekStartDay);
     const key = cycle ? cycle.cycleKey : 'default';
     if (!cycleMap.has(key)) {
@@ -2011,6 +2011,18 @@ function renderSelectedBarDetails(sel) {
   `;
 }
 
+const PROFIT_COLOR_SCALE_LIGHT = {
+  min: [220, 38, 38],   // #DC2626 мягкий красный
+  mid: [217, 119, 6],   // #D97706 теплый янтарь
+  max: [22, 138, 56]    // #168A38 свежий зеленый
+};
+
+const PROFIT_COLOR_SCALE_DARK = {
+  min: [251, 113, 133], // #FB7185 кораллово-розовый
+  mid: [251, 191, 36],  // #FBBF24 золотисто-янтарный
+  max: [74, 222, 128]   // #4ADE80 мягкий салатово-зеленый
+};
+
 /**
  * Непрерывное/плавное условное форматирование показателя «Прибыль в час» (3-Color Scale, как в Excel)
  * Light mode: min (красный #DC2626) -> mid (теплый янтарь #D97706) -> max (свежий зеленый #168A38)
@@ -2021,20 +2033,7 @@ function getProfitPerHourColor(val, minVal, maxVal, isLightMode) {
     return isLightMode ? '#18191C' : '#F5F6F8';
   }
   const t = Math.max(0, Math.min(1, (val - minVal) / (maxVal - minVal)));
-
-  const lightColors = {
-    min: [220, 38, 38],   // #DC2626
-    mid: [217, 119, 6],   // #D97706
-    max: [22, 138, 56]    // #168A38
-  };
-
-  const darkColors = {
-    min: [251, 113, 133], // #FB7185
-    mid: [251, 191, 36],  // #FBBF24
-    max: [74, 222, 128]   // #4ADE80
-  };
-
-  const c = isLightMode ? lightColors : darkColors;
+  const c = isLightMode ? PROFIT_COLOR_SCALE_LIGHT : PROFIT_COLOR_SCALE_DARK;
   let r, g, b;
 
   if (t <= 0.5) {
