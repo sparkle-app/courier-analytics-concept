@@ -1,5 +1,5 @@
 // =============================================================================
-// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.11.5) — ЛОГИКА И СОСТОЯНИЕ (script.js)
+// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.11.6) — ЛОГИКА И СОСТОЯНИЕ (script.js)
 // Оптимизированная и модульная версия с гранулярным рендерингом и кэшированием
 // =============================================================================
 
@@ -2247,63 +2247,33 @@ function renderBarChart(data) {
 function renderSelectedBarDetails(sel) {
   if (!sel) return;
 
-  const selHours = Math.max(0.1, Math.round(Number(sel.slotHours || 0) * 10) / 10);
-  const isHr = state.isHourly;
-
-  // Динамические цифры в легенде диаграммы: синхронизированы с режимом Сумма / В час
-  const legVal = val => isHr
-    ? `${formatNum(Math.round(val / selHours))} ₽/ч`
-    : `${formatNum(val)} ₽`;
-
-  if (dom.legValOrders) dom.legValOrders.textContent = legVal(sel.ordersCost);
-  if (dom.legValSurge) dom.legValSurge.textContent = `+${legVal(sel.surgeRub)}`;
-  if (dom.legValRating) dom.legValRating.textContent = `+${legVal(sel.ratingRub)}`;
-  if (dom.legValBonuses) dom.legValBonuses.textContent = `+${legVal(sel.bonuses)}`;
-  if (dom.legValGoals) dom.legValGoals.textContent = state.includeGoals && sel.goals > 0 ? `+${legVal(sel.goals)}` : '';
-  if (dom.legValTips) dom.legValTips.textContent = sel.tips > 0 ? `+${legVal(sel.tips)}` : '';
+  // Динамические цифры в легенде диаграммы
+  if (dom.legValOrders) dom.legValOrders.textContent = `${formatNum(sel.ordersCost)} ₽`;
+  if (dom.legValSurge) dom.legValSurge.textContent = `+${formatNum(sel.surgeRub)} ₽`;
+  if (dom.legValRating) dom.legValRating.textContent = `+${formatNum(sel.ratingRub)} ₽`;
+  if (dom.legValBonuses) dom.legValBonuses.textContent = `+${formatNum(sel.bonuses)} ₽`;
+  if (dom.legValGoals) dom.legValGoals.textContent = state.includeGoals && sel.goals > 0 ? `+${formatNum(sel.goals)} ₽` : '';
+  if (dom.legValTips) dom.legValTips.textContent = sel.tips > 0 ? `+${formatNum(sel.tips)} ₽` : '';
 
   const deductionBadges = [];
   if (sel.tax > 0) {
-    const taxHr = Math.round(sel.tax / selHours);
-    const taxBadge = isHr
-      ? `<span class="ya-badge ya-badge-red">Налог (6%): <b>-${formatNum(taxHr)} ₽/ч</b> <span class="opacity-70 font-normal text-[9px]">(-${formatNum(sel.tax)} ₽)</span></span>`
-      : `<span class="ya-badge ya-badge-red">Налог (6%): <b>-${formatNum(sel.tax)} ₽</b> <span class="opacity-70 font-normal text-[9px]">(-${formatNum(taxHr)} ₽/ч)</span></span>`;
-    deductionBadges.push(taxBadge);
+    deductionBadges.push(`<span class="ya-badge ya-badge-red">Налог (6%): <b>-${formatNum(sel.tax)} ₽</b></span>`);
   }
   sel.itemizedExpenses.forEach(expItem => {
     if (expItem.amount > 0) {
-      const expHr = Math.round(expItem.amount / selHours);
-      const expBadge = isHr
-        ? `<span class="ya-badge ya-badge-red">${escapeHtml(expItem.name)}: <b>-${formatNum(expHr)} ₽/ч</b> <span class="opacity-70 font-normal text-[9px]">(-${formatNum(expItem.amount)} ₽)</span></span>`
-        : `<span class="ya-badge ya-badge-red">${escapeHtml(expItem.name)}: <b>-${formatNum(expItem.amount)} ₽</b> <span class="opacity-70 font-normal text-[9px]">(-${formatNum(expHr)} ₽/ч)</span></span>`;
-      deductionBadges.push(expBadge);
+      deductionBadges.push(`<span class="ya-badge ya-badge-red">${escapeHtml(expItem.name)}: <b>-${formatNum(expItem.amount)} ₽</b></span>`);
     }
   });
   if (sel.adjustments < 0) {
-    const adjAbs = Math.abs(sel.adjustments);
-    const adjHr = Math.round(adjAbs / selHours);
-    const adjBadge = isHr
-      ? `<span class="ya-badge ya-badge-red">Корректировки: <b>-${formatNum(adjHr)} ₽/ч</b> <span class="opacity-70 font-normal text-[9px]">(-${formatNum(adjAbs)} ₽)</span></span>`
-      : `<span class="ya-badge ya-badge-red">Корректировки: <b>-${formatNum(adjAbs)} ₽</b> <span class="opacity-70 font-normal text-[9px]">(-${formatNum(adjHr)} ₽/ч)</span></span>`;
-    deductionBadges.push(adjBadge);
+    deductionBadges.push(`<span class="ya-badge ya-badge-red">Корректировки: <b>-${formatNum(Math.abs(sel.adjustments))} ₽</b></span>`);
   }
 
   const transportText = sel.transportSummary || sel.transport || 'Курьер';
+  const selHours = Math.round(Number(sel.slotHours || 0) * 10) / 10;
 
-  const grossBadge = isHr
-    ? `<span class="ya-badge ya-badge-grey">Начислено: <b>${formatNum(sel.grossPerHr)} ₽/ч</b> <span class="opacity-70 font-normal text-[9px]">(${formatNum(sel.grossTotal)} ₽)</span></span>`
-    : `<span class="ya-badge ya-badge-grey">Начислено: <b>${formatNum(sel.grossTotal)} ₽</b> <span class="opacity-70 font-normal text-[9px]">(${formatNum(sel.grossPerHr)} ₽/ч)</span></span>`;
-
-  let netBadgeHtml = '';
-  if (sel.netProfit < 0) {
-    netBadgeHtml = isHr
-      ? `<span class="ya-badge ya-badge-red font-bold">Чистыми (убыток): <b>-${formatNum(Math.abs(sel.profitPerHr))} ₽/ч</b> <span class="opacity-75 font-normal text-[9.5px]">(-${formatNum(Math.abs(sel.netProfit))} ₽)</span></span>`
-      : `<span class="ya-badge ya-badge-red font-bold">Чистыми (убыток): <b>-${formatNum(Math.abs(sel.netProfit))} ₽</b> <span class="opacity-75 font-normal text-[9.5px]">(-${formatNum(Math.abs(sel.profitPerHr))} ₽/ч)</span></span>`;
-  } else {
-    netBadgeHtml = isHr
-      ? `<span class="ya-badge ya-badge-green font-bold">Чистыми: <b>${formatNum(sel.profitPerHr)} ₽/ч</b> <span class="opacity-75 font-normal text-[9.5px]">(${formatNum(sel.netProfit)} ₽)</span></span>`
-      : `<span class="ya-badge ya-badge-green font-bold">Чистыми: <b>${formatNum(sel.netProfit)} ₽</b> <span class="opacity-75 font-normal text-[9.5px]">(${formatNum(sel.profitPerHr)} ₽/ч)</span></span>`;
-  }
+  const netBadgeHtml = sel.netProfit < 0
+    ? `<span class="ya-badge ya-badge-red font-bold">Чистыми (убыток): <b>-${formatNum(Math.abs(sel.netProfit))} ₽ (-${formatNum(Math.abs(sel.profitPerHr))} ₽/ч)</b></span>`
+    : `<span class="ya-badge ya-badge-green font-bold">Чистыми: <b>${formatNum(sel.netProfit)} ₽ (${formatNum(sel.profitPerHr)} ₽/ч)</b></span>`;
 
   dom.selectedBarDetails.innerHTML = `
     <div class="flex items-center justify-between">
@@ -2313,7 +2283,7 @@ function renderSelectedBarDetails(sel) {
       </div>
     </div>
     <div class="flex flex-wrap items-center gap-1.5 text-[10px] pt-1 border-t border-subtle">
-      ${grossBadge}
+      <span class="ya-badge ya-badge-grey">Начислено: <b>${formatNum(sel.grossTotal)} ₽</b></span>
       ${deductionBadges.join('')}
       ${netBadgeHtml}
     </div>
