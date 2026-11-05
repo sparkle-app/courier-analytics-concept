@@ -120,16 +120,16 @@ function formatCompact(n) {
 
 const defaultTransportExpenses = {
   walk: [
-    { id: 'rent', name: 'Аренда', value: 400, max: 25000 },
-    { id: 'food', name: 'Еда', value: 1200, max: 25000 }
+    { id: 'rent', name: 'Аренда', value: 0, max: 25000 },
+    { id: 'food', name: 'Еда', value: 0, max: 25000 }
   ],
   bike: [
-    { id: 'rent', name: 'Аренда', value: 1100, max: 25000 },
-    { id: 'food', name: 'Еда', value: 1400, max: 25000 }
+    { id: 'rent', name: 'Аренда', value: 0, max: 25000 },
+    { id: 'food', name: 'Еда', value: 0, max: 25000 }
   ],
   ebike: [
-    { id: 'rent', name: 'Аренда', value: 3900, max: 25000 },
-    { id: 'food', name: 'Еда', value: 1400, max: 25000 }
+    { id: 'rent', name: 'Аренда', value: 0, max: 25000 },
+    { id: 'food', name: 'Еда', value: 0, max: 25000 }
   ],
   car: [
     { id: 'rent', name: 'Аренда', value: 7800, max: 25000 },
@@ -401,10 +401,12 @@ function parseDateInfo(val) {
   let d = null;
 
   if (val instanceof Date && !isNaN(val.getTime())) {
-    d = val;
+    // SheetJS парсит Excel serial dates в UTC (часто 21:00Z предыдущего дня).
+    // Сдвиг на полдня (+12ч) гарантирует точное попадание в нужную календарную дату во всех часовых поясах.
+    d = new Date(val.getTime() + 12 * 3600 * 1000);
   } else if (typeof val === 'number') {
-    // Excel serial number (origin: 1899-12-30)
-    d = new Date(Math.round((val - 25569) * 86400 * 1000));
+    // Excel serial number (origin: 1899-12-30) + 12 часов
+    d = new Date(Math.round((val - 25569) * 86400 * 1000) + 12 * 3600 * 1000);
   } else if (typeof val === 'string') {
     const s = val.trim();
     const dotMatch = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2,4})/);
@@ -413,9 +415,12 @@ function parseDateInfo(val) {
       const month = parseInt(dotMatch[2], 10) - 1;
       let year = parseInt(dotMatch[3], 10);
       if (year < 100) year += 2000;
-      d = new Date(year, month, day);
+      d = new Date(year, month, day, 12, 0, 0);
     } else {
-      d = new Date(s);
+      const parsed = new Date(s);
+      if (!isNaN(parsed.getTime())) {
+        d = new Date(parsed.getTime() + 12 * 3600 * 1000);
+      }
     }
   }
 
@@ -624,6 +629,49 @@ function parseOrdersFromRows(rawRows) {
 }
 
 /**
+ * Расчет агрегированных метрик по группе заказов (средняя дистанция, длительность, вес, оплата за км/кг, ожидание)
+ */
+function computeGroupOrderMetrics(groupOrders) {
+  if (!groupOrders || groupOrders.length === 0) {
+    return {
+      avgDist: '—',
+      avgDur: '—',
+      avgWeight: '—',
+      payPerKm: '—',
+      payPerKg: '—',
+      waitPct: '—',
+      avgWaitMin: '—'
+    };
+  }
+  const cnt = groupOrders.length;
+  const sumDist = groupOrders.reduce((a, o) => a + Number(o.distance || 0), 0);
+  const sumDur = groupOrders.reduce((a, o) => a + Number(o.durationMins || 0), 0);
+  const sumWeight = groupOrders.reduce((a, o) => a + Number(o.weight || 0), 0);
+  const sumCost = groupOrders.reduce((a, o) => a + Number(o.orderCost || o.baseCost || 0), 0);
+  const waitsList = groupOrders.filter(o => (o.wait || 0) > 0);
+
+  const avgDist = sumDist > 0 ? (sumDist / cnt).toFixed(1) + ' км' : '0.0 км';
+  const avgDur = sumDur > 0 ? Math.round(sumDur / cnt) + ' мин' : '0 мин';
+  const avgWeight = sumWeight > 0 ? (sumWeight / cnt).toFixed(1) + ' кг' : '0.0 кг';
+  const payPerKm = sumDist > 0 ? Math.round(sumCost / sumDist) + ' ₽/км' : '—';
+  const payPerKg = sumWeight > 0 ? Math.round(sumCost / sumWeight) + ' ₽/кг' : '—';
+  const waitPct = Math.round((waitsList.length / cnt) * 100) + '%';
+  const avgWaitMin = waitsList.length > 0
+    ? (waitsList.reduce((a, o) => a + (o.wait > 0 ? Math.max(2, o.wait / 3) : 0), 0) / waitsList.length).toFixed(1) + ' мин'
+    : '—';
+
+  return {
+    avgDist,
+    avgDur,
+    avgWeight,
+    payPerKm,
+    payPerKg,
+    waitPct,
+    avgWaitMin
+  };
+}
+
+/**
  * Точный расчет статистики по видам транспорта с учетом расходов и целей
  */
 function calculateTransportStats(orders) {
@@ -694,7 +742,7 @@ function calculateTransportStats(orders) {
 
       oList.forEach(o => {
         const goalVal = state.includeGoals ? (o.goal || 0) : 0;
-        gross += o.baseCost + (o.wait || 0) + o.surgeRub + o.ratingRub + o.bonus + goalVal;
+        gross += o.orderCost + (o.wait || 0) + o.surgeRub + o.ratingRub + o.bonus + goalVal;
       });
     });
 
@@ -795,7 +843,7 @@ function calculateSlotStats(orders) {
 
     oList.forEach(o => {
       const goalVal = state.includeGoals ? (o.goal || 0) : 0;
-      sGross += o.baseCost + (o.wait || 0) + o.surgeRub + o.ratingRub + o.bonus + goalVal;
+      sGross += o.orderCost + (o.wait || 0) + o.surgeRub + o.ratingRub + o.bonus + goalVal;
     });
 
     const isPlan = slot.slotType.toLowerCase().includes('план');
@@ -846,36 +894,6 @@ function calculateSlotStats(orders) {
  * Построение сравнительных показателей (Блок 3) на основе загруженных заказов
  */
 function buildComparisonDatasets(orders, days) {
-  function getGroupMetrics(groupOrders, groupDays) {
-    if (!groupOrders || groupOrders.length === 0) return null;
-    const cnt = groupOrders.length;
-    const sumDist = groupOrders.reduce((a, o) => a + o.distance, 0);
-    const sumDur = groupOrders.reduce((a, o) => a + o.durationMins, 0);
-    const sumWeight = groupOrders.reduce((a, o) => a + o.weight, 0);
-    const sumBaseCost = groupOrders.reduce((a, o) => a + o.baseCost, 0);
-    const waitsList = groupOrders.filter(o => o.wait > 0);
-
-    const avgDist = (sumDist / cnt).toFixed(1) + ' км';
-    const avgDur = Math.round(sumDur / cnt) + ' мин';
-    const avgWeight = (sumWeight / cnt).toFixed(1) + ' кг';
-    const payPerKm = sumDist > 0 ? Math.round(sumBaseCost / sumDist) + ' ₽/км' : '—';
-    const payPerKg = sumWeight > 0 ? Math.round(sumBaseCost / sumWeight) + ' ₽/кг' : '—';
-    const waitPct = Math.round((waitsList.length / cnt) * 100) + '%';
-    const avgWaitMin = waitsList.length > 0
-      ? (waitsList.reduce((a, o) => a + (o.wait > 0 ? Math.max(2, o.wait / 3) : 0), 0) / waitsList.length).toFixed(1) + ' мин'
-      : '—';
-
-    return {
-      avgDist,
-      avgDur,
-      avgWeight,
-      payPerKm,
-      payPerKg,
-      waitPct,
-      avgWaitMin
-    };
-  }
-
   // 1. Транспорт: берем ТОЛЬКО те типы транспорта, которые реально есть в файле пользователя
   const usedTransportKeys = Array.from(new Set(orders.map(o => o.transportKey)));
   const transportCols = [];
@@ -883,8 +901,7 @@ function buildComparisonDatasets(orders, days) {
 
   usedTransportKeys.forEach(tKey => {
     const tOrders = orders.filter(o => o.transportKey === tKey);
-    const tDays = days.filter(d => d.transportKey === tKey);
-    const m = getGroupMetrics(tOrders, tDays.length > 0 ? tDays : days);
+    const m = computeGroupOrderMetrics(tOrders);
     if (m) {
       transportCols.push({
         key: tKey,
@@ -914,14 +931,10 @@ function buildComparisonDatasets(orders, days) {
 
   // 2. Тип слота: Плановый, Свободный
   const planOrders = orders.filter(o => o.slotType.toLowerCase().includes('план'));
-  const planM = getGroupMetrics(planOrders, days) || {
-    avgDist: '1.4 км', avgDur: '34 мин', avgWeight: '1.3 кг', payPerKm: '59 ₽/км', payPerKg: '64 ₽/кг', waitPct: '10%', avgWaitMin: '6.5 мин'
-  };
+  const planM = computeGroupOrderMetrics(planOrders);
 
   const freeOrders = orders.filter(o => o.slotType.toLowerCase().includes('свобод'));
-  const freeM = getGroupMetrics(freeOrders, days) || {
-    avgDist: '1.9 км', avgDur: '32 мин', avgWeight: '1.6 кг', payPerKm: '58 ₽/км', payPerKg: '69 ₽/кг', waitPct: '5%', avgWaitMin: '6.4 мин'
-  };
+  const freeM = computeGroupOrderMetrics(freeOrders);
 
   const slot = {
     columns: ['Плановый', 'Свободный'],
@@ -941,17 +954,17 @@ function buildComparisonDatasets(orders, days) {
   };
 
   // 3. Тотал: ТОЛЬКО данные пользователя (Вы все время / Вы выбранный период) без бенчмарков района и города
-  const allM = getGroupMetrics(orders, days);
+  const allM = computeGroupOrderMetrics(orders);
   const total = {
     columns: ['Вы (все время)', 'DYNAMIC_PERIOD_COL'],
     rowsPerOrder: [
-      { label: 'Расстояние заказа',        vals: [allM.avgDist, allM.avgDist] },
-      { label: 'Продолжительность заказа', vals: [allM.avgDur, allM.avgDur] },
-      { label: 'Вес заказа',               vals: [allM.avgWeight, allM.avgWeight] },
-      { label: 'Оплата за км заказа',      vals: [allM.payPerKm, allM.payPerKm] },
-      { label: 'Оплата за кг заказа',      vals: [allM.payPerKg, allM.payPerKg] },
-      { label: 'Доля заказов с ожиданием', vals: [allM.waitPct, allM.waitPct] },
-      { label: 'Ожидание заказа',          vals: [allM.avgWaitMin, allM.avgWaitMin] }
+      { label: 'Расстояние заказа',        vals: [allM.avgDist, 'DYNAMIC_DIST'] },
+      { label: 'Продолжительность заказа', vals: [allM.avgDur, 'DYNAMIC_DUR'] },
+      { label: 'Вес заказа',               vals: [allM.avgWeight, 'DYNAMIC_WEIGHT'] },
+      { label: 'Оплата за км заказа',      vals: [allM.payPerKm, 'DYNAMIC_PAY_KM'] },
+      { label: 'Оплата за кг заказа',      vals: [allM.payPerKg, 'DYNAMIC_PAY_KG'] },
+      { label: 'Доля заказов с ожиданием', vals: [allM.waitPct, 'DYNAMIC_WAIT_PCT'] },
+      { label: 'Ожидание заказа',          vals: [allM.avgWaitMin, 'DYNAMIC_WAIT_MIN'] }
     ],
     rowsTotal: [
       { label: 'Заказов в час',            vals: ['TOTAL_ORD_HR_DYN', 'DYNAMIC_ORD_HR'] },
@@ -1023,7 +1036,7 @@ function buildDatasetsFromOrders(orders) {
     totalSlotHours = Math.round(totalSlotHours * 10) / 10;
     if (totalSlotHours <= 0) totalSlotHours = 1;
 
-    const ordersCost = Math.round(dayOrders.reduce((a, o) => a + o.baseCost + (o.wait || 0), 0));
+    const ordersCost = Math.round(dayOrders.reduce((a, o) => a + o.orderCost + (o.wait || 0), 0));
     const surgeRub = Math.round(dayOrders.reduce((a, o) => a + o.surgeRub, 0));
     const surgePct = ordersCost > 0 ? Math.round((surgeRub / ordersCost) * 100) : 0;
     const ratingRub = Math.round(dayOrders.reduce((a, o) => a + o.ratingRub, 0));
@@ -1699,7 +1712,7 @@ function renderBarChart(data) {
 
     html += `
       <div id="barCol-${idx}" onclick="selectBar(${idx})" class="chart-bar-item cursor-pointer group">
-        <div id="barValue-${idx}" class="text-[9px] font-bold mb-0.5 whitespace-nowrap shrink-0 ${isSelected ? 'opacity-100 font-extrabold text-[#FCE000]' : 'opacity-70'}">
+        <div id="barValue-${idx}" class="text-[9px] font-bold mb-0.5 whitespace-nowrap shrink-0 ${isSelected ? 'opacity-100 font-black text-main text-[10px]' : 'opacity-70'}">
           ${formatCompact(displayMetric)}
         </div>
 
@@ -1721,7 +1734,7 @@ function renderBarChart(data) {
           </div>
         </div>
 
-        <div id="barDate-${idx}" class="text-[9px] font-semibold whitespace-nowrap text-center mt-1 shrink-0 ${isSelected ? 'underline font-extrabold text-[#FCE000]' : 'opacity-70'}">
+        <div id="barDate-${idx}" class="text-[9px] font-semibold whitespace-nowrap text-center mt-1 shrink-0 ${isSelected ? 'opacity-100 font-black text-main text-[10px]' : 'opacity-70'}">
           ${d.date}
         </div>
       </div>
@@ -1773,29 +1786,14 @@ function renderSelectedBarDetails(sel) {
   }
 
   const transportText = sel.transportSummary || sel.transport || 'Курьер';
-
-  const componentBadges = [
-    `<span class="ya-badge ya-badge-grey flex items-center gap-1"><i class="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block"></i>Заказы: <b>${formatNum(sel.ordersCost)} ₽</b></span>`,
-    `<span class="ya-badge ya-badge-grey flex items-center gap-1"><i class="w-1.5 h-1.5 rounded-full bg-[#FCE000] inline-block"></i>Спрос: <b>+${formatNum(sel.surgeRub)} ₽ (${sel.surgePct}%)</b></span>`,
-    `<span class="ya-badge ya-badge-grey flex items-center gap-1"><i class="w-1.5 h-1.5 rounded-full bg-orange-400 inline-block"></i>Рейтинг: <b>+${formatNum(sel.ratingRub)} ₽ (${sel.ratingPct}%)</b></span>`,
-    `<span class="ya-badge ya-badge-grey flex items-center gap-1"><i class="w-1.5 h-1.5 rounded-full bg-purple-500 inline-block"></i>Бонусы: <b>+${formatNum(sel.bonuses)} ₽</b></span>`
-  ];
-  if (state.includeGoals && sel.goals > 0) {
-    componentBadges.push(`<span class="ya-badge ya-badge-grey flex items-center gap-1"><i class="w-1.5 h-1.5 rounded-full bg-pink-500 inline-block"></i>Цели: <b>+${formatNum(sel.goals)} ₽</b></span>`);
-  }
-  if (sel.tips > 0) {
-    componentBadges.push(`<span class="ya-badge ya-badge-grey flex items-center gap-1"><i class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"></i>Чаевые: <b>+${formatNum(sel.tips)} ₽</b></span>`);
-  }
+  const selHours = Math.round(Number(sel.slotHours || 0) * 10) / 10;
 
   dom.selectedBarDetails.innerHTML = `
     <div class="flex items-center justify-between">
       <div>
         <span class="font-extrabold">${escapeHtml(sel.date)} (${escapeHtml(sel.dayOfWeek)})</span>
-        <span class="opacity-70 ml-1">• ${escapeHtml(transportText)} • ${sel.slotHours} ч • ${sel.ordersCount} зак.</span>
+        <span class="opacity-70 ml-1">• ${escapeHtml(transportText)} • ${selHours} ч • ${sel.ordersCount} зак.</span>
       </div>
-    </div>
-    <div class="flex flex-wrap items-center gap-1.5 text-[10px] pt-1">
-      ${componentBadges.join('')}
     </div>
     <div class="flex flex-wrap items-center gap-1.5 text-[10px] pt-1 border-t border-subtle">
       <span class="ya-badge ya-badge-grey">Начислено: <b>${formatNum(sel.grossTotal)} ₽</b></span>
@@ -1854,7 +1852,10 @@ function formatTableCellValue(row, key) {
       return escapeHtml(row.date);
     }
     case 'dayOfWeek':   return escapeHtml(row.dayOfWeek);
-    case 'slotHours':   return `${row.slotHours} ч`;
+    case 'slotHours':   {
+      const h = Math.round(Number(row.slotHours || 0) * 10) / 10;
+      return `${h} ч`;
+    }
     case 'ordersCount': return row.ordersCount;
     case 'ordersPerHr': return row.ordersPerHr;
     case 'transport':   return escapeHtml(row.transport);
@@ -1887,12 +1888,20 @@ function formatTableFootValue(data, key) {
       }
       return 'Электровело';
     }
-    case 'slotHours':   return `${sum('slotHours')} ч`;
+    case 'slotHours':   {
+      const totH = Math.round(sum('slotHours') * 10) / 10;
+      return `${totH} ч`;
+    }
     case 'ordersCount': return sum('ordersCount');
     case 'ordersPerHr': return (sum('ordersCount') / sum('slotHours')).toFixed(2);
     case 'surgePct':    return `+${avg('surgePct')}%`;
     case 'ratingPct':   return `+${avg('ratingPct')}%`;
-    case 'profitPerHr': return `${formatNum(avg('profitPerHr'))} ₽/ч`;
+    case 'profitPerHr': {
+      const totNet = sum('netProfit');
+      const totHrs = sum('slotHours');
+      const rate = totHrs > 0 ? Math.round(totNet / totHrs) : 0;
+      return `${formatNum(rate)} ₽/ч`;
+    }
     case 'netProfit':   return `<span class="text-emerald-400">${formatNum(sum('netProfit'))} ₽</span>`;
     case 'adjustments': return sum('adjustments') === 0 ? '0 ₽' : `<span class="text-rose-400">-${formatNum(Math.abs(sum('adjustments')))} ₽</span>`;
     case 'tax':
@@ -2119,6 +2128,29 @@ function renderBlock3(precomputedAllTimeProfitHr) {
     : Math.round(currentData.reduce((a, r) => a + r.slotHours, 0) / currentData.length);
   const periodTag = selectedRow ? selectedRow.date : 'период';
 
+  // Извлекаем заказы выбранного периода для динамического расчета 2-й колонки (Тотал)
+  let periodOrders = [];
+  if (state.usingUserData && state.userDatasets?.orders?.length) {
+    const allO = state.userDatasets.orders;
+    if (state.period === 'days') {
+      const selectedDate = selectedRow?.fullDate || (selectedRow?.date ? `2026-${selectedRow.date.split('.').reverse().join('-')}` : '');
+      periodOrders = allO.filter(o => o.date === selectedDate || o.displayDate === selectedRow?.date);
+    } else if (state.period === 'weeks') {
+      periodOrders = allO.filter(o => o.dateInfo.weekKey === selectedRow?.date);
+    } else if (state.period === 'months') {
+      periodOrders = allO.filter(o => o.dateInfo.monthKey === selectedRow?.date);
+    }
+  }
+  const periodM = periodOrders.length > 0 ? computeGroupOrderMetrics(periodOrders) : {
+    avgDist: '2.8 км',
+    avgDur: '19 мин',
+    avgWeight: '4.8 кг',
+    payPerKm: '134 ₽/км',
+    payPerKg: '78 ₽/кг',
+    waitPct: '28%',
+    avgWaitMin: '6.8 мин'
+  };
+
   const activeComparison = (state.usingUserData && state.userDatasets && state.userDatasets.comparisonDatasets)
     ? state.userDatasets.comparisonDatasets
     : comparisonDatasets;
@@ -2127,12 +2159,12 @@ function renderBlock3(precomputedAllTimeProfitHr) {
   const tbody = dom.compareTableBody;
   const tfoot = dom.compareTableFoot;
 
-  let headHtml = `<tr><th scope="col" class="py-2 px-3 font-bold text-[10px] leading-snug whitespace-normal sticky left-0 z-10 border-r min-w-[120px] max-w-[140px] bg-elevated border-strong">Показатель</th>`;
+  let headHtml = `<tr><th scope="col" class="py-1.5 px-2.5 font-bold text-[10px] leading-snug whitespace-normal sticky left-0 z-10 border-r min-w-[105px] max-w-[125px] bg-elevated border-strong">Показатель</th>`;
   ds.columns.forEach(colItem => {
     if (typeof colItem === 'object') {
       if (colItem.forecast) {
         headHtml += `
-          <th scope="col" class="py-2 px-3 font-bold text-[10px] leading-snug text-center whitespace-normal align-middle min-w-[90px] max-w-[130px]">
+          <th scope="col" class="py-1.5 px-2 font-bold text-[10px] leading-snug text-center whitespace-normal align-middle min-w-[65px] max-w-[95px]">
             <div class="inline-flex items-center justify-center gap-1 flex-wrap">
               <span>${escapeHtml(colItem.title)}</span>
               <button type="button" onclick="openForecastInfoModal()" title="Как рассчитывается прогноз" class="w-4 h-4 rounded-full bg-[#FCE000] text-[#141518] font-extrabold text-[9px] inline-flex items-center justify-center shadow hover:opacity-90 active:scale-95 transition">?</button>
@@ -2140,7 +2172,7 @@ function renderBlock3(precomputedAllTimeProfitHr) {
           </th>
         `;
       } else {
-        headHtml += `<th scope="col" class="py-2 px-3 font-bold text-[10px] leading-snug text-center whitespace-normal align-middle min-w-[90px] max-w-[130px]">${escapeHtml(colItem.title)}</th>`;
+        headHtml += `<th scope="col" class="py-1.5 px-2 font-bold text-[10px] leading-snug text-center whitespace-normal align-middle min-w-[65px] max-w-[95px]">${escapeHtml(colItem.title)}</th>`;
       }
     } else {
       let resolvedColName = colItem;
@@ -2149,7 +2181,7 @@ function renderBlock3(precomputedAllTimeProfitHr) {
       if (colItem === 'TOP_DIST_COL')       resolvedColName = `Топ-20% района (${periodTag})`;
       if (colItem === 'AVG_CITY_COL')       resolvedColName = `Ср. город (${periodTag})`;
       if (colItem === 'TOP_CITY_COL')       resolvedColName = `Топ-20% города (${periodTag})`;
-      headHtml += `<th scope="col" class="py-2 px-3 font-bold text-[10px] leading-snug text-center whitespace-normal align-middle min-w-[90px] max-w-[130px]">${escapeHtml(resolvedColName)}</th>`;
+      headHtml += `<th scope="col" class="py-1.5 px-2 font-bold text-[10px] leading-snug text-center whitespace-normal align-middle min-w-[65px] max-w-[95px]">${escapeHtml(resolvedColName)}</th>`;
     }
   });
   headHtml += `</tr>`;
@@ -2158,9 +2190,17 @@ function renderBlock3(precomputedAllTimeProfitHr) {
   let bodyHtml = '';
   ds.rowsPerOrder.forEach(row => {
     bodyHtml += `<tr class="hover:opacity-90">
-      <td class="py-2 px-3 font-medium text-[10px] leading-snug whitespace-normal sticky left-0 z-10 border-r min-w-[120px] max-w-[140px] bg-card border-strong text-sec">${escapeHtml(row.label)}</td>`;
+      <td class="py-1.5 px-2.5 font-medium text-[10px] leading-snug whitespace-normal sticky left-0 z-10 border-r min-w-[105px] max-w-[125px] bg-card border-strong text-sec">${escapeHtml(row.label)}</td>`;
     row.vals.forEach(v => {
-      bodyHtml += `<td class="py-2 px-3 text-[10px] text-center whitespace-nowrap">${escapeHtml(v)}</td>`;
+      let cellVal = v;
+      if (cellVal === 'DYNAMIC_DIST') cellVal = periodM.avgDist;
+      else if (cellVal === 'DYNAMIC_DUR') cellVal = periodM.avgDur;
+      else if (cellVal === 'DYNAMIC_WEIGHT') cellVal = periodM.avgWeight;
+      else if (cellVal === 'DYNAMIC_PAY_KM') cellVal = periodM.payPerKm;
+      else if (cellVal === 'DYNAMIC_PAY_KG') cellVal = periodM.payPerKg;
+      else if (cellVal === 'DYNAMIC_WAIT_PCT') cellVal = periodM.waitPct;
+      else if (cellVal === 'DYNAMIC_WAIT_MIN') cellVal = periodM.avgWaitMin;
+      bodyHtml += `<td class="py-1.5 px-2 text-[10px] text-center whitespace-nowrap min-w-[65px]">${escapeHtml(cellVal)}</td>`;
     });
     bodyHtml += `</tr>`;
   });
@@ -2169,7 +2209,7 @@ function renderBlock3(precomputedAllTimeProfitHr) {
   let footHtml = '';
   ds.rowsTotal.forEach(row => {
     footHtml += `<tr>
-      <td class="py-2 px-3 font-extrabold text-[10px] leading-snug whitespace-normal sticky left-0 z-10 border-r min-w-[120px] max-w-[140px] bg-elevated border-strong">${escapeHtml(row.label)}</td>`;
+      <td class="py-1.5 px-2.5 font-extrabold text-[10px] leading-snug whitespace-normal sticky left-0 z-10 border-r min-w-[105px] max-w-[125px] bg-elevated border-strong">${escapeHtml(row.label)}</td>`;
     row.vals.forEach(v => {
       let cellVal = v.trim();
       if (cellVal === 'DYNAMIC') cellVal = `${formatNum(userPeriodProfitHr)} ₽/ч`;
@@ -2208,7 +2248,7 @@ function renderBlock3(precomputedAllTimeProfitHr) {
         const val = getTransportProfitPerHourForComparison(tKey, userHoursInSelectedPeriod, currentData);
         cellVal = `${formatNum(val)} ₽/ч`;
       }
-      footHtml += `<td class="py-2 px-3 text-[10px] text-center font-extrabold whitespace-nowrap">${cellVal}</td>`;
+      footHtml += `<td class="py-1.5 px-2 text-[10px] text-center font-extrabold whitespace-nowrap min-w-[65px]">${cellVal}</td>`;
     });
     footHtml += `</tr>`;
   });
@@ -2537,12 +2577,12 @@ function selectBar(idx) {
     prevStack.classList.add('opacity-90');
   }
   if (prevVal) {
-    prevVal.classList.remove('opacity-100');
-    prevVal.classList.add('opacity-70');
+    prevVal.classList.remove('opacity-100', 'font-black', 'text-main', 'text-[10px]');
+    prevVal.classList.add('opacity-70', 'font-bold', 'text-[9px]');
   }
   if (prevDate) {
-    prevDate.classList.remove('underline', 'font-extrabold');
-    prevDate.classList.add('opacity-65');
+    prevDate.classList.remove('opacity-100', 'font-black', 'text-main', 'text-[10px]');
+    prevDate.classList.add('opacity-70', 'font-semibold', 'text-[9px]');
   }
 
   const newStack = $(`barStack-${idx}`);
@@ -2554,12 +2594,12 @@ function selectBar(idx) {
     newStack.classList.remove('opacity-90');
   }
   if (newVal) {
-    newVal.classList.add('opacity-100');
-    newVal.classList.remove('opacity-70');
+    newVal.classList.remove('opacity-70', 'font-bold', 'text-[9px]');
+    newVal.classList.add('opacity-100', 'font-black', 'text-main', 'text-[10px]');
   }
   if (newDate) {
-    newDate.classList.add('underline', 'font-extrabold');
-    newDate.classList.remove('opacity-65');
+    newDate.classList.remove('opacity-70', 'font-semibold', 'text-[9px]');
+    newDate.classList.add('opacity-100', 'font-black', 'text-main', 'text-[10px]');
   }
 
   const data = getCurrentDataset();
