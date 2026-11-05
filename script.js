@@ -1,5 +1,5 @@
 // =============================================================================
-// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.10.1) — ЛОГИКА И СОСТОЯНИЕ (script.js)
+// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.11.0) — ЛОГИКА И СОСТОЯНИЕ (script.js)
 // Оптимизированная и модульная версия с гранулярным рендерингом и кэшированием
 // =============================================================================
 
@@ -244,6 +244,7 @@ const baseHeatmapMatrix = [
 ];
 
 const shortDayNames = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+const fullDayNames = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
 
 const comparisonDatasets = {
   transport: {
@@ -317,6 +318,7 @@ const state = {
 
   accountTransport: 'ebike',
   includeGoals: true,
+  weekStartDay: 0, // 0=Пн .. 6=Вс
   selectedPreset: 'ebike',
   expensesByTransport: cloneExpenses(),
   get expenses() {
@@ -468,6 +470,78 @@ function parseDateInfo(val) {
   const weekKey = `Нед ${weekNum}`;
 
   return { isoDate, displayDate, fullDisplayDate, dayOfWeek, dowIdx, monthKey, weekKey, year: y, seasonKey, dateObj: d };
+}
+
+const monthDaysLookup = {
+  'январь': 31, 'февраль': 28, 'март': 31, 'апрель': 30, 'май': 31, 'июнь': 30,
+  'июль': 31, 'август': 31, 'сентябрь': 30, 'октябрь': 31, 'ноябрь': 30, 'декабрь': 31
+};
+
+function getDaysInMonthFromRow(rawRow) {
+  if (!rawRow) return 30;
+  const year = rawRow.year || (rawRow.fullDisplayDate && parseInt(String(rawRow.fullDisplayDate).match(/\d{4}/)?.[0], 10)) || 2026;
+  const isLeapYear = (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
+
+  const str = String(rawRow.date || rawRow.monthKey || '').toLowerCase().trim();
+  for (const [mName, days] of Object.entries(monthDaysLookup)) {
+    if (str.includes(mName)) {
+      if (mName === 'февраль') return isLeapYear ? 29 : 28;
+      return days;
+    }
+  }
+  if (rawRow.fullDate) {
+    const d = new Date(rawRow.fullDate);
+    if (!isNaN(d.getTime())) {
+      return new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    }
+  }
+  return 30;
+}
+
+function getDayDateObj(r) {
+  if (!r) return new Date();
+  if (r.fullDate) {
+    const p = parseDateInfo(r.fullDate);
+    return p.dateObj;
+  }
+  if (r.date && typeof r.date === 'string' && r.date.includes('.')) {
+    const parts = r.date.split('.');
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const year = r.year || 2026;
+    return new Date(year, month, day, 12, 0, 0);
+  }
+  return new Date();
+}
+
+function getWeekCycleInfo(dateInput, weekStartDay = 0) {
+  const d = dateInput instanceof Date ? new Date(dateInput.getTime()) : new Date(dateInput);
+  if (isNaN(d.getTime())) return null;
+  const jsDay = d.getDay();
+  const dowIdx = jsDay === 0 ? 6 : jsDay - 1; // 0=Пн .. 6=Вс
+  const offset = (dowIdx - weekStartDay + 7) % 7;
+  const cycleStart = new Date(d.getFullYear(), d.getMonth(), d.getDate() - offset, 12, 0, 0);
+  const cycleEnd = new Date(cycleStart.getFullYear(), cycleStart.getMonth(), cycleStart.getDate() + 6, 12, 0, 0);
+
+  const pad = n => String(n).padStart(2, '0');
+  const cycleKey = `${cycleStart.getFullYear()}-${pad(cycleStart.getMonth() + 1)}-${pad(cycleStart.getDate())}`;
+  const startDisp = `${pad(cycleStart.getDate())}.${pad(cycleStart.getMonth() + 1)}`;
+  const endDisp = `${pad(cycleEnd.getDate())}.${pad(cycleEnd.getMonth() + 1)}`;
+  const startDayName = shortDayNames[weekStartDay] || 'Пн';
+  const endDayName = shortDayNames[(weekStartDay + 6) % 7] || 'Вс';
+
+  return {
+    cycleStart,
+    cycleEnd,
+    cycleKey,
+    startDisp,
+    endDisp,
+    label: `${startDisp}–${endDisp}`,
+    fullLabel: `${startDisp}–${endDisp} (${cycleStart.getFullYear()})`,
+    dayRangeLabel: `${startDayName}–${endDayName}`,
+    offset,
+    dowIdx
+  };
 }
 
 /**
@@ -1142,16 +1216,19 @@ function buildDatasetsFromOrders(orders) {
   // Сезоны, реально представленные в данных пользователя
   const availableSeasons = Array.from(new Set(days.map(d => d.seasonKey)));
 
-  // Группировка по неделям
+  // Группировка по неделям с учетом выбранного дня старта недели
   const weeksMap = new Map();
   days.forEach(d => {
-    const wk = d.weekKey;
-    if (!weeksMap.has(wk)) weeksMap.set(wk, []);
-    weeksMap.get(wk).push(d);
+    const cycle = getWeekCycleInfo(getDayDateObj(d), state.weekStartDay);
+    const wkKey = cycle ? cycle.cycleKey : d.weekKey;
+    if (!weeksMap.has(wkKey)) {
+      weeksMap.set(wkKey, { cycle, days: [] });
+    }
+    weeksMap.get(wkKey).days.push(d);
   });
 
   const weeks = [];
-  weeksMap.forEach((wDays, wk) => {
+  weeksMap.forEach(({ cycle, days: wDays }, wkKey) => {
     const slotHours = Math.round(wDays.reduce((a, d) => a + d.slotHours, 0) * 10) / 10;
     const ordersCount = wDays.reduce((a, d) => a + d.ordersCount, 0);
     const ordersCost = wDays.reduce((a, d) => a + d.ordersCost, 0);
@@ -1166,11 +1243,14 @@ function buildDatasetsFromOrders(orders) {
 
     const distinctTransports = Array.from(new Set(wDays.flatMap(d => d.distinctTransports)));
     const transportSummary = distinctTransports.join(' + ');
+    const wkDisplay = cycle ? cycle.label : (wDays[0].weekKey || 'Неделя');
+    const dowDisplay = cycle ? cycle.dayRangeLabel : 'Пн–Вс';
 
     weeks.push({
-      date: wk,
-      fullDisplayDate: `${wk} (${wDays[0].year || 2026})`,
-      dayOfWeek: 'Пн–Вс',
+      date: wkDisplay,
+      weekCycleKey: wkKey,
+      fullDisplayDate: `${wkDisplay} (${wDays[0].year || 2026})`,
+      dayOfWeek: dowDisplay,
       slotHours,
       ordersCount,
       transport: wDays[0].transport,
@@ -1186,7 +1266,8 @@ function buildDatasetsFromOrders(orders) {
       goals,
       tips: 0,
       userSlotExpenses,
-      adjustments
+      adjustments,
+      year: wDays[0].year || 2026
     });
   });
 
@@ -1217,6 +1298,7 @@ function buildDatasetsFromOrders(orders) {
 
     months.push({
       date: mk,
+      monthKey: mk,
       fullDisplayDate: `${mk} ${mDays[0].year || 2026}`,
       dayOfWeek: 'Месяц',
       slotHours,
@@ -1234,7 +1316,9 @@ function buildDatasetsFromOrders(orders) {
       goals,
       tips: 0,
       userSlotExpenses,
-      adjustments
+      adjustments,
+      year: mDays[0].year || 2026,
+      daysCount: mDays.length
     });
   });
 
@@ -1455,9 +1539,15 @@ function toggleLayoutMode() {
 // 4. МАТЕМАТИКА И ВЫЧИСЛЕНИЯ
 // -----------------------------------------------------------------------------
 
-function getPeriodExpenseFactor(periodKey) {
-  if (periodKey === 'days') return 1 / 6;
-  if (periodKey === 'months') return 4.2;
+function getPeriodExpenseFactor(periodKey, rawRow = null) {
+  if (periodKey === 'days') return 1 / 7;
+  if (periodKey === 'months') {
+    if (rawRow) {
+      const days = getDaysInMonthFromRow(rawRow);
+      return days / 7;
+    }
+    return 30.4167 / 7;
+  }
   return 1;
 }
 
@@ -1468,18 +1558,46 @@ function getWeeklyExpenseForTransport(transportKey) {
 
 const getTotalWeeklyExpenses = () => getWeeklyExpenseForTransport(state.selectedPreset);
 
-function enrichRow(rawRow, periodKey) {
+function enrichRow(rawRow, periodKey, dayMeta = null) {
   const goalsVal = state.includeGoals ? rawRow.goals : 0;
   const grossTotal = rawRow.ordersCost + rawRow.surgeRub + rawRow.ratingRub + rawRow.bonuses + goalsVal + rawRow.tips;
   const tax = Math.round(grossTotal * 0.06);
 
-  const factor = getPeriodExpenseFactor(periodKey);
-  const slotTransportKey = rawRow.transportKey || 'ebike';
+  const slotTransportKey = rawRow.transportKey || state.selectedPreset || 'ebike';
   const slotExpensesList = state.expensesByTransport[slotTransportKey] || [];
-  const itemizedExpenses = slotExpensesList.map(e => ({
-    name: e.name,
-    amount: Math.round(Number(e.value || 0) * factor)
-  }));
+
+  let itemizedExpenses = [];
+  if (periodKey === 'days') {
+    // 7-дневный цикл списания: 1/7 в обычные дни и остаток на последний отработанный день недели
+    itemizedExpenses = slotExpensesList.map(e => {
+      const val = Number(e.value || 0);
+      const baseDailyRate = Math.round(val / 7);
+      let amount = baseDailyRate;
+      if (dayMeta && dayMeta.isLastWorkedDay) {
+        const priorDays = Math.max(0, (dayMeta.totalWorkedDaysInCycle || 1) - 1);
+        amount = Math.max(0, val - priorDays * baseDailyRate);
+      }
+      return {
+        name: e.name,
+        amount
+      };
+    });
+  } else if (periodKey === 'months') {
+    // Плавающий коэффициент месяца: точное количество дней в месяце / 7
+    const daysInMonth = getDaysInMonthFromRow(rawRow);
+    const monthFactor = daysInMonth / 7;
+    itemizedExpenses = slotExpensesList.map(e => ({
+      name: e.name,
+      amount: Math.round(Number(e.value || 0) * monthFactor)
+    }));
+  } else {
+    // Недели: недельный расход в полном объеме (коэффициент 1.0)
+    itemizedExpenses = slotExpensesList.map(e => ({
+      name: e.name,
+      amount: Math.round(Number(e.value || 0))
+    }));
+  }
+
   const baseExpense = itemizedExpenses.reduce((a, b) => a + b.amount, 0);
   const userExpense = Math.round(Number(rawRow.userSlotExpenses || 0));
   if (userExpense > 0) {
@@ -1496,8 +1614,16 @@ function enrichRow(rawRow, periodKey) {
   const profitPerHr = Math.round(netProfit / rawRow.slotHours);
   const grossPerHr = Math.round(grossTotal / rawRow.slotHours);
 
+  let dayOfWeek = rawRow.dayOfWeek;
+  if (periodKey === 'weeks') {
+    const sName = shortDayNames[state.weekStartDay] || 'Пн';
+    const eName = shortDayNames[(state.weekStartDay + 6) % 7] || 'Вс';
+    dayOfWeek = `${sName}–${eName}`;
+  }
+
   return {
     ...rawRow,
+    dayOfWeek,
     adjustments: penaltyAdjustments,
     goals: goalsVal,
     grossTotal,
@@ -1511,14 +1637,54 @@ function enrichRow(rawRow, periodKey) {
   };
 }
 
+function enrichDailyDataset(dayRows) {
+  if (!dayRows || dayRows.length === 0) return [];
+
+  // Группировка дней по 7-дневным недельным циклам от выбранного state.weekStartDay
+  const cycleMap = new Map();
+  dayRows.forEach((row, idx) => {
+    const dObj = getDayDateObj(row);
+    const cycle = getWeekCycleInfo(dObj, state.weekStartDay);
+    const key = cycle ? cycle.cycleKey : 'default';
+    if (!cycleMap.has(key)) {
+      cycleMap.set(key, []);
+    }
+    cycleMap.get(key).push({ row, idx, dateMs: dObj.getTime() });
+  });
+
+  const metaByIndex = new Map();
+  cycleMap.forEach((items) => {
+    items.sort((a, b) => a.dateMs - b.dateMs);
+    const totalDaysInCycle = items.length;
+    items.forEach((item, pos) => {
+      const isLastWorkedDay = (pos === totalDaysInCycle - 1);
+      metaByIndex.set(item.idx, {
+        isLastWorkedDay,
+        dayPosition: pos + 1,
+        totalWorkedDaysInCycle: totalDaysInCycle
+      });
+    });
+  });
+
+  return dayRows.map((rawRow, idx) => {
+    const meta = metaByIndex.get(idx) || { isLastWorkedDay: true, dayPosition: 1, totalWorkedDaysInCycle: 1 };
+    return enrichRow(rawRow, 'days', meta);
+  });
+}
+
 function getCurrentDataset() {
-  const cacheKey = `${state.period}_${state.includeGoals}_${state.usingUserData ? 'user' : 'demo'}`;
+  const cacheKey = `${state.period}_${state.includeGoals}_${state.usingUserData ? 'user' : 'demo'}_ws${state.weekStartDay}`;
   if (dataCache.enriched.has(cacheKey)) {
     return dataCache.enriched.get(cacheKey);
   }
   const sourceDatasets = (state.usingUserData && state.userDatasets) ? state.userDatasets : rawDatasets;
   const list = sourceDatasets[state.period] || sourceDatasets.days || [];
-  const enriched = list.map(r => enrichRow(r, state.period));
+  let enriched = [];
+  if (state.period === 'days') {
+    enriched = enrichDailyDataset(list);
+  } else {
+    enriched = list.map(r => enrichRow(r, state.period));
+  }
   dataCache.enriched.set(cacheKey, enriched);
   return enriched;
 }
@@ -1533,7 +1699,7 @@ function getAllTimeHourlyProfit() {
     return dataCache.allTimeProfit;
   }
   const sourceDatasets = rawDatasets;
-  const periodRows = (sourceDatasets.days || []).map(r => enrichRow(r, 'days'));
+  const periodRows = enrichDailyDataset(sourceDatasets.days || []);
   const totalNet = periodRows.reduce((a, r) => a + r.netProfit, 0);
   const totalHrs = periodRows.reduce((a, r) => a + r.slotHours, 0);
   dataCache.allTimeProfit = totalHrs > 0 ? Math.round(totalNet / totalHrs) : 0;
@@ -1846,25 +2012,44 @@ function renderSelectedBarDetails(sel) {
 }
 
 /**
- * Определение цвета условного форматирования для показателя «Прибыль в час»
- * Цветовая шкала: глубокий зеленый (топ) -> бирюзовый -> янтарь -> мягкий красный (низкий)
+ * Непрерывное/плавное условное форматирование показателя «Прибыль в час» (3-Color Scale, как в Excel)
+ * Light mode: min (красный #DC2626) -> mid (теплый янтарь #D97706) -> max (свежий зеленый #168A38)
+ * Dark mode:  min (коралл #FB7185)  -> mid (золото #FBBF24)        -> max (мягкий зеленый #4ADE80)
  */
 function getProfitPerHourColor(val, minVal, maxVal, isLightMode) {
-  if (maxVal <= minVal || val == null) {
+  if (maxVal <= minVal || val == null || isNaN(val)) {
     return isLightMode ? '#18191C' : '#F5F6F8';
   }
-  const ratio = (val - minVal) / (maxVal - minVal);
-  if (isLightMode) {
-    if (ratio >= 0.75) return '#047857'; // насыщенный изумрудный (высокий)
-    if (ratio >= 0.50) return '#0D9488'; // приятный бирюзово-зеленый (выше среднего)
-    if (ratio >= 0.25) return '#D97706'; // мягкий теплый янтарь (ниже среднего)
-    return '#DC2626';                   // мягкий красный (низкий)
+  const t = Math.max(0, Math.min(1, (val - minVal) / (maxVal - minVal)));
+
+  const lightColors = {
+    min: [220, 38, 38],   // #DC2626
+    mid: [217, 119, 6],   // #D97706
+    max: [22, 138, 56]    // #168A38
+  };
+
+  const darkColors = {
+    min: [251, 113, 133], // #FB7185
+    mid: [251, 191, 36],  // #FBBF24
+    max: [74, 222, 128]   // #4ADE80
+  };
+
+  const c = isLightMode ? lightColors : darkColors;
+  let r, g, b;
+
+  if (t <= 0.5) {
+    const p = t / 0.5;
+    r = Math.round(c.min[0] + p * (c.mid[0] - c.min[0]));
+    g = Math.round(c.min[1] + p * (c.mid[1] - c.min[1]));
+    b = Math.round(c.min[2] + p * (c.mid[2] - c.min[2]));
   } else {
-    if (ratio >= 0.75) return '#34D399'; // яркий мятно-изумрудный
-    if (ratio >= 0.50) return '#2DD4BF'; // чистый бирюзовый
-    if (ratio >= 0.25) return '#FBBF24'; // мягкий янтарно-желтый
-    return '#FB7185';                   // мягкий кораллово-розовый
+    const p = (t - 0.5) / 0.5;
+    r = Math.round(c.mid[0] + p * (c.max[0] - c.mid[0]));
+    g = Math.round(c.mid[1] + p * (c.max[1] - c.mid[1]));
+    b = Math.round(c.mid[2] + p * (c.max[2] - c.mid[2]));
   }
+
+  return `rgb(${r}, ${g}, ${b})`;
 }
 
 function renderDetailedTable(data) {
@@ -2365,9 +2550,50 @@ function renderBlock3(precomputedAllTimeProfitHr) {
   tfoot.innerHTML = footHtml;
 }
 
+function updateWeekStartDayUI() {
+  const curIdx = state.weekStartDay ?? 0;
+  const lbl = $('lblCurrentWeekStart');
+  if (lbl) {
+    lbl.textContent = fullDayNames[curIdx] || 'Понедельник';
+  }
+  for (let i = 0; i < 7; i++) {
+    const btn = $(`btnWeekStart-${i}`);
+    if (btn) {
+      if (i === curIdx) {
+        btn.classList.add('ya-seg-btn-active');
+      } else {
+        btn.classList.remove('ya-seg-btn-active');
+      }
+    }
+  }
+}
+
+function setWeekStartDay(dayIdx) {
+  const parsed = parseInt(dayIdx, 10);
+  if (isNaN(parsed) || parsed < 0 || parsed > 6) return;
+  state.weekStartDay = parsed;
+  try {
+    localStorage.setItem('courier_week_start_day', String(parsed));
+  } catch (e) {}
+
+  if (state.usingUserData && state.userDataOrders) {
+    state.userDatasets = buildDatasetsFromOrders(state.userDataOrders);
+  }
+  dataCache.invalidate();
+  updateWeekStartDayUI();
+  renderHeader();
+  renderBlock1();
+  renderBlock2();
+  renderBlock3();
+  renderSettingsScreen(false);
+  const dayName = fullDayNames[parsed] || 'Понедельник';
+  showToast(`Старт недели: ${dayName}`);
+}
+
 // Экран настроек
 function renderSettingsScreen(skipSlidersRebuild = false) {
   dom.chkIncludeGoals.checked = state.includeGoals;
+  updateWeekStartDayUI();
 
   ['walk', 'bike', 'ebike', 'car'].forEach(t => {
     const btn = $(`presetBtn-${t}`);
@@ -3088,12 +3314,24 @@ Object.assign(window, {
   updateExpenseSlider,
   stepExpense,
   deleteExpenseItem,
-  toggleTableColumn
+  toggleTableColumn,
+  setWeekStartDay
 });
 
 // -----------------------------------------------------------------------------
 // 11. ПЕРВИЧНЫЙ ЗАПУСК
 // -----------------------------------------------------------------------------
 
+try {
+  const savedWs = localStorage.getItem('courier_week_start_day');
+  if (savedWs !== null) {
+    const parsedWs = parseInt(savedWs, 10);
+    if (!isNaN(parsedWs) && parsedWs >= 0 && parsedWs <= 6) {
+      state.weekStartDay = parsedWs;
+    }
+  }
+} catch (e) {}
+
 setupColumnDragDelegation();
+updateWeekStartDayUI();
 renderAll();
