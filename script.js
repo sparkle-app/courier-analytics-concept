@@ -1,5 +1,5 @@
 // =============================================================================
-// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.9.6) — ЛОГИКА И СОСТОЯНИЕ (script.js)
+// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.10.0) — ЛОГИКА И СОСТОЯНИЕ (script.js)
 // Оптимизированная и модульная версия с гранулярным рендерингом и кэшированием
 // =============================================================================
 
@@ -1845,16 +1845,49 @@ function renderSelectedBarDetails(sel) {
   `;
 }
 
+/**
+ * Определение цвета условного форматирования для показателя «Прибыль в час»
+ * Цветовая шкала: глубокий зеленый (топ) -> бирюзовый -> янтарь -> мягкий красный (низкий)
+ */
+function getProfitPerHourColor(val, minVal, maxVal, isLightMode) {
+  if (maxVal <= minVal || val == null) {
+    return isLightMode ? '#18191C' : '#F5F6F8';
+  }
+  const ratio = (val - minVal) / (maxVal - minVal);
+  if (isLightMode) {
+    if (ratio >= 0.75) return '#047857'; // насыщенный изумрудный (высокий)
+    if (ratio >= 0.50) return '#0D9488'; // приятный бирюзово-зеленый (выше среднего)
+    if (ratio >= 0.25) return '#D97706'; // мягкий теплый янтарь (ниже среднего)
+    return '#DC2626';                   // мягкий красный (низкий)
+  } else {
+    if (ratio >= 0.75) return '#34D399'; // яркий мятно-изумрудный
+    if (ratio >= 0.50) return '#2DD4BF'; // чистый бирюзовый
+    if (ratio >= 0.25) return '#FBBF24'; // мягкий янтарно-желтый
+    return '#FB7185';                   // мягкий кораллово-розовый
+  }
+}
+
 function renderDetailedTable(data) {
   const enabledCols = state.tableColumns.filter(c => c.enabled);
   const thead = dom.detailedTableHead;
   const tbody = dom.detailedTableBody;
   const tfoot = dom.detailedTableFoot;
 
+  const profitHrVals = data.map(r => Number(r.profitPerHr || 0));
+  const minProfitHr = profitHrVals.length > 0 ? Math.min(...profitHrVals) : 0;
+  const maxProfitHr = profitHrVals.length > 0 ? Math.max(...profitHrVals) : 0;
+
+  const getColHighlightClass = (colKey) => {
+    if (colKey === 'netProfit') return 'table-col-net';
+    if (colKey === 'grossTotal') return 'table-col-gross';
+    return '';
+  };
+
   let headHtml = '<tr>';
   enabledCols.forEach((col, i) => {
     const stickyCls = i === 0 ? 'sticky left-0 z-10 border-r min-w-[70px] border-strong bg-elevated' : 'min-w-[72px] max-w-[90px]';
-    headHtml += `<th scope="col" class="py-1.5 px-1 font-bold text-[9.5px] leading-snug whitespace-normal align-middle ${stickyCls}">${escapeHtml(col.label)}</th>`;
+    const highlightCls = getColHighlightClass(col.key);
+    headHtml += `<th scope="col" class="py-1.5 px-1 font-bold text-[9.5px] leading-snug whitespace-normal align-middle ${stickyCls} ${highlightCls}">${escapeHtml(col.label)}</th>`;
   });
   headHtml += '</tr>';
   thead.innerHTML = headHtml;
@@ -1864,7 +1897,8 @@ function renderDetailedTable(data) {
     bodyHtml += '<tr class="hover:opacity-90 transition">';
     enabledCols.forEach((col, i) => {
       const stickyCls = i === 0 ? 'sticky left-0 font-bold z-10 border-r bg-card border-strong' : '';
-      bodyHtml += `<td class="py-1.5 px-1 text-[10px] whitespace-nowrap ${stickyCls}">${formatTableCellValue(row, col.key)}</td>`;
+      const highlightCls = getColHighlightClass(col.key);
+      bodyHtml += `<td class="py-1.5 px-1 text-[10px] whitespace-nowrap ${stickyCls} ${highlightCls}">${formatTableCellValue(row, col.key, minProfitHr, maxProfitHr)}</td>`;
     });
     bodyHtml += '</tr>';
   });
@@ -1873,7 +1907,8 @@ function renderDetailedTable(data) {
   let footHtml = '<tr>';
   enabledCols.forEach((col, i) => {
     const stickyCls = i === 0 ? 'sticky left-0 z-10 border-r bg-elevated border-strong' : '';
-    footHtml += `<td class="py-1.5 px-1 text-[10px] whitespace-nowrap ${stickyCls}">${i === 0 ? 'ИТОГО / СР.' : formatTableFootValue(data, col.key)}</td>`;
+    const highlightCls = getColHighlightClass(col.key);
+    footHtml += `<td class="py-1.5 px-1 text-[10px] whitespace-nowrap ${stickyCls} ${highlightCls}">${i === 0 ? 'ИТОГО / СР.' : formatTableFootValue(data, col.key)}</td>`;
   });
   footHtml += '</tr>';
   tfoot.innerHTML = footHtml;
@@ -1884,7 +1919,7 @@ function renderDetailedTable(data) {
   }
 }
 
-function formatTableCellValue(row, key) {
+function formatTableCellValue(row, key, minProfitHr, maxProfitHr) {
   switch (key) {
     case 'date': {
       if (row.fullDisplayDate) return escapeHtml(row.fullDisplayDate);
@@ -1907,8 +1942,11 @@ function formatTableCellValue(row, key) {
     case 'tax':
     case 'expenses':    return `<span class="text-rose-400">-${formatNum(row[key])} ₽</span>`;
     case 'adjustments': return row.adjustments === 0 ? '0 ₽' : `<span class="text-rose-400">-${formatNum(Math.abs(row.adjustments))} ₽</span>`;
-    case 'netProfit':   return `<span class="font-extrabold text-emerald-400">${formatNum(row.netProfit)} ₽</span>`;
-    case 'profitPerHr': return `<span class="font-extrabold">${formatNum(row.profitPerHr)} ₽/ч</span>`;
+    case 'netProfit':   return `<span class="font-extrabold text-[#18191C] dark:text-[#F5F6F8]">${formatNum(row.netProfit)} ₽</span>`;
+    case 'profitPerHr': {
+      const colColor = getProfitPerHourColor(row.profitPerHr, minProfitHr, maxProfitHr, state.lightMode);
+      return `<span class="font-extrabold" style="color: ${colColor};">${formatNum(row.profitPerHr)} ₽/ч</span>`;
+    }
     case 'ordersCost':
     case 'surgeRub':
     case 'ratingRub':
@@ -1948,7 +1986,7 @@ function formatTableFootValue(data, key) {
       const rate = totHrs > 0 ? Math.round(totNet / totHrs) : 0;
       return `${formatNum(rate)} ₽/ч`;
     }
-    case 'netProfit':   return `<span class="text-emerald-400">${formatNum(sum('netProfit'))} ₽</span>`;
+    case 'netProfit':   return `<span class="font-extrabold text-[#18191C] dark:text-[#F5F6F8]">${formatNum(sum('netProfit'))} ₽</span>`;
     case 'adjustments': return sum('adjustments') === 0 ? '0 ₽' : `<span class="text-rose-400">-${formatNum(Math.abs(sum('adjustments')))} ₽</span>`;
     case 'tax':
     case 'expenses':    return `<span class="text-rose-400">-${formatNum(sum(key))} ₽</span>`;

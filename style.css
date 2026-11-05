@@ -273,6 +273,29 @@ button:focus-visible, input:focus-visible {
 .bg-elevated { background-color: var(--bg-elevated); }
 .bg-card { background-color: var(--bg-card); }
 
+/* Import button text color */
+#btnImportData {
+  color: #18191C !important;
+}
+body:not(.light-mode) #btnImportData {
+  color: #F5F6F8 !important;
+}
+
+/* Detailed table column tint highlights */
+.table-col-net {
+  background-color: rgba(16, 185, 129, 0.09) !important;
+}
+body.light-mode .table-col-net {
+  background-color: rgba(16, 185, 129, 0.12) !important;
+}
+
+.table-col-gross {
+  background-color: rgba(59, 130, 246, 0.08) !important;
+}
+body.light-mode .table-col-gross {
+  background-color: rgba(59, 130, 246, 0.10) !important;
+}
+
 /* ------------------------------------------------------------------------- */
 /* РЕЖИМ ОТОБРАЖЕНИЯ ПК (ДЕСКТОП)                                            */
 /* ------------------------------------------------------------------------- */
@@ -298,6 +321,46 @@ body.desktop-mode #screenSettings {
   width: 100% !important;
 }
 
+/* Панель управления Блоком 1 в десктопном режиме: в один ряд, период слева */
+body.desktop-mode #block1ControlsWrapper {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  gap: 0.65rem !important;
+  width: auto !important;
+}
+
+body.desktop-mode #block1PeriodButtons {
+  order: 1 !important;
+  width: auto !important;
+  min-width: 210px !important;
+  display: flex !important;
+}
+
+body.desktop-mode #block1PeriodButtons .ya-seg-btn {
+  padding-left: 0.85rem !important;
+  padding-right: 0.85rem !important;
+}
+
+body.desktop-mode #block1SwitchCards {
+  order: 2 !important;
+  width: auto !important;
+  display: flex !important;
+  flex-direction: row !important;
+  gap: 0.5rem !important;
+}
+
+body.desktop-mode #block1SwitchCards .ya-switch-card {
+  width: 118px !important;
+}
+
+body.desktop-mode #block1SwitchCards button.ya-card {
+  width: 88px !important;
+  padding-top: 4px !important;
+  padding-bottom: 4px !important;
+}
+
 .desktop-grid-split {
   display: flex;
   flex-direction: column;
@@ -306,21 +369,32 @@ body.desktop-mode #screenSettings {
 
 body.desktop-mode .desktop-grid-split {
   display: grid !important;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+  grid-template-columns: minmax(0, 1fr) minmax(max-content, 35%) !important;
   grid-template-areas:
     "block1 block1"
-    "block2 block3" !important;
+    "block3 block2" !important;
   gap: 1.25rem !important;
   align-items: start !important;
 }
 
-@media (max-width: 860px) {
+body.desktop-mode .area-block2 {
+  min-width: max-content !important;
+}
+
+body.desktop-mode .area-block2 table {
+  min-width: 380px !important;
+}
+
+@media (max-width: 900px) {
   body.desktop-mode .desktop-grid-split {
     grid-template-columns: 1fr !important;
     grid-template-areas:
       "block1"
-      "block2"
-      "block3" !important;
+      "block3"
+      "block2" !important;
+  }
+  body.desktop-mode .area-block2 {
+    min-width: 0 !important;
   }
 }
 
