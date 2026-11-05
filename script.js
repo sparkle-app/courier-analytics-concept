@@ -1,5 +1,5 @@
 // =============================================================================
-// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.12.2) — ЛОГИКА И СОСТОЯНИЕ (script.js)
+// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.13.0) — ЛОГИКА И СОСТОЯНИЕ (script.js)
 // Оптимизированная и модульная версия с гранулярным рендерингом и кэшированием
 // =============================================================================
 
@@ -76,6 +76,8 @@ const dom = {
   forecastInfoModal:        $('forecastInfoModal'),
   toastBox:                 $('toastBox'),
   toastText:                $('toastText'),
+  fileLoadingOverlay:       $('fileLoadingOverlay'),
+  fileLoadingText:          $('fileLoadingText'),
   btnColorTheme:            $('btnColorTheme'),
   btnLayoutMode:            $('btnLayoutMode'),
   lblLayoutMode:            $('lblLayoutMode'),
@@ -105,16 +107,24 @@ function escapeHtml(str) {
 
 /**
  * Форматирование чисел с разделением тысяч пробелом (15 240)
+ * Надежная защита от NaN, Infinity, -0 и некорректных типов данных
  */
 function formatNum(n) {
-  return Math.round(Number(n || 0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  const val = Number(n);
+  if (!Number.isFinite(val)) return '0';
+  const rounded = Math.round(val);
+  const sign = Object.is(rounded, -0) || rounded < 0 ? '-' : '';
+  const absStr = Math.abs(rounded).toString();
+  return sign + absStr.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 }
 
 /**
  * Компактный формат для диаграмм (14.2к / 500 / -12.5к)
+ * Надежная защита от NaN, Infinity и краевых значений
  */
 function formatCompact(n) {
-  const num = Number(n || 0);
+  const num = Number(n);
+  if (!Number.isFinite(num)) return '0';
   const abs = Math.abs(num);
   const sign = num < 0 ? '-' : '';
   if (abs >= 10000) {
@@ -514,7 +524,8 @@ function parseDateInfo(val) {
     }
   }
 
-  if (!d || isNaN(d.getTime())) {
+  const isValidDate = Boolean(d && !isNaN(d.getTime()));
+  if (!isValidDate) {
     d = new Date();
   }
 
@@ -548,7 +559,7 @@ function parseDateInfo(val) {
   const weekNum = 1 + Math.ceil((firstThursday - target) / 604800000);
   const weekKey = `Нед ${weekNum}`;
 
-  return { isoDate, displayDate, fullDisplayDate, dayOfWeek, dowIdx, monthKey, weekKey, year: y, seasonKey, dateObj: d };
+  return { isoDate, displayDate, fullDisplayDate, dayOfWeek, dowIdx, monthKey, weekKey, year: y, seasonKey, dateObj: d, isValidDate };
 }
 
 const monthDaysLookup = {
@@ -648,7 +659,9 @@ function parseNum(val) {
  * Парсер CSV-текста с автоопределением разделителя и кавычек
  */
 function parseCSVText(text) {
-  const firstLine = text.split(/\r\n|\n|\r/)[0] || '';
+  if (!text || typeof text !== 'string') return [];
+  const firstNewlineIdx = text.search(/[\r\n]/);
+  const firstLine = firstNewlineIdx !== -1 ? text.substring(0, firstNewlineIdx) : text;
   let delimiter = ';';
   const commaCount = (firstLine.match(/,/g) || []).length;
   const semiCount = (firstLine.match(/;/g) || []).length;
@@ -736,6 +749,7 @@ function parseOrdersFromRows(rawRows) {
     if (r[colDate] == null && r[colStart] == null && r[colCost] == null) return;
 
     const dateInfo = parseDateInfo(r[colDate]);
+    if (!dateInfo.isValidDate) return;
     const startSecs = parseTimeSecs(r[colStart]);
     const endSecs = parseTimeSecs(r[colEnd]);
 
@@ -1617,41 +1631,74 @@ function handleUserDataFileUpload(event) {
   const file = event.target.files && event.target.files[0];
   if (!file) return;
 
+  const MAX_FILE_SIZE = 25 * 1024 * 1024; // Лимит 25 МБ для защиты браузера от DoS
+  if (file.size > MAX_FILE_SIZE) {
+    showToast('Файл слишком большой (максимум 25 МБ)');
+    if (event.target) event.target.value = '';
+    return;
+  }
+
+  const showLoading = (text = 'Обработка данных...') => {
+    if (dom.fileLoadingOverlay) {
+      if (dom.fileLoadingText) dom.fileLoadingText.textContent = text;
+      dom.fileLoadingOverlay.classList.remove('hidden');
+    }
+  };
+  const hideLoading = () => {
+    if (dom.fileLoadingOverlay) dom.fileLoadingOverlay.classList.add('hidden');
+    if (event.target) event.target.value = '';
+  };
+
+  showLoading('Чтение файла...');
+
   const fileName = file.name;
   const lowerName = fileName.toLowerCase();
   const isExcel = lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls') || lowerName.endsWith('.ods');
 
   const reader = new FileReader();
 
+  reader.onerror = function() {
+    hideLoading();
+    showToast('Ошибка при чтении файла');
+  };
+
   if (isExcel) {
     reader.onload = function(e) {
-      try {
-        if (typeof XLSX === 'undefined') {
-          showToast('Библиотека Excel еще загружается, попробуйте снова через пару секунд');
-          return;
+      setTimeout(() => {
+        try {
+          if (typeof XLSX === 'undefined') {
+            showToast('Библиотека Excel еще загружается, попробуйте снова через пару секунд');
+            return;
+          }
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          const rawRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: null });
+          processLoadedRows(rawRows, fileName);
+        } catch (err) {
+          console.error('Ошибка чтения Excel:', err);
+          showToast('Ошибка при чтении Excel-файла: ' + err.message);
+        } finally {
+          hideLoading();
         }
-        const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: 'array', cellDates: true });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const rawRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: null });
-        processLoadedRows(rawRows, fileName);
-      } catch (err) {
-        console.error('Ошибка чтения Excel:', err);
-        showToast('Ошибка при чтении Excel-файла: ' + err.message);
-      }
+      }, 20);
     };
     reader.readAsArrayBuffer(file);
   } else {
     reader.onload = function(e) {
-      try {
-        const text = e.target.result;
-        const rawRows = parseCSVText(text);
-        processLoadedRows(rawRows, fileName);
-      } catch (err) {
-        console.error('Ошибка чтения CSV:', err);
-        showToast('Ошибка при чтении CSV-файла: ' + err.message);
-      }
+      setTimeout(() => {
+        try {
+          const text = e.target.result;
+          const rawRows = parseCSVText(text);
+          processLoadedRows(rawRows, fileName);
+        } catch (err) {
+          console.error('Ошибка чтения CSV:', err);
+          showToast('Ошибка при чтении CSV-файла: ' + err.message);
+        } finally {
+          hideLoading();
+        }
+      }, 20);
     };
     reader.readAsText(file, 'utf-8');
   }
@@ -2261,7 +2308,8 @@ function getTransportProfitPerHourForComparison(tKey, userHoursInPeriod, cachedD
   }
 
   const cityAvgGrossHr = (transportMeta[tKey] && transportMeta[tKey].cityAvgGrossHr) || 980;
-  const hrs = Math.max(1, userHoursInPeriod);
+  const rawHrs = Number(userHoursInPeriod);
+  const hrs = (Number.isFinite(rawHrs) && rawHrs > 0) ? rawHrs : 1;
   const grossForUserHours = cityAvgGrossHr * hrs;
   const tax = Math.round(grossForUserHours * 0.06);
   const periodExpense = Math.round(getWeeklyExpenseForTransport(tKey) * getPeriodExpenseFactor(state.period));
@@ -2443,7 +2491,7 @@ function renderBarChart(data) {
     }
 
     html += `
-      <div id="barCol-${idx}" onclick="selectBar(${idx})" class="chart-bar-item cursor-pointer group">
+      <div id="barCol-${idx}" onclick="selectBar(${idx})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectBar(${idx});}" tabindex="0" role="button" aria-label="Период ${escapeHtml(d.date)}, прибыль ${valText}" class="chart-bar-item cursor-pointer group focus:outline-none focus:ring-2 focus:ring-[#FCE000] rounded">
         <div id="barValue-${idx}" class="text-[9px] font-bold mb-0.5 whitespace-nowrap shrink-0 ${valClass}">
           ${valText}
         </div>
@@ -2742,6 +2790,7 @@ function renderDetailedTable(data, preserveScroll = true) {
   });
   tbody.innerHTML = bodyHtml;
 
+  const totals = computeDetailedTableTotals(data);
   let footHtml = '<tr>';
   enabledCols.forEach((col, i) => {
     const isFirst = (i === 0 || col.key === 'date');
@@ -2749,7 +2798,7 @@ function renderDetailedTable(data, preserveScroll = true) {
     const stickyCls = isFirst ? 'table-col-sticky-first border-r bg-elevated border-strong text-left' : '';
     const highlightCls = getColHighlightClass(col.key);
     const alignCls = isFirst ? 'text-left' : 'text-center';
-    footHtml += `<td class="py-1.5 px-1 text-[10px] whitespace-nowrap align-middle ${alignCls} ${widthCls} ${stickyCls} ${highlightCls}">${isFirst ? 'ИТОГО / СР.' : formatTableFootValue(data, col.key)}</td>`;
+    footHtml += `<td class="py-1.5 px-1 text-[10px] whitespace-nowrap align-middle ${alignCls} ${widthCls} ${stickyCls} ${highlightCls}">${isFirst ? 'ИТОГО / СР.' : formatTableFootValue(data, col.key, totals)}</td>`;
   });
   footHtml += '</tr>';
   tfoot.innerHTML = footHtml;
@@ -2757,6 +2806,53 @@ function renderDetailedTable(data, preserveScroll = true) {
   if (scrollContainer && preserveScroll) {
     scrollContainer.scrollTop = prevScrollTop;
   }
+}
+
+/**
+ * Однопроходная агрегация итогов таблицы доходов за O(N)
+ */
+function computeDetailedTableTotals(data) {
+  const totals = {
+    slotHours: 0,
+    ordersCount: 0,
+    ordersCost: 0,
+    surgeRub: 0,
+    ratingRub: 0,
+    bonuses: 0,
+    goals: 0,
+    tips: 0,
+    grossTotal: 0,
+    tax: 0,
+    expenses: 0,
+    adjustments: 0,
+    netProfit: 0,
+    netProfitNoBonus: 0,
+    surgePctSum: 0,
+    ratingPctSum: 0,
+    count: (data && data.length) || 0
+  };
+  if (!data || data.length === 0) return totals;
+
+  for (let i = 0; i < data.length; i++) {
+    const r = data[i];
+    totals.slotHours += Number(r.slotHours || 0);
+    totals.ordersCount += Number(r.ordersCount || 0);
+    totals.ordersCost += Number(r.ordersCost || 0);
+    totals.surgeRub += Number(r.surgeRub || 0);
+    totals.ratingRub += Number(r.ratingRub || 0);
+    totals.bonuses += Number(r.bonuses || 0);
+    totals.goals += Number(r.goals || 0);
+    totals.tips += Number(r.tips || 0);
+    totals.grossTotal += Number(r.grossTotal || 0);
+    totals.tax += Number(r.tax || 0);
+    totals.expenses += Number(r.expenses || 0);
+    totals.adjustments += Number(r.adjustments || 0);
+    totals.netProfit += Number(r.netProfit || 0);
+    totals.netProfitNoBonus += Number(r.netProfitNoBonus != null ? r.netProfitNoBonus : (r.netProfit - (r.surgeRub || 0) - (r.ratingRub || 0) - (r.bonuses || 0)));
+    totals.surgePctSum += Number(r.surgePct || 0);
+    totals.ratingPctSum += Number(r.ratingPct || 0);
+  }
+  return totals;
 }
 
 function formatTableCellValue(row, key, minProfitHr, maxProfitHr, minProfitHrNoBonus = 0, maxProfitHrNoBonus = 0) {
@@ -2814,9 +2910,9 @@ function formatTableCellValue(row, key, minProfitHr, maxProfitHr, minProfitHrNoB
   }
 }
 
-function formatTableFootValue(data, key) {
-  const sum = k => data.reduce((a, r) => a + Number(r[k] || 0), 0);
-  const avg = k => Math.round(sum(k) / data.length);
+function formatTableFootValue(data, key, totals) {
+  if (!totals) totals = computeDetailedTableTotals(data);
+  const len = totals.count || 1;
   switch (key) {
     case 'dayOfWeek':   return '—';
     case 'transport': {
@@ -2830,42 +2926,45 @@ function formatTableFootValue(data, key) {
       return 'Электровело';
     }
     case 'slotHours':   {
-      const totH = Math.round(sum('slotHours') * 10) / 10;
+      const totH = Math.round(totals.slotHours * 10) / 10;
       return `${totH} ч`;
     }
-    case 'ordersCount': return sum('ordersCount');
-    case 'ordersPerHr': return (sum('ordersCount') / sum('slotHours')).toFixed(2);
-    case 'surgePct':    return `+${avg('surgePct')}%`;
-    case 'ratingPct':   return `+${avg('ratingPct')}%`;
+    case 'ordersCount': return totals.ordersCount;
+    case 'ordersPerHr': return totals.slotHours > 0 ? (totals.ordersCount / totals.slotHours).toFixed(2) : '0.00';
+    case 'surgePct':    return `+${Math.round(totals.surgePctSum / len)}%`;
+    case 'ratingPct':   return `+${Math.round(totals.ratingPctSum / len)}%`;
     case 'profitPerHrNoBonus': {
-      const totNetNoBonus = sum('netProfitNoBonus');
-      const totHrs = sum('slotHours');
-      const rate = totHrs > 0 ? Math.round(totNetNoBonus / totHrs) : 0;
+      const rate = totals.slotHours > 0 ? Math.round(totals.netProfitNoBonus / totals.slotHours) : 0;
       if (rate < 0) {
         return `<span class="font-extrabold text-rose-500">-${formatNum(Math.abs(rate))} ₽/ч</span>`;
       }
       return `${formatNum(rate)} ₽/ч`;
     }
     case 'profitPerHr': {
-      const totNet = sum('netProfit');
-      const totHrs = sum('slotHours');
-      const rate = totHrs > 0 ? Math.round(totNet / totHrs) : 0;
+      const rate = totals.slotHours > 0 ? Math.round(totals.netProfit / totals.slotHours) : 0;
       if (rate < 0) {
         return `<span class="font-extrabold text-rose-500">-${formatNum(Math.abs(rate))} ₽/ч</span>`;
       }
       return `${formatNum(rate)} ₽/ч`;
     }
     case 'netProfit': {
-      const tot = sum('netProfit');
+      const tot = totals.netProfit;
       if (tot < 0) {
         return `<span class="font-extrabold text-rose-500">-${formatNum(Math.abs(tot))} ₽</span>`;
       }
       return `<span class="font-extrabold text-[#18191C] dark:text-[#F5F6F8]">${formatNum(tot)} ₽</span>`;
     }
-    case 'adjustments': return sum('adjustments') === 0 ? '0 ₽' : `<span class="text-rose-400">-${formatNum(Math.abs(sum('adjustments')))} ₽</span>`;
-    case 'tax':
-    case 'expenses':    return `<span class="text-rose-400">-${formatNum(sum(key))} ₽</span>`;
-    default:            return `${formatNum(sum(key))} ₽`;
+    case 'grossTotal':  return `<span class="font-semibold">${formatNum(totals.grossTotal)} ₽</span>`;
+    case 'adjustments': return totals.adjustments === 0 ? '0 ₽' : `<span class="text-rose-400">-${formatNum(Math.abs(totals.adjustments))} ₽</span>`;
+    case 'tax':         return `<span class="text-rose-400">-${formatNum(totals.tax)} ₽</span>`;
+    case 'expenses':    return `<span class="text-rose-400">-${formatNum(totals.expenses)} ₽</span>`;
+    case 'ordersCost':  return `${formatNum(totals.ordersCost)} ₽`;
+    case 'surgeRub':    return `${formatNum(totals.surgeRub)} ₽`;
+    case 'ratingRub':   return `${formatNum(totals.ratingRub)} ₽`;
+    case 'bonuses':     return `${formatNum(totals.bonuses)} ₽`;
+    case 'goals':       return `${formatNum(totals.goals)} ₽`;
+    case 'tips':        return `${formatNum(totals.tips)} ₽`;
+    default:            return '-';
   }
 }
 
@@ -3448,11 +3547,22 @@ window.addEventListener('pointermove', (e) => {
   if (overIdx && overIdx !== dragColState.draggedIdx && overIdx > 0) {
     const moved = state.tableColumns.splice(dragColState.draggedIdx, 1)[0];
     state.tableColumns.splice(overIdx, 0, moved);
-    dragColState.draggedIdx = overIdx;
 
-    renderReorderableColumnsList();
-    const activeRow = dom.reorderableColumnsList.querySelector(`.col-reorder-item[data-col-idx="${overIdx}"]`);
-    if (activeRow) activeRow.classList.add('col-drag-active');
+    // Плавное перемещение DOM-узла без innerHTML, предотвращающее срыв захвата pointer capture
+    const activeRow = dragColState.activeRowEl;
+    if (activeRow && overRow) {
+      if (overIdx > dragColState.draggedIdx) {
+        overRow.after(activeRow);
+      } else {
+        overRow.before(activeRow);
+      }
+      const allRows = dom.reorderableColumnsList.querySelectorAll('.col-reorder-item');
+      allRows.forEach((r, idx) => {
+        r.setAttribute('data-col-idx', String(idx + 1));
+      });
+    }
+
+    dragColState.draggedIdx = overIdx;
 
     if (state.viewMode === 'table') {
       renderBlock1();
@@ -3466,7 +3576,7 @@ const endColumnDrag = () => {
     dragColState.active = false;
     dragColState.draggedIdx = null;
     dragColState.activeRowEl = null;
-    dom.reorderableColumnsList?.querySelectorAll('.col-reorder-item').forEach(el => el.classList.remove('col-drag-active'));
+    renderReorderableColumnsList();
     if (state.viewMode === 'table') {
       renderBlock1();
     }
@@ -3594,16 +3704,21 @@ function updateLeafletMapStyles() {
 
 function toggleGrossNet() {
   state.isNet = !state.isNet;
+  dataCache.invalidate();
   dom.lblGross.classList.toggle('ya-switch-opt-active', !state.isNet);
   dom.lblNet.classList.toggle('ya-switch-opt-active', state.isNet);
+  if (dom.switchGrossNet) dom.switchGrossNet.setAttribute('aria-checked', state.isNet ? 'true' : 'false');
+  renderHeader();
   renderBlock1();
   renderBlock2();
+  renderBlock3();
 }
 
 function toggleSumHourly() {
   state.isHourly = !state.isHourly;
   dom.lblSum.classList.toggle('ya-switch-opt-active', !state.isHourly);
   dom.lblHourly.classList.toggle('ya-switch-opt-active', state.isHourly);
+  if (dom.switchSumHourly) dom.switchSumHourly.setAttribute('aria-checked', state.isHourly ? 'true' : 'false');
   renderBlock1();
 }
 
@@ -3611,6 +3726,7 @@ function toggleChartTable() {
   state.viewMode = state.viewMode === 'chart' ? 'table' : 'chart';
   dom.lblChart.classList.toggle('ya-switch-opt-active', state.viewMode === 'chart');
   dom.lblTable.classList.toggle('ya-switch-opt-active', state.viewMode === 'table');
+  if (dom.switchChartTable) dom.switchChartTable.setAttribute('aria-checked', state.viewMode === 'table' ? 'true' : 'false');
   renderBlock1();
 }
 
@@ -3631,13 +3747,15 @@ function setPeriod(p) {
 }
 
 function selectBar(idx) {
-  if (state.selectedBarIndex === idx) return;
-  const prevIdx = state.selectedBarIndex;
-  state.selectedBarIndex = idx;
-
   const data = getCurrentDataset();
+  if (!data || data.length === 0) return;
+  const safeIdx = Math.max(0, Math.min(idx, data.length - 1));
+  if (state.selectedBarIndex === safeIdx) return;
+  const prevIdx = state.selectedBarIndex;
+  state.selectedBarIndex = safeIdx;
+
   const prevItem = data[prevIdx];
-  const newItem = data[idx];
+  const newItem = data[safeIdx];
 
   const prevMetric = prevItem ? (state.isNet ? (state.isHourly ? prevItem.profitPerHr : prevItem.netProfit) : (state.isHourly ? prevItem.grossPerHr : prevItem.grossTotal)) : 0;
   const newMetric = newItem ? (state.isNet ? (state.isHourly ? newItem.profitPerHr : newItem.netProfit) : (state.isHourly ? newItem.grossPerHr : newItem.grossTotal)) : 0;
@@ -3837,6 +3955,7 @@ function onToggleGoals(checked) {
   dom.legendGoalsItem.classList.toggle('hidden', !checked);
   renderHeader();
   renderBlock1();
+  renderBlock2();
   renderBlock3();
 }
 
@@ -3851,15 +3970,23 @@ function toggleTableColumn(key, checked) {
 function applyTransportPreset(presetKey) {
   if (state.selectedPreset === presetKey) return;
   state.selectedPreset = presetKey;
+  state.accountTransport = presetKey;
+  dataCache.invalidate();
   renderSettingsScreen(false);
+  renderHeader();
+  renderBlock1();
   renderBlock2();
+  renderBlock3();
 }
 
 function updateExpense(idx, newVal, syncRange = false) {
   const item = state.expensesByTransport[state.selectedPreset]?.[idx];
   if (!item) return;
 
-  item.value = Math.min(item.max, Math.max(0, newVal));
+  const num = Number(newVal);
+  if (!Number.isFinite(num)) return;
+
+  item.value = Math.min(item.max, Math.max(0, num));
   dataCache.invalidate();
 
   if (syncRange) {
@@ -3892,6 +4019,7 @@ function updateExpenseSlider(idx, val) {
 
 function deleteExpenseItem(index) {
   const list = state.expensesByTransport[state.selectedPreset];
+  if (!list || index < 0 || index >= list.length) return;
   const removed = list.splice(index, 1)[0];
   dataCache.invalidate();
   renderSettingsScreen(false);
@@ -3924,8 +4052,13 @@ function toggleAddExpenseForm() {
 function confirmAddCustomExpense() {
   const input = dom.newExpenseNameInput;
   const list = state.expensesByTransport[state.selectedPreset];
+  if (!list) return;
+  if (list.length >= 20) {
+    showToast('Достигнут лимит статей расходов (максимум 20)');
+    return;
+  }
   const rawName = input.value.trim();
-  const name = rawName.substring(0, 40) || `Расход ${list.length + 1}`;
+  const name = escapeHtml(rawName.substring(0, 40)) || `Расход ${list.length + 1}`;
 
   list.push({ id: 'custom_' + Date.now(), name, value: 500, max: 25000 });
   dataCache.invalidate();
@@ -3995,7 +4128,10 @@ function navigateScreen(screen) {
   }
 }
 
-const openSettingsScreen = () => navigateScreen('settings');
+const openSettingsScreen = () => {
+  renderSettingsScreen(false);
+  navigateScreen('settings');
+};
 const closeSettingsScreen = () => {
   navigateScreen('main');
   requestAnimationFrame(() => {
