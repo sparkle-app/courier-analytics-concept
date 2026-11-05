@@ -1,5 +1,5 @@
 // =============================================================================
-// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.11.3) — ЛОГИКА И СОСТОЯНИЕ (script.js)
+// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.11.4) — ЛОГИКА И СОСТОЯНИЕ (script.js)
 // Оптимизированная и модульная версия с гранулярным рендерингом и кэшированием
 // =============================================================================
 
@@ -252,6 +252,21 @@ const baseHeatmapMatrix = [
 const shortDayNames = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 const fullDayNames = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
 
+const shortMonthNamesMap = {
+  'январь': 'Янв',
+  'февраль': 'Фев',
+  'март': 'Мар',
+  'апрель': 'Апр',
+  'май': 'Май',
+  'июнь': 'Июн',
+  'июль': 'Июл',
+  'август': 'Авг',
+  'сентябрь': 'Сен',
+  'октябрь': 'Окт',
+  'ноябрь': 'Ноя',
+  'декабрь': 'Дек'
+};
+
 const comparisonDatasets = {
   transport: {
     columns: [
@@ -287,7 +302,7 @@ const comparisonDatasets = {
     ],
     rowsTotal: [
       { label: 'Заказов в час',             vals: ['2.25',   '1.75']   },
-      { label: 'Прибыль в час',             vals: ['DYNAMIC', '530 ₽/ч']}
+      { label: 'Прибыль в час',             vals: ['DYNAMIC', 'FREE_SLOT_DEMO_DYN']}
     ]
   },
   total: {
@@ -864,10 +879,10 @@ function calculateTransportStats(orders) {
     durHr = Math.round(durHr * 10) / 10;
     const weeklyExp = getWeeklyExpenseForTransport(tKey);
     const activeDaysCount = transDates[tKey] ? transDates[tKey].size : 0;
-    const settingsExp = activeDaysCount * (weeklyExp / 6.0);
+    const settingsExp = activeDaysCount * (weeklyExp / 7.0);
 
-    const tax = gross * 0.06;
-    const net = Math.max(0, gross - tax - fileExp - settingsExp);
+    const tax = Math.round(gross * 0.06);
+    const net = state.isNet ? (gross - tax - fileExp - settingsExp) : gross;
     const profitPerHr = durHr > 0 ? Math.round(net / durHr) : 0;
     const ordersPerHr = durHr > 0 ? (ordersCount / durHr).toFixed(2) : '0.00';
 
@@ -890,8 +905,8 @@ function calculateTransportStats(orders) {
     totalOrdersCount += ordersCount;
   });
 
-  const totalTax = totalGross * 0.06;
-  const totalNet = Math.max(0, totalGross - totalTax - totalFileExp - totalSettingsExp);
+  const totalTax = Math.round(totalGross * 0.06);
+  const totalNet = state.isNet ? (totalGross - totalTax - totalFileExp - totalSettingsExp) : totalGross;
   const totalProfitPerHr = totalHrs > 0 ? Math.round(totalNet / totalHrs) : 0;
   const totalOrdersPerHr = totalHrs > 0 ? (totalOrdersCount / totalHrs).toFixed(2) : '0.00';
 
@@ -984,13 +999,13 @@ function calculateSlotStats(orders) {
   const planSettingsExp = totalHrs > 0 ? (planHrs / totalHrs) * totalSettingsExp : 0;
   const freeSettingsExp = totalHrs > 0 ? (freeHrs / totalHrs) * totalSettingsExp : 0;
 
-  const planTax = planGross * 0.06;
-  const planNet = Math.max(0, planGross - planTax - planFileExp - planSettingsExp);
+  const planTax = Math.round(planGross * 0.06);
+  const planNet = state.isNet ? (planGross - planTax - planFileExp - planSettingsExp) : planGross;
   const planProfitPerHr = planHrs > 0 ? Math.round(planNet / planHrs) : 0;
   const planOrdHr = planHrs > 0 ? (planOrdersCount / planHrs).toFixed(2) : '0.00';
 
-  const freeTax = freeGross * 0.06;
-  const freeNet = Math.max(0, freeGross - freeTax - freeFileExp - freeSettingsExp);
+  const freeTax = Math.round(freeGross * 0.06);
+  const freeNet = state.isNet ? (freeGross - freeTax - freeFileExp - freeSettingsExp) : freeGross;
   const freeProfitPerHr = freeHrs > 0 ? Math.round(freeNet / freeHrs) : 0;
   const freeOrdHr = freeHrs > 0 ? (freeOrdersCount / freeHrs).toFixed(2) : '0.00';
 
@@ -1809,9 +1824,9 @@ function getTransportProfitPerHourForComparison(tKey, userHoursInPeriod, cachedD
   const matchingRows = allPeriodRows.filter(r => r.transportKey === tKey);
 
   if (matchingRows.length > 0) {
-    const sumNet = matchingRows.reduce((a, r) => a + r.netProfit, 0);
+    const sumVal = matchingRows.reduce((a, r) => a + (state.isNet ? r.netProfit : r.grossTotal), 0);
     const sumHrs = matchingRows.reduce((a, r) => a + r.slotHours, 0);
-    return Math.round(sumNet / sumHrs);
+    return sumHrs > 0 ? Math.round(sumVal / sumHrs) : 0;
   }
 
   const cityAvgGrossHr = (transportMeta[tKey] && transportMeta[tKey].cityAvgGrossHr) || 980;
@@ -1820,7 +1835,8 @@ function getTransportProfitPerHourForComparison(tKey, userHoursInPeriod, cachedD
   const tax = Math.round(grossForUserHours * 0.06);
   const periodExpense = Math.round(getWeeklyExpenseForTransport(tKey) * getPeriodExpenseFactor(state.period));
   const netForecast = grossForUserHours - tax - periodExpense;
-  return Math.round(netForecast / hrs);
+  const finalVal = state.isNet ? netForecast : grossForUserHours;
+  return Math.round(finalVal / hrs);
 }
 
 // -----------------------------------------------------------------------------
@@ -1928,8 +1944,7 @@ function renderBarChart(data) {
     </div>
   `;
 
-  const itemWidth = state.period === 'weeks' ? 76 : (state.period === 'months' ? 64 : 42);
-  const itemModifierCls = state.period === 'weeks' ? 'item-weeks' : (state.period === 'months' ? 'item-months' : '');
+  const itemWidth = 44;
 
   let html = `
     <div class="absolute left-0 top-3 bottom-6 w-8 flex flex-col justify-between text-[9px] pr-1 text-right text-mut">
@@ -1989,11 +2004,15 @@ function renderBarChart(data) {
     let dateDisplayHtml = escapeHtml(d.date);
     if (state.period === 'weeks' && typeof d.date === 'string' && d.date.includes('–')) {
       const pts = d.date.split('–');
-      dateDisplayHtml = `<span class="block leading-tight text-[8px]">${escapeHtml(pts[0])}<br>–${escapeHtml(pts[1])}</span>`;
+      dateDisplayHtml = `<span class="block leading-none text-[8px]">${escapeHtml(pts[0])}<br><span class="opacity-80">–${escapeHtml(pts[1])}</span></span>`;
+    } else if (state.period === 'months' && typeof d.date === 'string') {
+      const clean = d.date.toLowerCase().trim();
+      const shortM = shortMonthNamesMap[clean] || (d.date.length > 4 ? d.date.substring(0, 3) : d.date);
+      dateDisplayHtml = `<span class="text-[9px] font-bold">${escapeHtml(shortM)}</span>`;
     }
 
     html += `
-      <div id="barCol-${idx}" onclick="selectBar(${idx})" class="chart-bar-item ${itemModifierCls} cursor-pointer group">
+      <div id="barCol-${idx}" onclick="selectBar(${idx})" class="chart-bar-item cursor-pointer group">
         <div id="barValue-${idx}" class="text-[9px] font-bold mb-0.5 whitespace-nowrap shrink-0 ${valClass}">
           ${valText}
         </div>
@@ -2591,15 +2610,28 @@ function renderBlock3(precomputedAllTimeProfitHr) {
     return cachedUserSlotStats;
   };
 
+  const formatCompRate = (val) => {
+    if (val == null || isNaN(val)) return '—';
+    if (val < 0) {
+      return `<span class="text-rose-500 font-extrabold">-${formatNum(Math.abs(val))} ₽/ч</span>`;
+    }
+    return `<span class="font-extrabold">${formatNum(val)} ₽/ч</span>`;
+  };
+
   let footHtml = '';
   ds.rowsTotal.forEach(row => {
+    const isRateRow = row.label.includes('Прибыль') || row.label.includes('доход') || row.label.includes('Начислено');
+    const displayRowLabel = isRateRow
+      ? (state.isNet ? 'Прибыль в час' : 'Начислено в час')
+      : row.label;
+
     footHtml += `<tr>
-      <td class="py-1.5 px-2.5 font-extrabold text-[10px] leading-snug whitespace-normal sticky left-0 z-10 border-r min-w-[105px] max-w-[125px] bg-elevated border-strong">${escapeHtml(row.label)}</td>`;
+      <td class="py-1.5 px-2.5 font-extrabold text-[10px] leading-snug whitespace-normal sticky left-0 z-10 border-r min-w-[105px] max-w-[125px] bg-elevated border-strong">${escapeHtml(displayRowLabel)}</td>`;
     row.vals.forEach(v => {
       let cellVal = v.trim();
-      if (cellVal === 'DYNAMIC') cellVal = `${formatNum(userPeriodProfitHr)} ₽/ч`;
+      if (cellVal === 'DYNAMIC') cellVal = formatCompRate(userPeriodProfitHr);
       else if (cellVal === 'DYNAMIC_ORD_HR') cellVal = `${userPeriodOrdersHr}`;
-      else if (cellVal === 'ALLTIME') cellVal = `${formatNum(allTimeProfitHr)} ₽/ч`;
+      else if (cellVal === 'ALLTIME') cellVal = formatCompRate(allTimeProfitHr);
       else if (cellVal === 'TOTAL_ORD_HR_DYN') {
         const stats = getUserTransportStats();
         cellVal = `${stats.totalOrdersPerHr}`;
@@ -2611,15 +2643,21 @@ function renderBlock3(precomputedAllTimeProfitHr) {
         cellVal = `${stats.freeOrdHr}`;
       } else if (cellVal === 'PLAN_SLOT_DYN') {
         const stats = getUserSlotStats();
-        cellVal = `${formatNum(stats.planProfitPerHr)} ₽/ч`;
+        cellVal = formatCompRate(stats.planProfitPerHr);
       } else if (cellVal === 'FREE_SLOT_DYN') {
         const stats = getUserSlotStats();
-        cellVal = `${formatNum(stats.freeProfitPerHr)} ₽/ч`;
+        cellVal = formatCompRate(stats.freeProfitPerHr);
+      } else if (cellVal === 'FREE_SLOT_DEMO_DYN' || cellVal === '530 ₽/ч') {
+        const freeGrossHr = 565;
+        const freeTax = Math.round(freeGrossHr * 0.06);
+        const hourlyExp = getCourierHourlyExpense();
+        const val = state.isNet ? (freeGrossHr - freeTax - hourlyExp) : freeGrossHr;
+        cellVal = formatCompRate(val);
       } else if (cellVal.startsWith('TRANSPORT_') && cellVal.endsWith('_PROFIT_DYN')) {
         const tKey = cellVal.replace('TRANSPORT_', '').replace('_PROFIT_DYN', '').toLowerCase();
         const tStats = getUserTransportStats();
         const item = tStats.byTransport[tKey];
-        cellVal = item ? `${formatNum(item.profitPerHr)} ₽/ч` : '—';
+        cellVal = item ? formatCompRate(item.profitPerHr) : '—';
       } else if (cellVal.startsWith('TRANSPORT_') && cellVal.endsWith('_ORD_HR_DYN')) {
         const tKey = cellVal.replace('TRANSPORT_', '').replace('_ORD_HR_DYN', '').toLowerCase();
         const tStats = getUserTransportStats();
@@ -2627,11 +2665,16 @@ function renderBlock3(precomputedAllTimeProfitHr) {
         cellVal = item ? `${item.ordersPerHr}` : '—';
       } else if (cellVal === 'CAR_FORECAST_DYN') {
         const val = getTransportProfitPerHourForComparison('car', userHoursInSelectedPeriod, currentData);
-        cellVal = `<span class="${val < 0 ? 'text-rose-400' : ''}">${formatNum(val)} ₽/ч</span>`;
+        cellVal = formatCompRate(val);
       } else if (cellVal.endsWith('_DYN')) {
         const tKey = cellVal.replace('_DYN', '').toLowerCase();
         const val = getTransportProfitPerHourForComparison(tKey, userHoursInSelectedPeriod, currentData);
-        cellVal = `${formatNum(val)} ₽/ч`;
+        cellVal = formatCompRate(val);
+      } else if (isRateRow && !state.isNet) {
+        if (cellVal === '625 ₽/ч') cellVal = '740 ₽/ч';
+        else if (cellVal === '810 ₽/ч') cellVal = '960 ₽/ч';
+        else if (cellVal === '580 ₽/ч') cellVal = '690 ₽/ч';
+        else if (cellVal === '765 ₽/ч') cellVal = '910 ₽/ч';
       }
       footHtml += `<td class="py-1.5 px-2 text-[10px] text-center font-extrabold whitespace-nowrap min-w-[65px]">${cellVal}</td>`;
     });

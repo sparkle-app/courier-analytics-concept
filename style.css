@@ -520,22 +520,6 @@ body.desktop-mode #presetButtonsContainer {
   padding: 2px 1px !important;
 }
 
-.chart-bar-item.item-weeks {
-  flex: 0 0 76px !important;
-  width: 76px !important;
-  min-width: 76px !important;
-  max-width: 82px !important;
-  padding: 2px 2px !important;
-}
-
-.chart-bar-item.item-months {
-  flex: 0 0 64px !important;
-  width: 64px !important;
-  min-width: 64px !important;
-  max-width: 72px !important;
-  padding: 2px 2px !important;
-}
-
 .table-scroll-container {
   max-height: 380px;
   overflow-y: auto;
