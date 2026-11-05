@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Независимый исследовательский UI/UX-концепт аналитики дохода для курьеров доставки (версия 13.9.0)" />
+  <meta name="description" content="Независимый исследовательский UI/UX-концепт аналитики дохода для курьеров доставки (версия 13.9.5)" />
   <meta name="theme-color" content="#141518" />
-  <title>Концепт аналитики дохода курьера (v13.9.4) — Неофициальный UX-прототип</title>
+  <title>Концепт аналитики дохода курьера (v13.9.5) — Неофициальный UX-прототип</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <script src="https://cdn.tailwindcss.com"></script>
@@ -25,7 +25,7 @@
 
     <div class="flex flex-wrap items-center justify-between gap-2">
       <div class="flex items-center gap-2">
-        <span class="px-2 py-0.5 rounded-md bg-[#FCE000] text-[#141518] font-extrabold">v13.9.4</span>
+        <span class="px-2 py-0.5 rounded-md bg-[#FCE000] text-[#141518] font-extrabold">v13.9.5</span>
         <span class="font-semibold">UX-концепт аналитики курьера</span>
       </div>
       <div class="flex flex-wrap items-center gap-1.5">
@@ -89,15 +89,15 @@
 
         <!-- 3. Четыре кнопки управления -->
         <div class="grid grid-cols-4 gap-1.5">
-          <div role="button" tabindex="0" onclick="toggleGrossNet()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleGrossNet();}" class="ya-switch-card">
+          <div id="switchGrossNet" role="switch" aria-checked="true" aria-label="Переключение: Начислено или Чистыми" tabindex="0" onclick="toggleGrossNet()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleGrossNet();}" class="ya-switch-card">
             <span id="lblGross" class="ya-switch-opt">Начислено</span>
             <span id="lblNet" class="ya-switch-opt ya-switch-opt-active">Чистыми</span>
           </div>
-          <div role="button" tabindex="0" onclick="toggleSumHourly()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleSumHourly();}" class="ya-switch-card">
+          <div id="switchSumHourly" role="switch" aria-checked="false" aria-label="Переключение: Сумма или В час" tabindex="0" onclick="toggleSumHourly()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleSumHourly();}" class="ya-switch-card">
             <span id="lblSum" class="ya-switch-opt ya-switch-opt-active">Сумма</span>
             <span id="lblHourly" class="ya-switch-opt">В час</span>
           </div>
-          <div role="button" tabindex="0" onclick="toggleChartTable()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleChartTable();}" class="ya-switch-card">
+          <div id="switchChartTable" role="switch" aria-checked="false" aria-label="Переключение: Диаграмма или Таблица" tabindex="0" onclick="toggleChartTable()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleChartTable();}" class="ya-switch-card">
             <span id="lblChart" class="ya-switch-opt ya-switch-opt-active">Диаграмма</span>
             <span id="lblTable" class="ya-switch-opt">Таблица</span>
           </div>
@@ -166,7 +166,7 @@
                 <span class="text-sm leading-none">🌧️</span>
                 <span class="leading-tight">Осадки</span>
               </button>
-              <div id="heatUnitSwitchContainer" role="button" tabindex="0" onclick="toggleHeatUnit()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleHeatUnit();}" class="col-span-3 ya-switch-card">
+              <div id="heatUnitSwitchContainer" role="switch" aria-checked="false" aria-label="Переключение единиц матрицы спроса: процент или рубли в час" tabindex="0" onclick="toggleHeatUnit()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleHeatUnit();}" class="col-span-3 ya-switch-card">
                 <span id="lblUnitPct" class="ya-switch-opt ya-switch-opt-active">% спроса</span>
                 <span id="lblUnitRub" class="ya-switch-opt">₽ в час</span>
               </div>
@@ -314,7 +314,7 @@
               <button type="button" onclick="resetExpensesToDefault()" title="Вернуть изначальные статьи и суммы расходов по умолчанию" class="px-2.5 py-1 rounded-xl text-[10px] font-bold ya-subcard hover:opacity-90 active:scale-95 transition">
                 Сбросить по умолчанию
               </button>
-              <span id="totalWeeklyExpenseBadge" class="text-xs font-extrabold px-2.5 py-1 rounded-xl bg-rose-500/15 text-rose-400">5 300 ₽/нед</span>
+              <span id="totalWeeklyExpenseBadge" class="text-xs font-extrabold px-2.5 py-1 rounded-xl bg-rose-500/15 text-rose-400">0 ₽/нед</span>
             </div>
           </div>
 
@@ -323,15 +323,15 @@
             <div class="grid grid-cols-2 gap-1.5">
               <button type="button" onclick="applyTransportPreset('walk')" id="presetBtn-walk" class="py-2 px-2.5 rounded-xl text-left transition flex items-center justify-between">
                 <span class="text-xs font-bold">🚶 Пеший</span>
-                <span id="presetSum-walk" class="text-[10px] font-semibold opacity-80">1 600 ₽</span>
+                <span id="presetSum-walk" class="text-[10px] font-semibold opacity-80">0 ₽</span>
               </button>
               <button type="button" onclick="applyTransportPreset('bike')" id="presetBtn-bike" class="py-2 px-2.5 rounded-xl text-left transition flex items-center justify-between">
                 <span class="text-xs font-bold">🚲 Вело</span>
-                <span id="presetSum-bike" class="text-[10px] font-semibold opacity-80">2 500 ₽</span>
+                <span id="presetSum-bike" class="text-[10px] font-semibold opacity-80">0 ₽</span>
               </button>
               <button type="button" onclick="applyTransportPreset('ebike')" id="presetBtn-ebike" class="py-2 px-2.5 rounded-xl text-left transition flex items-center justify-between">
                 <span class="text-xs font-bold">⚡ Электровело</span>
-                <span id="presetSum-ebike" class="text-[10px] font-semibold opacity-80">5 300 ₽</span>
+                <span id="presetSum-ebike" class="text-[10px] font-semibold opacity-80">0 ₽</span>
               </button>
               <button type="button" onclick="applyTransportPreset('car')" id="presetBtn-car" class="py-2 px-2.5 rounded-xl text-left transition flex items-center justify-between">
                 <span class="text-xs font-bold">🚗 Авто</span>
@@ -467,7 +467,7 @@
           <div class="font-extrabold text-[11px]">Как использовать эти данные:</div>
           <div class="ya-subcard p-2.5">
             <div class="font-bold text-rose-400">Пример 1: Мало часов — риск уйти в минус</div>
-            <p class="text-[11px] mt-0.5 text-sec">Аренда машины платятся постоянно (~9 600 ₽/нед). При работе 8–10 часов в неделю расходы на авто уведут прибыль в минус.</p>
+            <p class="text-[11px] mt-0.5 text-sec">Аренда машины платится постоянно (~9 600 ₽/нед). При работе 8–10 часов в неделю расходы на авто уведут прибыль в минус.</p>
           </div>
           <div class="ya-subcard p-2.5">
             <div class="font-bold text-emerald-400">Пример 2: Полная занятость — выход в плюс</div>
@@ -477,9 +477,6 @@
       </div>
       <div class="p-3.5 border-t border-subtle bg-card">
         <button type="button" onclick="closeForecastInfoModal()" class="w-full py-2.5 px-4 rounded-xl text-xs font-extrabold active:scale-95 transition btn-primary">Понятно</button>
-      </div>
-    </div>
-  </div>
       </div>
     </div>
   </div>

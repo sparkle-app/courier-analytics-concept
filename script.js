@@ -1,5 +1,5 @@
 // =============================================================================
-// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.9.0) — ЛОГИКА И СОСТОЯНИЕ (script.js)
+// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.9.5) — ЛОГИКА И СОСТОЯНИЕ (script.js)
 // Оптимизированная и модульная версия с гранулярным рендерингом и кэшированием
 // =============================================================================
 
@@ -17,6 +17,9 @@ const $ = id => document.getElementById(id);
 const dom = {
   allTimeHourlyProfit:      $('allTimeHourlyProfit'),
   goalsStatusLabel:         $('goalsStatusLabel'),
+  switchGrossNet:           $('switchGrossNet'),
+  switchSumHourly:          $('switchSumHourly'),
+  switchChartTable:         $('switchChartTable'),
   lblGross:                 $('lblGross'),
   lblNet:                   $('lblNet'),
   lblSum:                   $('lblSum'),
@@ -410,11 +413,17 @@ function parseDateInfo(val) {
   } else if (typeof val === 'string') {
     const s = val.trim();
     const dotMatch = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2,4})/);
+    const isoMatch = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
     if (dotMatch) {
       const day = parseInt(dotMatch[1], 10);
       const month = parseInt(dotMatch[2], 10) - 1;
       let year = parseInt(dotMatch[3], 10);
       if (year < 100) year += 2000;
+      d = new Date(year, month, day, 12, 0, 0);
+    } else if (isoMatch) {
+      const year = parseInt(isoMatch[1], 10);
+      const month = parseInt(isoMatch[2], 10) - 1;
+      const day = parseInt(isoMatch[3], 10);
       d = new Date(year, month, day, 12, 0, 0);
     } else {
       const parsed = new Date(s);
@@ -536,20 +545,46 @@ function parseCSVText(text) {
 }
 
 /**
- * Извлечение заказов из массива строк (Excel или CSV) по 15 строго упорядоченным столбцам
+ * Извлечение заказов из массива строк (Excel или CSV)
+ * Поддерживает как адаптивное сопоставление по именам колонок, так и фиксированный порядок
  */
 function parseOrdersFromRows(rawRows) {
   if (!rawRows || rawRows.length < 2) return [];
+
+  const headerRow = (rawRows[0] || []).map(h => String(h || '').toLowerCase().trim());
   const dataRows = rawRows.slice(1);
+
+  // Динамический поиск индексов колонок по ключевым словам
+  const findCol = (keywords, defaultIdx) => {
+    const idx = headerRow.findIndex(h => keywords.some(k => h.includes(k)));
+    return idx >= 0 ? idx : defaultIdx;
+  };
+
+  const colDate      = findCol(['дата', 'date', 'число'], 0);
+  const colStart     = findCol(['начало', 'старт', 'start'], 1);
+  const colEnd       = findCol(['конец', 'окончание', 'end', 'финиш'], 2);
+  const colDist      = findCol(['дистанц', 'расстояни', 'дист', 'км', 'dist'], 3);
+  const colWeight    = findCol(['вес', 'weight', 'кг'], 4);
+  const colCost      = findCol(['стоимост', 'оплата за заказ', 'тариф', 'cost'], 5);
+  const colWait      = findCol(['ожидан', 'wait'], 6);
+  const colSurge     = findCol(['спрос', 'surge'], 7);
+  const colRating    = findCol(['рейтинг', 'rating'], 8);
+  const colBonus     = findCol(['бонус', 'bonus'], 9);
+  const colExpense   = findCol(['расход', 'траты', 'expense'], 10);
+  const colTransport = findCol(['транспорт', 'тип авто', 'способ', 'transport'], 11);
+  const colSlotType  = findCol(['тип слот', 'плановый', 'свободный', 'тип смен'], 12);
+  const colSlotNum   = findCol(['номер слот', 'номер смен', 'slot'], 13);
+  const colGoal      = findCol(['цель', 'цели', 'goal'], 14);
+
   const orders = [];
 
   dataRows.forEach(r => {
     if (!r || r.length < 4) return;
-    if (r[0] == null && r[1] == null && r[5] == null) return;
+    if (r[colDate] == null && r[colStart] == null && r[colCost] == null) return;
 
-    const dateInfo = parseDateInfo(r[0]);
-    const startSecs = parseTimeSecs(r[1]);
-    const endSecs = parseTimeSecs(r[2]);
+    const dateInfo = parseDateInfo(r[colDate]);
+    const startSecs = parseTimeSecs(r[colStart]);
+    const endSecs = parseTimeSecs(r[colEnd]);
 
     let durationMins = 0;
     if (endSecs >= startSecs) {
@@ -559,16 +594,16 @@ function parseOrdersFromRows(rawRows) {
     }
     if (durationMins <= 0) durationMins = 20;
 
-    const distance = parseNum(r[3]);
-    const weight = parseNum(r[4]);
-    const orderCost = parseNum(r[5]);
-    const wait = parseNum(r[6]);
-    const surgePct = parsePercentage(r[7]);
-    const ratingPct = parsePercentage(r[8]);
-    const bonus = parseNum(r[9]);
-    const expense = parseNum(r[10]);
+    const distance = parseNum(r[colDist]);
+    const weight = parseNum(r[colWeight]);
+    const orderCost = parseNum(r[colCost]);
+    const wait = parseNum(r[colWait]);
+    const surgePct = parsePercentage(r[colSurge]);
+    const ratingPct = parsePercentage(r[colRating]);
+    const bonus = parseNum(r[colBonus]);
+    const expense = parseNum(r[colExpense]);
 
-    const transportRaw = String(r[11] || 'Пешком').trim();
+    const transportRaw = String(r[colTransport] || 'Пешком').trim();
     let transportKey = 'walk';
     let transportLabel = 'Пеший';
     const tLower = transportRaw.toLowerCase();
@@ -586,9 +621,9 @@ function parseOrdersFromRows(rawRows) {
       transportLabel = 'Пеший';
     }
 
-    const slotType = String(r[12] || 'Плановый').trim();
-    const slotNumber = String(r[13] || '1').trim();
-    const goal = parseNum(r[14]);
+    const slotType = String(r[colSlotType] || 'Плановый').trim();
+    const slotNumber = String(r[colSlotNum] || '1').trim();
+    const goal = parseNum(r[colGoal]);
 
     const baseCost = orderCost + wait;
     const surgeRub = baseCost * (surgePct / 100);
@@ -1264,6 +1299,7 @@ function buildDatasetsFromOrders(orders) {
   }
 
   const comparisonDatasets = buildComparisonDatasets(orders, days);
+  const distinctTransports = Array.from(new Set(orders.map(o => o.transportLabel)));
 
   return {
     orders,
@@ -1273,7 +1309,8 @@ function buildDatasetsFromOrders(orders) {
     heatmapMatrix,
     comparisonDatasets,
     dominantTransportKey,
-    availableSeasons
+    availableSeasons,
+    distinctTransports
   };
 }
 
@@ -1335,7 +1372,8 @@ function handleUserDataFileUpload(event) {
   if (!file) return;
 
   const fileName = file.name;
-  const isExcel = fileName.endsWith('.xlsx') || fileName.endsWith('.xls') || fileName.endsWith('.ods');
+  const lowerName = fileName.toLowerCase();
+  const isExcel = lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls') || lowerName.endsWith('.ods');
 
   const reader = new FileReader();
 
@@ -1382,7 +1420,7 @@ function resetToDemoData() {
   state.userDataOrders = [];
   state.userDatasets = null;
   state.period = 'days';
-  state.selectedBarIndex = 6;
+  state.selectedBarIndex = rawDatasets.days.length - 1;
   state.selectedSlotCells = [];
   state.accountTransport = 'ebike';
   state.selectedPreset = 'ebike';
@@ -1607,6 +1645,10 @@ function renderHeader() {
   dom.lblHourly.classList.toggle('ya-switch-opt-active', state.isHourly);
   dom.lblChart.classList.toggle('ya-switch-opt-active', state.viewMode === 'chart');
   dom.lblTable.classList.toggle('ya-switch-opt-active', state.viewMode === 'table');
+
+  if (dom.switchGrossNet) dom.switchGrossNet.setAttribute('aria-checked', state.isNet ? 'true' : 'false');
+  if (dom.switchSumHourly) dom.switchSumHourly.setAttribute('aria-checked', state.isHourly ? 'true' : 'false');
+  if (dom.switchChartTable) dom.switchChartTable.setAttribute('aria-checked', state.viewMode === 'table' ? 'true' : 'false');
 
   ['days', 'weeks', 'months'].forEach(p => {
     const btn = $(`btnPeriod-${p}`);
@@ -1883,8 +1925,12 @@ function formatTableFootValue(data, key) {
   switch (key) {
     case 'dayOfWeek':   return '—';
     case 'transport': {
-      if (state.usingUserData && state.userDatasets?.distinctTransports?.length) {
-        return escapeHtml(state.userDatasets.distinctTransports.join(' + '));
+      if (state.usingUserData) {
+        const currentList = Array.from(new Set(data.flatMap(r => r.distinctTransports || (r.transport ? [r.transport] : []))));
+        if (currentList.length) return escapeHtml(currentList.join(' + '));
+        if (state.userDatasets?.distinctTransports?.length) {
+          return escapeHtml(state.userDatasets.distinctTransports.join(' + '));
+        }
       }
       return 'Электровело';
     }
@@ -1956,6 +2002,9 @@ function renderBlock2() {
 
   dom.lblUnitPct.classList.toggle('ya-switch-opt-active', !state.heatUnitRub);
   dom.lblUnitRub.classList.toggle('ya-switch-opt-active', state.heatUnitRub);
+  if (heatUnitSwitch) {
+    heatUnitSwitch.setAttribute('aria-checked', state.heatUnitRub ? 'true' : 'false');
+  }
 
   dom.block2Title.textContent = state.heatUnitRub
     ? 'Средний общий доход в час (с учетом спроса)'
@@ -1998,11 +2047,19 @@ function renderBlock2() {
         const isSelected = state.selectedSlotCells.includes(cellKey);
         const displayStr = state.heatUnitRub ? `${comp.rubHr} ₽` : `+${comp.pct}%`;
         const colorCls = getHeatCellColor(comp, minVal, maxVal);
+        const cellAria = state.heatUnitRub
+          ? `${row.hours}, ${shortDayNames[cIdx]}: ${comp.rubHr} ₽/ч`
+          : `${row.hours}, ${shortDayNames[cIdx]}: +${comp.pct}% спроса`;
 
         html += `
           <td>
             <div data-cell-key="${cellKey}"
+                 role="button"
+                 tabindex="0"
+                 aria-label="${cellAria}"
+                 aria-pressed="${isSelected ? 'true' : 'false'}"
                  onclick="toggleHeatCell('${cellKey}')"
+                 onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleHeatCell('${cellKey}');}"
                  class="heat-cell rounded-lg py-1.5 px-0 text-[9.5px] font-bold ${colorCls} ${isSelected ? 'heat-cell-selected' : ''}">
               ${displayStr}
             </div>
@@ -2206,6 +2263,21 @@ function renderBlock3(precomputedAllTimeProfitHr) {
   });
   tbody.innerHTML = bodyHtml;
 
+  let cachedUserTransportStats = null;
+  let cachedUserSlotStats = null;
+  const getUserTransportStats = () => {
+    if (!cachedUserTransportStats) {
+      cachedUserTransportStats = calculateTransportStats(state.userDatasets ? state.userDatasets.orders : []);
+    }
+    return cachedUserTransportStats;
+  };
+  const getUserSlotStats = () => {
+    if (!cachedUserSlotStats) {
+      cachedUserSlotStats = calculateSlotStats(state.userDatasets ? state.userDatasets.orders : []);
+    }
+    return cachedUserSlotStats;
+  };
+
   let footHtml = '';
   ds.rowsTotal.forEach(row => {
     footHtml += `<tr>
@@ -2216,28 +2288,28 @@ function renderBlock3(precomputedAllTimeProfitHr) {
       else if (cellVal === 'DYNAMIC_ORD_HR') cellVal = `${userPeriodOrdersHr}`;
       else if (cellVal === 'ALLTIME') cellVal = `${formatNum(allTimeProfitHr)} ₽/ч`;
       else if (cellVal === 'TOTAL_ORD_HR_DYN') {
-        const stats = calculateTransportStats(state.userDatasets ? state.userDatasets.orders : []);
+        const stats = getUserTransportStats();
         cellVal = `${stats.totalOrdersPerHr}`;
       } else if (cellVal === 'SLOT_PLAN_ORD_HR_DYN') {
-        const stats = calculateSlotStats(state.userDatasets ? state.userDatasets.orders : []);
+        const stats = getUserSlotStats();
         cellVal = `${stats.planOrdHr}`;
       } else if (cellVal === 'SLOT_FREE_ORD_HR_DYN') {
-        const stats = calculateSlotStats(state.userDatasets ? state.userDatasets.orders : []);
+        const stats = getUserSlotStats();
         cellVal = `${stats.freeOrdHr}`;
       } else if (cellVal === 'PLAN_SLOT_DYN') {
-        const stats = calculateSlotStats(state.userDatasets ? state.userDatasets.orders : []);
+        const stats = getUserSlotStats();
         cellVal = `${formatNum(stats.planProfitPerHr)} ₽/ч`;
       } else if (cellVal === 'FREE_SLOT_DYN') {
-        const stats = calculateSlotStats(state.userDatasets ? state.userDatasets.orders : []);
+        const stats = getUserSlotStats();
         cellVal = `${formatNum(stats.freeProfitPerHr)} ₽/ч`;
       } else if (cellVal.startsWith('TRANSPORT_') && cellVal.endsWith('_PROFIT_DYN')) {
         const tKey = cellVal.replace('TRANSPORT_', '').replace('_PROFIT_DYN', '').toLowerCase();
-        const tStats = calculateTransportStats(state.userDatasets ? state.userDatasets.orders : []);
+        const tStats = getUserTransportStats();
         const item = tStats.byTransport[tKey];
         cellVal = item ? `${formatNum(item.profitPerHr)} ₽/ч` : '—';
       } else if (cellVal.startsWith('TRANSPORT_') && cellVal.endsWith('_ORD_HR_DYN')) {
         const tKey = cellVal.replace('TRANSPORT_', '').replace('_ORD_HR_DYN', '').toLowerCase();
-        const tStats = calculateTransportStats(state.userDatasets ? state.userDatasets.orders : []);
+        const tStats = getUserTransportStats();
         const item = tStats.byTransport[tKey];
         cellVal = item ? `${item.ordersPerHr}` : '—';
       } else if (cellVal === 'CAR_FORECAST_DYN') {
@@ -2605,6 +2677,13 @@ function selectBar(idx) {
   const data = getCurrentDataset();
   renderSelectedBarDetails(data[idx]);
   renderBlock3();
+
+  const scrollContainer = document.getElementById('barScrollContainer');
+  const activeBar = document.getElementById(`barCol-${idx}`);
+  if (scrollContainer && activeBar) {
+    const leftOffset = activeBar.offsetLeft - (scrollContainer.clientWidth / 2) + (activeBar.clientWidth / 2);
+    scrollContainer.scrollTo({ left: Math.max(0, leftOffset), behavior: 'smooth' });
+  }
 }
 
 function toggleWeather() {
