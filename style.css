@@ -413,6 +413,7 @@ body.desktop-mode #legendGrossBg {
   border-left: none !important;
   padding-left: 0 !important;
   white-space: nowrap !important;
+  grid-column: auto !important;
 }
 
 .desktop-grid-split {
@@ -555,13 +556,14 @@ body.desktop-mode #presetButtonsContainer {
 
 /* Полосатая штриховка для части «Начислено» (Gross) */
 .chart-gross-striped {
+  opacity: 0.35;
   background-color: #F8FAFC;
   background-image: repeating-linear-gradient(
     45deg,
     #94A3B8,
-    #94A3B8 3px,
-    #FFFFFF 3px,
-    #FFFFFF 7px
+    #94A3B8 1.5px,
+    #FFFFFF 1.5px,
+    #FFFFFF 3.5px
   );
   border: 1px solid #CBD5E1;
   border-bottom: none;
@@ -571,9 +573,9 @@ body:not(.light-mode) .chart-gross-striped {
   background-image: repeating-linear-gradient(
     45deg,
     #64748B,
-    #64748B 3px,
-    #0F172A 3px,
-    #0F172A 7px
+    #64748B 1.5px,
+    #0F172A 1.5px,
+    #0F172A 3.5px
   );
   border-color: #475569;
 }
@@ -588,10 +590,10 @@ body:not(.light-mode) .chart-gross-striped {
 
 /* Светло-серый ореол-подложка активного столбца на всю высоту */
 .chart-bar-backdrop {
-  background-color: rgba(215, 220, 230, 0.85);
+  background-color: rgba(215, 220, 230, 0.42);
 }
 body:not(.light-mode) .chart-bar-backdrop {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(255, 255, 255, 0.05);
 }
 
 .ya-benchmarks-btn {

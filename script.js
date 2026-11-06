@@ -1,5 +1,5 @@
 // =============================================================================
-// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.14.6) — ЛОГИКА И СОСТОЯНИЕ (script.js)
+// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.14.7) — ЛОГИКА И СОСТОЯНИЕ (script.js)
 // Оптимизированная и модульная версия с гранулярным рендерингом и кэшированием
 // =============================================================================
 
@@ -2640,8 +2640,21 @@ function renderBlock1() {
   dom.chartViewContainer.classList.toggle('hidden', state.viewMode !== 'chart');
   dom.tableViewContainer.classList.toggle('hidden', state.viewMode !== 'table');
 
-  dom.legendGoalsItem.classList.toggle('hidden', !state.includeGoals);
+  const goalsActive = !!state.includeGoals;
+  dom.legendGoalsItem.classList.toggle('hidden', !goalsActive);
   dom.legendGrossBg.classList.toggle('hidden', !state.isNet);
+
+  if (dom.legendTipsItem && dom.legendGrossBg) {
+    if (goalsActive) {
+      dom.legendTipsItem.classList.add('col-start-3');
+      dom.legendGrossBg.classList.add('col-span-3');
+      dom.legendGrossBg.classList.remove('col-start-3');
+    } else {
+      dom.legendTipsItem.classList.remove('col-start-3');
+      dom.legendGrossBg.classList.remove('col-span-3');
+      dom.legendGrossBg.classList.add('col-start-3');
+    }
+  }
   if (dom.btnToggleBenchmarks) {
     dom.btnToggleBenchmarks.classList.toggle('hidden', state.viewMode !== 'chart');
     updateBenchmarksButton();
