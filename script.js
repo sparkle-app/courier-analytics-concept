@@ -1893,10 +1893,10 @@ function resetToDemoData() {
 }
 
 /**
- * Переключение режима отображения: Телефон / ПК (на всю ширину)
+ * Применение режима отображения: Телефон / ПК (на всю ширину)
  */
-function toggleLayoutMode() {
-  state.layoutMode = state.layoutMode === 'phone' ? 'pc' : 'phone';
+function applyLayoutMode(mode, showNotification = false) {
+  state.layoutMode = mode === 'pc' ? 'pc' : 'phone';
   const isPc = state.layoutMode === 'pc';
   document.body.classList.toggle('desktop-mode', isPc);
   if (dom.lblLayoutMode) dom.lblLayoutMode.textContent = isPc ? 'Мобильная' : 'ПК';
@@ -1911,7 +1911,17 @@ function toggleLayoutMode() {
   if (dom.btnLayoutMode) {
     dom.btnLayoutMode.title = isPc ? 'Переключить на мобильную версию' : 'Переключить на версию для ПК';
   }
-  showToast(isPc ? 'Режим: ПК (на всю ширину браузера)' : 'Режим: Телефон (компактный)');
+  if (showNotification) {
+    showToast(isPc ? 'Режим: ПК (на всю ширину браузера)' : 'Режим: Телефон (компактный)');
+  }
+}
+
+/**
+ * Переключение режима отображения: Телефон / ПК (на всю ширину)
+ */
+function toggleLayoutMode() {
+  const newMode = state.layoutMode === 'phone' ? 'pc' : 'phone';
+  applyLayoutMode(newMode, true);
 }
 
 // -----------------------------------------------------------------------------
@@ -5034,4 +5044,10 @@ function setupTableDragScroll() {
 setupColumnDragDelegation();
 setupTableDragScroll();
 updateWeekStartDayUI();
+
+// Автоопределение типа устройства (ПК / Мобильный) при первой загрузке страницы
+const isDesktopDevice = (window.innerWidth >= 1024) &&
+  (typeof window.matchMedia === 'function' ? window.matchMedia('(pointer: fine)').matches : true);
+applyLayoutMode(isDesktopDevice ? 'pc' : 'phone', false);
+
 renderAll();
