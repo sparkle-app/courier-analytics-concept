@@ -2754,7 +2754,7 @@ function renderBarChart(data) {
   const unitSuffix = state.isHourly ? '₽/ч' : '₽';
 
   const benchmarkLinesHtml = (!state.showBenchmarks || state.usingUserData) ? '' : `
-    <div class="absolute left-9 right-1 bottom-6 top-3 pointer-events-none">
+    <div class="absolute left-9 right-1 bottom-[24px] top-[26px] pointer-events-none">
       <div style="bottom: ${pctUser}%" class="absolute left-0 right-0 border-t border-dashed border-gray-300/75 z-20">
         <span class="absolute left-1 -top-3.5 text-[8.5px] font-semibold px-1 rounded bg-black/70 text-gray-100 whitespace-nowrap">
           Вы (${formatNum(avgUserVal)} ${unitSuffix})
@@ -2776,17 +2776,11 @@ function renderBarChart(data) {
   const itemWidth = 44;
 
   let html = `
-    <!-- Метки оси Y на точных математических позициях (с круглыми числами) -->
-    <div class="absolute left-0 top-3 bottom-6 w-8 text-[9px] pr-1 text-right text-mut pointer-events-none select-none">
+    <!-- Метки оси Y: точно выровнены по вертикали с рабочей областью столбцов flex-1 (top-[26px] bottom-[24px]) -->
+    <div class="absolute left-0 top-[26px] bottom-[24px] w-8 text-[9px] pr-1 text-right text-mut pointer-events-none select-none">
       <span class="absolute right-1 -translate-y-1/2" style="bottom: ${pctTop}%">${formatCompact(yTop)}</span>
       <span class="absolute right-1 -translate-y-1/2" style="bottom: ${pctMid}%">${formatCompact(yMid)}</span>
       <span class="absolute right-1 translate-y-1/2" style="bottom: 0%">0</span>
-    </div>
-
-    <!-- Тонкие направляющие сетки на уровне меток yTop и yMid -->
-    <div class="absolute left-9 right-1 bottom-6 top-3 pointer-events-none">
-      <div style="bottom: ${pctTop}%" class="absolute left-0 right-0 border-t border-dashed border-gray-300/35 dark:border-gray-700/35 z-0"></div>
-      <div style="bottom: ${pctMid}%" class="absolute left-0 right-0 border-t border-dashed border-gray-300/35 dark:border-gray-700/35 z-0"></div>
     </div>
 
     ${benchmarkLinesHtml}
