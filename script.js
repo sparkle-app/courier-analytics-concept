@@ -2754,7 +2754,7 @@ function renderBarChart(data) {
   const unitSuffix = state.isHourly ? '₽/ч' : '₽';
 
   const benchmarkLinesHtml = (!state.showBenchmarks || state.usingUserData) ? '' : `
-    <div class="absolute left-9 right-1 bottom-[24px] top-[26px] pointer-events-none">
+    <div id="chartBenchmarkContainer" class="absolute left-9 right-1 pointer-events-none" style="top: 25px; bottom: 29.5px;">
       <div style="bottom: ${pctUser}%" class="absolute left-0 right-0 border-t border-dashed border-gray-300/75 z-20">
         <span class="absolute left-1 -top-3.5 text-[8.5px] font-semibold px-1 rounded bg-black/70 text-gray-100 whitespace-nowrap">
           Вы (${formatNum(avgUserVal)} ${unitSuffix})
@@ -2776,11 +2776,11 @@ function renderBarChart(data) {
   const itemWidth = 44;
 
   let html = `
-    <!-- Метки оси Y: точно выровнены по вертикали с рабочей областью столбцов flex-1 (top-[26px] bottom-[24px]) -->
-    <div class="absolute left-0 top-[26px] bottom-[24px] w-8 text-[9px] pr-1 text-right text-mut pointer-events-none select-none">
-      <span class="absolute right-1 -translate-y-1/2" style="bottom: ${pctTop}%">${formatCompact(yTop)}</span>
-      <span class="absolute right-1 -translate-y-1/2" style="bottom: ${pctMid}%">${formatCompact(yMid)}</span>
-      <span class="absolute right-1 translate-y-1/2" style="bottom: 0%">0</span>
+    <!-- Метки оси Y: абсолютно точно выровнены с flex-1 столбцов (translateY(50%) центрирует метку строго на значении) -->
+    <div id="chartYAxisContainer" class="absolute left-0 w-8 text-[9px] pr-1 text-right text-mut pointer-events-none select-none" style="top: 25px; bottom: 29.5px;">
+      <span class="absolute right-1 text-mut font-semibold" style="bottom: ${pctTop}%; transform: translateY(50%);">${formatCompact(yTop)}</span>
+      <span class="absolute right-1 text-mut font-semibold" style="bottom: ${pctMid}%; transform: translateY(50%);">${formatCompact(yMid)}</span>
+      <span class="absolute right-1 text-mut font-semibold" style="bottom: 0%; transform: translateY(50%);">0</span>
     </div>
 
     ${benchmarkLinesHtml}
@@ -2874,9 +2874,30 @@ function renderBarChart(data) {
     </div>`;
   canvas.innerHTML = html;
 
-  const scrollContainer = document.getElementById('barScrollContainer');
-  if (scrollContainer) {
-    requestAnimationFrame(() => {
+  requestAnimationFrame(() => {
+    // Точнейшая субпиксельная синхронизация вертикальной шкалы Y с областью flex-1 столбцов
+    const yAxisBox = document.getElementById('chartYAxisContainer');
+    const benchBox = document.getElementById('chartBenchmarkContainer');
+    const firstFlex1 = canvas.querySelector('.chart-bar-item .flex-1');
+    if (firstFlex1) {
+      const cRect = canvas.getBoundingClientRect();
+      const fRect = firstFlex1.getBoundingClientRect();
+      if (cRect.height > 0 && fRect.height > 0) {
+        const topPx = (fRect.top - cRect.top) + 'px';
+        const btmPx = (cRect.bottom - fRect.bottom) + 'px';
+        if (yAxisBox) {
+          yAxisBox.style.top = topPx;
+          yAxisBox.style.bottom = btmPx;
+        }
+        if (benchBox) {
+          benchBox.style.top = topPx;
+          benchBox.style.bottom = btmPx;
+        }
+      }
+    }
+
+    const scrollContainer = document.getElementById('barScrollContainer');
+    if (scrollContainer) {
       if (dom.screenMain.classList.contains('hidden')) return;
 
       const activeBar = document.getElementById(`barCol-${state.selectedBarIndex}`);
@@ -2886,8 +2907,8 @@ function renderBarChart(data) {
       } else {
         scrollContainer.scrollLeft = scrollContainer.scrollWidth;
       }
-    });
-  }
+    }
+  });
 
   renderSelectedBarDetails(data[state.selectedBarIndex]);
 }
