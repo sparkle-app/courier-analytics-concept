@@ -96,9 +96,9 @@
           <span id="allTimeHourlyProfit" class="font-medium">694 ₽/ч</span>
         </div>
 
-        <!-- 3-4. КНОПКИ УПРАВЛЕНИЯ ПЕРВЫМ БЛОКОМ (ГРАФИК/ТАБЛИЦА И ПЕРИОД) -->
-        <div id="block1ControlsWrapper" class="space-y-1.5">
-          <!-- Четыре кнопки управления (свитчи и настройки) -->
+        <!-- 3-4. КНОПКИ УПРАВЛЕНИЯ ПЕРВЫМ БЛОКОМ (ГРАФИК/ТАБЛИЦА И ПЕРИОД) — ВАРИАНТ 2 (ZERO-HEIGHT CLUSTER) -->
+        <div id="block1ControlsWrapper">
+          <!-- Единая строка контролов: Показатель, Режим, Период (Дни/Нед/Мес), Вид (График/Таблица) -->
           <div id="block1SwitchCards" class="grid grid-cols-3 gap-1.5">
             <!-- 1. Показатель: Сумма / В час -->
             <div id="switchSumHourly" role="switch" aria-checked="false" aria-label="Показатель: Сумма или В час" tabindex="0" onclick="toggleSumHourly()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleSumHourly();}" class="ya-switch-card">
@@ -114,30 +114,30 @@
               <span id="lblNet" class="ya-switch-val ya-switch-opt-active">Чистыми</span>
             </div>
 
-            <!-- 3. Диаграмма / Таблица (Сегментированный pill-переключатель) -->
+            <!-- 3. Период: Дни / Нед / Мес (Встроенный однострочный микро-кластер) -->
+            <div id="block1PeriodButtons" class="ya-segmented">
+              <button type="button" onclick="setPeriod('days')" id="btnPeriod-days" class="ya-seg-btn ya-seg-btn-active">Дни</button>
+              <button type="button" onclick="setPeriod('weeks')" id="btnPeriod-weeks" class="ya-seg-btn">Нед</button>
+              <button type="button" onclick="setPeriod('months')" id="btnPeriod-months" class="ya-seg-btn">Мес</button>
+            </div>
+
+            <!-- 4. Диаграмма / Таблица (Сегментированный pill-переключатель) -->
             <div id="switchChartTable" role="switch" aria-checked="false" aria-label="Переключение: Диаграмма или Таблица" tabindex="0" onclick="toggleChartTable()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleChartTable();}" class="ya-switch-card ya-switch-pill-container" title="Переключить вид: Диаграмма / Таблица">
               <button type="button" id="lblChart" tabindex="-1" aria-label="Диаграмма" onclick="event.stopPropagation(); if(state.viewMode!=='chart') toggleChartTable();" class="ya-pill-segment ya-switch-opt-active">
-                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                   <line x1="18" y1="20" x2="18" y2="10"></line>
                   <line x1="12" y1="20" x2="12" y2="4"></line>
                   <line x1="6" y1="20" x2="6" y2="14"></line>
                 </svg>
               </button>
               <button type="button" id="lblTable" tabindex="-1" aria-label="Таблица" onclick="event.stopPropagation(); if(state.viewMode!=='table') toggleChartTable();" class="ya-pill-segment">
-                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                   <rect x="3" y="4" width="18" height="16" rx="3.5"></rect>
                   <line x1="3" y1="10" x2="21" y2="10"></line>
                   <line x1="10" y1="10" x2="10" y2="20"></line>
                 </svg>
               </button>
             </div>
-          </div>
-
-          <!-- Три кнопки периода (Дни, Недели, Месяцы) -->
-          <div id="block1PeriodButtons" class="ya-segmented grid grid-cols-3 gap-1">
-            <button type="button" onclick="setPeriod('days')" id="btnPeriod-days" class="py-1.5 text-xs ya-seg-btn ya-seg-btn-active">Дни</button>
-            <button type="button" onclick="setPeriod('weeks')" id="btnPeriod-weeks" class="py-1.5 text-xs ya-seg-btn">Недели</button>
-            <button type="button" onclick="setPeriod('months')" id="btnPeriod-months" class="py-1.5 text-xs ya-seg-btn">Месяцы</button>
           </div>
         </div>
 

@@ -141,21 +141,33 @@ body {
   transform: scale(0.97);
 }
 
-/* Two-tier cards layout in block1 */
+/* Block 1 Switch Cards - Variant 2 (Zero-Height Cluster) */
+#block1SwitchCards {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 5px !important;
+  width: 100% !important;
+}
+
 #block1SwitchCards .ya-switch-card {
-  min-height: 52px;
-  height: 52px;
-  padding: 6px 4px;
+  min-height: 46px;
+  height: 46px;
+  padding: 4px 6px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 /* Category header (top line) */
 .ya-switch-cat {
-  font-size: 9px;
+  font-size: 8.5px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -168,7 +180,7 @@ body {
 /* Current value (bottom line) - font weight 700 in BOTH states prevents jumping */
 .ya-switch-val {
   display: none;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--text-main);
   line-height: 1.2;
@@ -177,7 +189,38 @@ body {
   white-space: nowrap;
 }
 .ya-switch-val.ya-switch-opt-active {
-  display: block;
+  display: block !important;
+  background-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--text-main) !important;
+}
+
+/* Block 1 Period Buttons inside the cluster */
+#block1SwitchCards #block1PeriodButtons {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  min-height: 46px;
+  height: 46px;
+  padding: 3px !important;
+  border-radius: 14px !important;
+  flex: 1.2 1 0;
+  min-width: 0;
+  gap: 2px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+#block1SwitchCards #block1PeriodButtons .ya-seg-btn {
+  flex: 1 1 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  padding: 0 4px;
+  border-radius: 11px;
 }
 
 /* Segmented Pill Switch for Diagram / Table (Screenshot 2) */
@@ -186,11 +229,14 @@ body {
   flex-direction: row !important;
   align-items: center !important;
   justify-content: space-between !important;
-  padding: 3.5px !important;
+  padding: 3px !important;
   border-radius: 9999px !important;
-  min-height: 52px;
-  height: 52px;
-  gap: 3px;
+  min-height: 46px;
+  height: 46px;
+  gap: 2px;
+  flex: 0 0 64px;
+  width: 64px;
+  min-width: 64px;
 }
 
 .ya-pill-segment {
@@ -213,9 +259,9 @@ body {
 }
 
 .ya-pill-segment.ya-switch-opt-active {
-  background: linear-gradient(135deg, #2563EB 0%, #3B82F6 100%);
+  background: linear-gradient(135deg, #2563EB 0%, #3B82F6 100%) !important;
   color: #FFFFFF !important;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.38);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.38) !important;
 }
 
 .ya-pill-segment svg {
@@ -239,12 +285,6 @@ body {
   color: var(--text-secondary);
   transition: all 0.15s ease;
 }
-.ya-switch-opt-active {
-  background-color: var(--ya-yellow);
-  color: var(--ya-yellow-text);
-  font-weight: 600;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
-}
 
 .ya-segmented {
   background-color: var(--bg-card);
@@ -261,11 +301,21 @@ body {
 .ya-seg-btn:hover {
   color: var(--text-main);
 }
-.ya-seg-btn-active {
-  background-color: var(--ya-yellow);
-  color: var(--ya-yellow-text) !important;
-  font-weight: 600;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+
+/* Active segmented button & switch styling: Slate Grey like text under indicator and mode */
+.ya-seg-btn-active,
+.ya-switch-opt.ya-switch-opt-active {
+  background-color: #1E293B !important;
+  color: #FFFFFF !important;
+  font-weight: 700 !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2) !important;
+}
+
+body:not(.light-mode) .ya-seg-btn-active,
+body:not(.light-mode) .ya-switch-opt.ya-switch-opt-active {
+  background-color: #334155 !important;
+  color: #F8FAFC !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35) !important;
 }
 
 /* Custom Scrollbar */
@@ -425,44 +475,46 @@ body.desktop-mode #screenSettings {
   width: 100% !important;
 }
 
-/* Панель управления Блоком 1 в десктопном режиме: в один ряд, период слева */
+/* Панель управления Блоком 1 в десктопном режиме: компактный кластер слева без растягивания на всю ширину */
 body.desktop-mode #block1ControlsWrapper {
-  display: flex !important;
-  flex-direction: row !important;
-  flex-wrap: nowrap !important;
-  align-items: center !important;
-  justify-content: flex-start !important;
-  gap: 0.75rem !important;
+  display: block !important;
   width: auto !important;
-}
-
-body.desktop-mode #block1PeriodButtons {
-  order: 1 !important;
-  display: grid !important;
-  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-  width: 240px !important;
-  min-width: 240px !important;
-  flex-shrink: 0 !important;
-}
-
-body.desktop-mode #block1PeriodButtons .ya-seg-btn {
-  padding: 0.35rem 0.65rem !important;
-  text-align: center !important;
 }
 
 body.desktop-mode #block1SwitchCards {
-  order: 2 !important;
-  display: flex !important;
+  display: inline-flex !important;
   flex-direction: row !important;
   align-items: center !important;
-  gap: 0.5rem !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
   width: auto !important;
-  flex-shrink: 0 !important;
+  max-width: fit-content !important;
 }
 
 body.desktop-mode #block1SwitchCards .ya-switch-card {
-  width: 120px !important;
-  flex-shrink: 0 !important;
+  width: auto !important;
+  min-width: 90px !important;
+  padding: 5px 12px !important;
+  flex: 0 0 auto !important;
+}
+
+body.desktop-mode #block1SwitchCards #block1PeriodButtons {
+  width: auto !important;
+  min-width: 145px !important;
+  padding: 3px 4px !important;
+  flex: 0 0 auto !important;
+  gap: 2px !important;
+}
+
+body.desktop-mode #block1SwitchCards #block1PeriodButtons .ya-seg-btn {
+  padding: 4px 10px !important;
+  font-size: 11.5px !important;
+}
+
+body.desktop-mode #block1SwitchCards #switchChartTable {
+  width: 72px !important;
+  min-width: 72px !important;
+  flex: 0 0 auto !important;
 }
 
 body.desktop-mode #chartLegendContainer {
