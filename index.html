@@ -23,50 +23,54 @@
     <!-- Скрытый инпут для выбора файла через системное окно проводника Windows -->
     <input type="file" id="userDataFileInput" accept=".xlsx,.xls,.csv,.tsv,.txt" class="hidden" onchange="handleUserDataFileUpload(event)" />
 
-    <div class="flex flex-wrap items-center justify-between gap-2">
-      <div class="flex items-center gap-2">
-        <span class="px-2 py-0.5 rounded-md bg-[#FCE000] text-[#141518] font-extrabold">v13.14.7</span>
-        <span class="font-semibold">UX-концепт аналитики курьера</span>
-      </div>
-      <div class="flex flex-wrap items-center gap-1.5">
-        <!-- КНОПКИ ИМПОРТА И СБРОСА ДАННЫХ -->
-        <button type="button" onclick="triggerUserDataFileInput()" id="btnImportData" title="Загрузить свои данные (Excel / CSV)" class="px-2.5 py-1.5 rounded-xl ya-nav-btn font-semibold transition flex items-center gap-1 text-[#18191C] active:scale-95">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M16 10l-4 4m0 0l-4-4m4 4V4"/></svg>
-          <span>Импорт</span>
-        </button>
-        <button type="button" onclick="resetToDemoData()" id="btnResetData" title="Сбросить на демо-данные" class="hidden px-2 py-1.5 rounded-xl ya-nav-btn font-semibold transition text-rose-400 hover:text-rose-300 active:scale-95">
-          ✕ Демо
-        </button>
-        <!-- ПЕРЕКЛЮЧАТЕЛЬ РЕЖИМА ТЕЛЕФОН / ПК -->
-        <button type="button" onclick="toggleLayoutMode()" id="btnLayoutMode" title="Переключить на версию для ПК" class="px-2.5 py-1.5 rounded-xl ya-nav-btn font-medium transition flex items-center gap-1.5 text-xs">
-          <span id="lblLayoutIcon" class="flex items-center justify-center">
-            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-              <line x1="8" y1="21" x2="16" y2="21"></line>
-              <line x1="12" y1="17" x2="12" y2="21"></line>
-            </svg>
-          </span>
-          <span id="lblLayoutMode">ПК</span>
-        </button>
-        <!-- ТЕМА ОФОРМЛЕНИЯ -->
-        <button type="button" onclick="toggleColorTheme()" id="btnColorTheme" title="Переключить темный / светлый режим" aria-label="Переключить тему" class="w-8 h-8 rounded-xl ya-nav-btn flex items-center justify-center transition">
-          <span id="lblThemeIcon" class="flex items-center justify-center">
-            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-            </svg>
-          </span>
-        </button>
-      </div>
+    <!-- 1. ВЕРСИЯ И ЗАГОЛОВОК -->
+    <div class="flex items-center gap-2">
+      <span class="version-badge px-2 py-0.5 rounded-md font-extrabold text-[11px] leading-tight shadow-sm">v13.14.7</span>
+      <span class="font-semibold text-main">UX-концепт аналитики курьера</span>
     </div>
 
-    <!-- ПОДПИСЬ ИСТОЧНИКА ДАННЫХ (ПЕРЕНЕСЕНА НАД ОГОВОРКОЙ) -->
-    <div class="pt-1 border-t text-[11px] border-subtle flex items-center justify-between">
+    <!-- 2. ОГОВОРКА О НЕЗАВИСИМОСТИ -->
+    <div class="text-[10px] leading-snug text-mut">
+      Независимый некоммерческий UI/UX-концепт (исследовательский прототип). Не является официальным продуктом сервисов доставки. Все данные вымышленные.
+    </div>
+
+    <!-- 3. РАЗДЕЛИТЕЛЬ -->
+    <div class="border-t border-subtle pt-0.5"></div>
+
+    <!-- 4. ПОДПИСЬ ИСТОЧНИКА ДАННЫХ -->
+    <div class="text-[11px] flex items-center justify-between">
       <span id="dataStatusBadge" class="font-bold text-sec">Источник: <b class="text-amber-500">Демо-данные</b></span>
     </div>
 
-    <!-- ОГОВОРКА О НЕЗАВИСИМОСТИ С ПОЛНЫМ ВТОРЫМ ПРЕДЛОЖЕНИЕМ -->
-    <div class="text-[10px] leading-snug text-mut">
-      Независимый некоммерческий UI/UX-концепт (исследовательский прототип). Не является официальным продуктом сервисов доставки. Все данные вымышленные.
+    <!-- 5. КНОПКИ УПРАВЛЕНИЯ -->
+    <div class="flex flex-wrap items-center gap-1.5 pt-0.5">
+      <!-- КНОПКИ ИМПОРТА И СБРОСА ДАННЫХ -->
+      <button type="button" onclick="triggerUserDataFileInput()" id="btnImportData" title="Загрузить свои данные (Excel / CSV)" class="px-2.5 py-1.5 rounded-xl ya-nav-btn font-semibold transition flex items-center gap-1 text-[#18191C] dark:text-[#F8FAFC] active:scale-95">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M16 10l-4 4m0 0l-4-4m4 4V4"/></svg>
+        <span>Импорт</span>
+      </button>
+      <button type="button" onclick="resetToDemoData()" id="btnResetData" title="Сбросить на демо-данные" class="hidden px-2 py-1.5 rounded-xl ya-nav-btn font-semibold transition text-rose-400 hover:text-rose-300 active:scale-95">
+        ✕ Демо
+      </button>
+      <!-- ПЕРЕКЛЮЧАТЕЛЬ РЕЖИМА ТЕЛЕФОН / ПК -->
+      <button type="button" onclick="toggleLayoutMode()" id="btnLayoutMode" title="Переключить на версию для ПК" class="px-2.5 py-1.5 rounded-xl ya-nav-btn font-medium transition flex items-center gap-1.5 text-xs">
+        <span id="lblLayoutIcon" class="flex items-center justify-center">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+            <line x1="8" y1="21" x2="16" y2="21"></line>
+            <line x1="12" y1="17" x2="12" y2="21"></line>
+          </svg>
+        </span>
+        <span id="lblLayoutMode">ПК</span>
+      </button>
+      <!-- ТЕМА ОФОРМЛЕНИЯ -->
+      <button type="button" onclick="toggleColorTheme()" id="btnColorTheme" title="Переключить темный / светлый режим" aria-label="Переключить тему" class="w-8 h-8 rounded-xl ya-nav-btn flex items-center justify-center transition">
+        <span id="lblThemeIcon" class="flex items-center justify-center">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </span>
+      </button>
     </div>
   </div>
 

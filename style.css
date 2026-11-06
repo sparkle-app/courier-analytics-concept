@@ -908,3 +908,13 @@ body:not(.light-mode) .benchmarks-dot-on {
 body:not(.light-mode) .benchmarks-dot-off {
   border-color: #64748B !important;
 }
+
+/* Бейдж версии в сервисной плашке стенда (в цвет темных переключателей) */
+.version-badge {
+  background-color: #1E293B !important;
+  color: #FFFFFF !important;
+}
+body:not(.light-mode) .version-badge {
+  background-color: #334155 !important;
+  color: #F8FAFC !important;
+}
