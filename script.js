@@ -1,5 +1,5 @@
 // =============================================================================
-// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.14.5) — ЛОГИКА И СОСТОЯНИЕ (script.js)
+// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.14.6) — ЛОГИКА И СОСТОЯНИЕ (script.js)
 // Оптимизированная и модульная версия с гранулярным рендерингом и кэшированием
 // =============================================================================
 
@@ -2736,15 +2736,18 @@ function renderBarChart(data) {
         </div>
       `;
     } else {
+      const segs = [];
+      if (d.ordersCost > 0) segs.push(`<div style="height: ${p('ordersCost')}%" class="w-full bg-blue-500"></div>`);
+      if (d.surgeRub > 0)   segs.push(`<div style="height: ${p('surgeRub')}%"   class="w-full bg-[#FCE000]"></div>`);
+      if (d.ratingRub > 0)  segs.push(`<div style="height: ${p('ratingRub')}%"  class="w-full bg-orange-400"></div>`);
+      if (d.bonuses > 0)    segs.push(`<div style="height: ${p('bonuses')}%"    class="w-full bg-purple-500"></div>`);
+      if (state.includeGoals && d.goals > 0) segs.push(`<div style="height: ${p('goals')}%" class="w-full bg-pink-500"></div>`);
+      if (d.tips > 0)       segs.push(`<div style="height: ${p('tips')}%"       class="w-full bg-emerald-400"></div>`);
+
       barStackHtml = `
         <div id="barStack-${idx}" style="height: ${netHeightPct}%"
-             class="w-full relative z-10 rounded-t-lg overflow-hidden flex flex-col-reverse shadow ${isSelected ? 'opacity-100' : 'opacity-90 group-hover:opacity-100'}">
-          <div style="height: ${p('ordersCost')}%" class="w-full bg-blue-500"></div>
-          <div style="height: ${p('surgeRub')}%"   class="w-full bg-[#FCE000]"></div>
-          <div style="height: ${p('ratingRub')}%"  class="w-full bg-orange-400"></div>
-          <div style="height: ${p('bonuses')}%"    class="w-full bg-purple-500"></div>
-          ${state.includeGoals ? `<div style="height: ${p('goals')}%" class="w-full bg-pink-500"></div>` : ''}
-          <div style="height: ${p('tips')}%"       class="w-full bg-emerald-400"></div>
+             class="chart-stack-divider w-full relative z-10 rounded-t-lg overflow-hidden flex flex-col-reverse shadow">
+          ${segs.join('')}
         </div>
       `;
     }
@@ -2770,7 +2773,7 @@ function renderBarChart(data) {
         <div class="flex-1 w-full max-w-[28px] min-h-0 flex items-end justify-center relative z-10">
           ${state.isNet ? `
             <div style="height: ${grossHeightPct}%"
-                 class="w-full bg-gray-500/35 border border-dashed border-gray-400/70 rounded-t-lg absolute bottom-0 left-0 right-0">
+                 class="w-full chart-gross-striped rounded-t-lg absolute bottom-0 left-0 right-0">
             </div>
           ` : ''}
 

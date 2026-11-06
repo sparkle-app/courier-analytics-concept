@@ -552,6 +552,40 @@ body.desktop-mode #presetButtonsContainer {
   box-shadow: none !important;
 }
 
+
+/* Полосатая штриховка для части «Начислено» (Gross) */
+.chart-gross-striped {
+  background-color: #F8FAFC;
+  background-image: repeating-linear-gradient(
+    45deg,
+    #94A3B8,
+    #94A3B8 3px,
+    #FFFFFF 3px,
+    #FFFFFF 7px
+  );
+  border: 1px solid #CBD5E1;
+  border-bottom: none;
+}
+body:not(.light-mode) .chart-gross-striped {
+  background-color: #1E293B;
+  background-image: repeating-linear-gradient(
+    45deg,
+    #64748B,
+    #64748B 3px,
+    #0F172A 3px,
+    #0F172A 7px
+  );
+  border-color: #475569;
+}
+
+/* 1.5px разделительные полоски между цветными сегментами */
+.chart-stack-divider > div {
+  box-sizing: border-box;
+}
+.chart-stack-divider > div + div {
+  border-bottom: 1.5px solid var(--bg-card, #FFFFFF) !important;
+}
+
 /* Светло-серый ореол-подложка активного столбца на всю высоту */
 .chart-bar-backdrop {
   background-color: rgba(215, 220, 230, 0.85);
