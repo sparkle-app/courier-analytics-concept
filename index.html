@@ -38,13 +38,23 @@
           ✕ Демо
         </button>
         <!-- ПЕРЕКЛЮЧАТЕЛЬ РЕЖИМА ТЕЛЕФОН / ПК -->
-        <button type="button" onclick="toggleLayoutMode()" id="btnLayoutMode" title="Переключить на версию для ПК" class="px-2.5 py-1.5 rounded-xl ya-nav-btn font-medium transition flex items-center gap-1">
-          <span id="lblLayoutIcon">💻</span>
+        <button type="button" onclick="toggleLayoutMode()" id="btnLayoutMode" title="Переключить на версию для ПК" class="px-2.5 py-1.5 rounded-xl ya-nav-btn font-medium transition flex items-center gap-1.5 text-xs">
+          <span id="lblLayoutIcon" class="flex items-center justify-center">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+              <line x1="8" y1="21" x2="16" y2="21"></line>
+              <line x1="12" y1="17" x2="12" y2="21"></line>
+            </svg>
+          </span>
           <span id="lblLayoutMode">ПК</span>
         </button>
         <!-- ТЕМА ОФОРМЛЕНИЯ -->
-        <button type="button" onclick="toggleColorTheme()" id="btnColorTheme" title="Переключить темный / светлый режим" aria-label="Переключить тему" class="w-8 h-8 rounded-xl ya-nav-btn text-base flex items-center justify-center transition">
-          🌙
+        <button type="button" onclick="toggleColorTheme()" id="btnColorTheme" title="Переключить темный / светлый режим" aria-label="Переключить тему" class="w-8 h-8 rounded-xl ya-nav-btn flex items-center justify-center transition">
+          <span id="lblThemeIcon" class="flex items-center justify-center">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+          </span>
         </button>
       </div>
     </div>
@@ -122,21 +132,22 @@
             </div>
 
             <!-- 4. Диаграмма / Таблица (Сегментированный pill-переключатель) -->
-            <div id="switchChartTable" role="switch" aria-checked="false" aria-label="Переключение: Диаграмма или Таблица" tabindex="0" onclick="toggleChartTable()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleChartTable();}" class="ya-switch-card ya-switch-pill-container" title="Переключить вид: Диаграмма / Таблица">
-              <button type="button" id="lblChart" tabindex="-1" aria-label="Диаграмма" onclick="event.stopPropagation(); if(state.viewMode!=='chart') toggleChartTable();" class="ya-pill-segment ya-switch-opt-active">
-                <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <div id="switchChartTable" role="switch" aria-checked="false" aria-label="Переключение: Диаграмма или Таблица" tabindex="0" onclick="toggleChartTable()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleChartTable();}" class="ya-switch-card ya-switch-pill-container cursor-pointer" title="Переключить вид: Диаграмма / Таблица">
+              <span id="lblChart" class="ya-pill-segment ya-switch-opt-active pointer-events-none" aria-label="Диаграмма">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                   <line x1="18" y1="20" x2="18" y2="10"></line>
                   <line x1="12" y1="20" x2="12" y2="4"></line>
                   <line x1="6" y1="20" x2="6" y2="14"></line>
                 </svg>
-              </button>
-              <button type="button" id="lblTable" tabindex="-1" aria-label="Таблица" onclick="event.stopPropagation(); if(state.viewMode!=='table') toggleChartTable();" class="ya-pill-segment">
-                <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="3" y="4" width="18" height="16" rx="3.5"></rect>
-                  <line x1="3" y1="10" x2="21" y2="10"></line>
-                  <line x1="10" y1="10" x2="10" y2="20"></line>
+              </span>
+              <span id="lblTable" class="ya-pill-segment pointer-events-none" aria-label="Таблица">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                  <path d="M3 9h18"></path>
+                  <path d="M3 15h18"></path>
+                  <path d="M12 3v18"></path>
                 </svg>
-              </button>
+              </span>
             </div>
           </div>
         </div>
@@ -151,7 +162,7 @@
               <div class="flex items-center justify-between gap-2">
                 <h2 id="block1Title" class="text-xs font-bold tracking-tight">Динамика дохода</h2>
                 <button type="button" id="btnToggleBenchmarks" onclick="toggleBenchmarks()" title="Ориентиры: Вы, Район, Город" class="ya-benchmarks-btn px-2.5 py-1 rounded-full text-[11px] font-semibold flex items-center gap-1.5 transition active:scale-95 border">
-                  <span id="benchmarksDot" class="w-2 h-2 rounded-full bg-amber-400 shrink-0"></span>
+                  <span id="benchmarksDot" class="w-2 h-2 rounded-full benchmarks-dot-on shrink-0 transition-all"></span>
                   <span id="benchmarksLabel">Ориентиры</span>
                 </button>
               </div>
@@ -328,7 +339,7 @@
             </div>
           </div>
 
-          <button type="button" onclick="openRealMapModal()" class="w-full rounded-2xl py-3 px-4 font-extrabold text-xs flex items-center justify-between shadow active:scale-98 transition btn-primary">
+          <button type="button" onclick="openRealMapModal()" class="w-full rounded-2xl py-3 px-4 font-extrabold text-xs flex items-center justify-between shadow active:scale-98 transition ya-btn-slate">
             <span class="flex items-center gap-2">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
               <span>Выбрать район на карте</span>

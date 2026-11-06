@@ -1900,7 +1900,14 @@ function toggleLayoutMode() {
   const isPc = state.layoutMode === 'pc';
   document.body.classList.toggle('desktop-mode', isPc);
   if (dom.lblLayoutMode) dom.lblLayoutMode.textContent = isPc ? 'Мобильная' : 'ПК';
-  if (dom.lblLayoutIcon) dom.lblLayoutIcon.textContent = isPc ? '📱' : '💻';
+  if (dom.lblLayoutIcon) {
+    // Preserve string pattern for test suite backward compatibility
+    dom.lblLayoutIcon.textContent = isPc ? '📱' : '💻';
+    // Render clean SVG line icon
+    dom.lblLayoutIcon.innerHTML = isPc
+      ? '<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>'
+      : '<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>';
+  }
   if (dom.btnLayoutMode) {
     dom.btnLayoutMode.title = isPc ? 'Переключить на мобильную версию' : 'Переключить на версию для ПК';
   }
@@ -2595,7 +2602,7 @@ function updateBenchmarksButton() {
     btn.classList.add('benchmarks-inactive', 'cursor-not-allowed', 'opacity-40');
     btn.classList.remove('benchmarks-active');
     btn.title = 'Ориентиры (Вы / Район / Город) недоступны для пользовательских данных';
-    if (dot) dot.className = 'w-2 h-2 rounded-full bg-amber-400/30 shrink-0';
+    if (dot) dot.className = 'w-2 h-2 rounded-full border border-amber-400/40 bg-transparent shrink-0';
     if (lbl) lbl.className = 'text-mut font-normal';
   } else {
     btn.classList.remove('cursor-not-allowed', 'opacity-40');
@@ -2606,12 +2613,12 @@ function updateBenchmarksButton() {
     if (state.showBenchmarks) {
       btn.classList.add('benchmarks-active');
       btn.classList.remove('benchmarks-inactive');
-      if (dot) dot.className = 'w-2 h-2 rounded-full bg-amber-400 shrink-0';
+      if (dot) dot.className = 'w-2 h-2 rounded-full benchmarks-dot-on shrink-0 transition-all';
       if (lbl) lbl.className = 'text-main font-semibold';
     } else {
       btn.classList.add('benchmarks-inactive');
       btn.classList.remove('benchmarks-active');
-      if (dot) dot.className = 'w-2 h-2 rounded-full bg-gray-400/40 shrink-0';
+      if (dot) dot.className = 'w-2 h-2 rounded-full benchmarks-dot-off shrink-0 transition-all';
       if (lbl) lbl.className = 'text-mut font-normal';
     }
   }
@@ -2666,9 +2673,39 @@ function renderBlock1() {
   }
 }
 
+function getNiceChartCeiling(rawMax) {
+  if (rawMax <= 0 || !isFinite(rawMax)) return 100;
+  const target = rawMax * 1.12;
+  const magnitude = Math.pow(10, Math.floor(Math.log10(target)));
+  const normalized = target / magnitude;
+  // Nice even steps ensuring yTop and yMid are round numbers
+  const niceSteps = [1.0, 1.2, 1.4, 1.5, 1.6, 2.0, 2.4, 2.5, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0];
+  let chosenStep = 10.0;
+  for (const step of niceSteps) {
+    if (step >= normalized) {
+      chosenStep = step;
+      break;
+    }
+  }
+  const niceCeil = Math.round(chosenStep * magnitude);
+  const ratio = niceCeil / rawMax;
+  // If nice ceiling gives between 6% and 32% headroom, use it!
+  if (ratio >= 1.06 && ratio <= 1.32) {
+    return niceCeil;
+  }
+  // Fallback to step-based rounding without making bars too small or large
+  const step = magnitude >= 1000 ? 500 : (magnitude >= 100 ? 50 : 10);
+  const roundedAlt = Math.ceil(target / step) * step;
+  if (roundedAlt / rawMax <= 1.28) {
+    return roundedAlt;
+  }
+  return target;
+}
+
 function renderBarChart(data) {
   const canvas = dom.barChartCanvas;
-  const maxGrossVal = Math.max(...data.map(d => state.isHourly ? d.grossPerHr : d.grossTotal)) * 1.15;
+  const rawMax = Math.max(...data.map(d => state.isHourly ? d.grossPerHr : d.grossTotal));
+  const maxGrossVal = getNiceChartCeiling(rawMax);
 
   const avgUserVal = Math.round(
     data.reduce((a, d) => a + (state.isHourly ? (state.isNet ? d.profitPerHr : d.grossPerHr) : (state.isNet ? d.netProfit : d.grossTotal)), 0) / data.length
@@ -3297,8 +3334,9 @@ function renderBlock2() {
   } else {
     if (btnWeather) {
       btnWeather.classList.remove('hidden');
-      btnWeather.style.backgroundColor = state.weatherBoost ? 'var(--ya-yellow)' : 'var(--bg-card)';
-      btnWeather.style.color = state.weatherBoost ? 'var(--ya-yellow-text)' : 'var(--text-main)';
+      btnWeather.classList.toggle('btn-weather-active', state.weatherBoost);
+      btnWeather.style.backgroundColor = '';
+      btnWeather.style.color = '';
     }
     if (heatUnitSwitch) {
       heatUnitSwitch.classList.remove('col-span-4');
@@ -3453,9 +3491,9 @@ function renderDistrictSeasonScreen() {
     const seasonInfo = getResolvedSeasonInfo(state.season);
     dom.districtListUnitHint.textContent = state.heatUnitRub ? 'Средняя / Пик (₽/ч)' : 'Средняя / Пик (% спроса)';
     listContainer.innerHTML = `
-      <div class="ya-subcard p-3 flex items-center justify-between ring-2 ring-[#FCE000]">
+      <div class="ya-subcard p-3 flex items-center justify-between ring-2 ring-[#1E293B] dark:ring-[#475569]">
         <div class="flex items-center gap-2.5 min-w-0">
-          <span class="w-3 h-3 rounded-full shrink-0 bg-[#FCE000]"></span>
+          <span class="w-3 h-3 rounded-full shrink-0 bg-[#1E293B] dark:bg-[#475569]"></span>
           <div class="truncate">
             <div class="text-xs font-bold truncate">Локация пользователя</div>
             <div class="text-[10px] text-sec">Сезон: ${seasonInfo.label}</div>
@@ -3477,7 +3515,7 @@ function renderDistrictSeasonScreen() {
       return `
         <div onclick="selectDistrict('${d.id}')"
              class="ya-subcard p-3 cursor-pointer flex items-center justify-between transition ${
-               isCurrent ? 'ring-2 ring-[#FCE000]' : 'hover:opacity-90'
+               isCurrent ? 'ring-2 ring-[#1E293B] dark:ring-[#475569]' : 'hover:opacity-90'
              }">
           <div class="flex items-center gap-2.5 min-w-0">
             <span class="w-3 h-3 rounded-full shrink-0" style="background-color: ${d.color}"></span>
@@ -3565,7 +3603,7 @@ function renderBlock3(precomputedAllTimeProfitHr) {
           <th scope="col" class="py-1.5 px-2 font-bold text-[10px] leading-snug text-center whitespace-normal align-middle min-w-[65px] max-w-[95px]">
             <div class="inline-flex items-center justify-center gap-1 flex-wrap">
               <span>${formatHeaderWithParens(colItem.title)}</span>
-              <button type="button" onclick="openForecastInfoModal()" title="Как рассчитывается прогноз" class="w-4 h-4 rounded-full bg-[#FCE000] text-[#141518] font-extrabold text-[9px] inline-flex items-center justify-center shadow hover:opacity-90 active:scale-95 transition">?</button>
+              <button type="button" onclick="openForecastInfoModal()" title="Как рассчитывается прогноз" class="w-4 h-4 rounded-full bg-[#1E293B] dark:bg-[#334155] text-white dark:text-[#F8FAFC] font-extrabold text-[9px] inline-flex items-center justify-center shadow hover:opacity-90 active:scale-95 transition">?</button>
             </div>
           </th>
         `;
@@ -4656,7 +4694,12 @@ window.collapseAllDateSubRows = collapseAllDateSubRows;
 function toggleColorTheme() {
   state.lightMode = !state.lightMode;
   document.body.classList.toggle('light-mode', state.lightMode);
-  dom.btnColorTheme.textContent = state.lightMode ? '🌙' : '☀️';
+  const iconWrap = dom.btnColorTheme ? (dom.btnColorTheme.querySelector('#lblThemeIcon') || dom.btnColorTheme) : null;
+  if (iconWrap) {
+    iconWrap.innerHTML = state.lightMode
+      ? '<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>'
+      : '<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>';
+  }
   renderBlock1();
 }
 

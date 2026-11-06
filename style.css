@@ -141,7 +141,7 @@ body {
   transform: scale(0.97);
 }
 
-/* Block 1 Switch Cards - Variant 2 (Zero-Height Cluster) */
+/* Block 1 Switch Cards - Variant 2 (Zero-Height Cluster, 38px Compact) */
 #block1SwitchCards {
   display: flex !important;
   flex-direction: row !important;
@@ -153,9 +153,9 @@ body {
 }
 
 #block1SwitchCards .ya-switch-card {
-  min-height: 46px;
-  height: 46px;
-  padding: 4px 6px;
+  min-height: 38px;
+  height: 38px;
+  padding: 2px 5px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -167,10 +167,10 @@ body {
 
 /* Category header (top line) */
 .ya-switch-cat {
-  font-size: 8.5px;
+  font-size: 7.5px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   color: var(--text-muted);
   line-height: 1;
   text-align: center;
@@ -180,11 +180,11 @@ body {
 /* Current value (bottom line) - font weight 700 in BOTH states prevents jumping */
 .ya-switch-val {
   display: none;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   color: var(--text-main);
-  line-height: 1.2;
-  margin-top: 2px;
+  line-height: 1.15;
+  margin-top: 1px;
   text-align: center;
   white-space: nowrap;
 }
@@ -202,13 +202,13 @@ body {
   flex-direction: row !important;
   align-items: center !important;
   justify-content: space-between !important;
-  min-height: 46px;
-  height: 46px;
-  padding: 3px !important;
-  border-radius: 14px !important;
+  min-height: 38px;
+  height: 38px;
+  padding: 2.5px !important;
+  border-radius: 12px !important;
   flex: 1.2 1 0;
   min-width: 0;
-  gap: 2px;
+  gap: 1.5px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
@@ -218,9 +218,9 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
-  padding: 0 4px;
-  border-radius: 11px;
+  font-size: 10.5px;
+  padding: 0 3px;
+  border-radius: 9px;
 }
 
 /* Segmented Pill Switch for Diagram / Table (Screenshot 2) */
@@ -229,14 +229,14 @@ body {
   flex-direction: row !important;
   align-items: center !important;
   justify-content: space-between !important;
-  padding: 3px !important;
+  padding: 2.5px !important;
   border-radius: 9999px !important;
-  min-height: 46px;
-  height: 46px;
+  min-height: 38px;
+  height: 38px;
   gap: 2px;
-  flex: 0 0 64px;
-  width: 64px;
-  min-width: 64px;
+  flex: 0 0 56px;
+  width: 56px;
+  min-width: 56px;
 }
 
 .ya-pill-segment {
@@ -258,10 +258,19 @@ body {
   color: var(--text-main);
 }
 
+/* Active switch color matches period buttons (Grey instead of blue) */
 .ya-pill-segment.ya-switch-opt-active {
-  background: linear-gradient(135deg, #2563EB 0%, #3B82F6 100%) !important;
+  background-color: #1E293B !important;
+  background: #1E293B !important;
   color: #FFFFFF !important;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.38) !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2) !important;
+}
+
+body:not(.light-mode) .ya-pill-segment.ya-switch-opt-active {
+  background-color: #334155 !important;
+  background: #334155 !important;
+  color: #F8FAFC !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35) !important;
 }
 
 .ya-pill-segment svg {
@@ -493,27 +502,33 @@ body.desktop-mode #block1SwitchCards {
 
 body.desktop-mode #block1SwitchCards .ya-switch-card {
   width: auto !important;
-  min-width: 90px !important;
-  padding: 5px 12px !important;
+  min-width: 86px !important;
+  min-height: 38px !important;
+  height: 38px !important;
+  padding: 2px 10px !important;
   flex: 0 0 auto !important;
 }
 
 body.desktop-mode #block1SwitchCards #block1PeriodButtons {
   width: auto !important;
-  min-width: 145px !important;
-  padding: 3px 4px !important;
+  min-width: 140px !important;
+  min-height: 38px !important;
+  height: 38px !important;
+  padding: 2.5px 4px !important;
   flex: 0 0 auto !important;
   gap: 2px !important;
 }
 
 body.desktop-mode #block1SwitchCards #block1PeriodButtons .ya-seg-btn {
-  padding: 4px 10px !important;
-  font-size: 11.5px !important;
+  padding: 3px 10px !important;
+  font-size: 11px !important;
 }
 
 body.desktop-mode #block1SwitchCards #switchChartTable {
-  width: 72px !important;
-  min-width: 72px !important;
+  width: 58px !important;
+  min-width: 58px !important;
+  min-height: 38px !important;
+  height: 38px !important;
   flex: 0 0 auto !important;
 }
 
@@ -703,6 +718,9 @@ body.desktop-mode #presetButtonsContainer {
   border: 1px solid #CBD5E1;
   border-bottom: none;
 }
+body.light-mode .chart-gross-striped {
+  opacity: 0.52 !important;
+}
 body:not(.light-mode) .chart-gross-striped {
   background-color: #1E293B;
   background-image: repeating-linear-gradient(
@@ -840,3 +858,44 @@ body:not(.light-mode) .table-subrow {
 }
 
 
+
+/* Weather Boost Button Active State (Slate Grey like switches) */
+.btn-weather-active {
+  background-color: #1E293B !important;
+  color: #FFFFFF !important;
+  border-color: #1E293B !important;
+}
+body:not(.light-mode) .btn-weather-active {
+  background-color: #334155 !important;
+  color: #F8FAFC !important;
+  border-color: #334155 !important;
+}
+
+/* Slate Action Button (replaces yellow in district modal) */
+.ya-btn-slate {
+  background-color: #1E293B !important;
+  color: #FFFFFF !important;
+}
+.ya-btn-slate:hover {
+  background-color: #0F172A !important;
+}
+body:not(.light-mode) .ya-btn-slate {
+  background-color: #334155 !important;
+  color: #F8FAFC !important;
+}
+body:not(.light-mode) .ya-btn-slate:hover {
+  background-color: #475569 !important;
+}
+
+/* Benchmarks Dot Indicators */
+.benchmarks-dot-on {
+  background-color: #1E293B !important;
+  border: none !important;
+}
+body:not(.light-mode) .benchmarks-dot-on {
+  background-color: #CBD5E1 !important;
+}
+.benchmarks-dot-off {
+  background-color: transparent !important;
+  border: 1.5px solid #F59E0B !important;
+}
