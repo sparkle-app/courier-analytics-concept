@@ -22,3 +22,12 @@ This repository contains an independent, non-commercial UI/UX and Product Manage
 * **Not Affiliated:** This project is an educational/portfolio case study and is not affiliated with, endorsed by, or connected to any commercial delivery service.
 * **Synthetic Data & Privacy:** All metrics displayed in the prototype are synthetic mock data. No user data or cookies are collected or stored.
 * **Open-Source Libraries Used:** Tailwind CSS (MIT License), Leaflet.js (BSD-2-Clause License), OpenStreetMap & HOT Tiles (ODbL / CC BY-SA 2.0), Inter Font (SIL OFL 1.1).
+
+More design ideas from Claude Sonnet 5.5 Extra (for fun):
+
+<p align="left">
+  <img src="designs/Sonnet 5.5 Extra (1).png" width="150" alt="Базовая версия" />
+  <img src="designs/Sonnet 5.5 Extra (3).png" width="150" alt="Футуризм" />
+  <img src="designs/Sonnet 5.5 Extra (2).png" width="150" alt="Киберпанк" />
+  <img src="designs/Sonnet 5.5 Extra (4).png" width="150" alt="Чек/журнал" />
+</p>
