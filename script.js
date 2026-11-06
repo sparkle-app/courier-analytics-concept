@@ -1,5 +1,5 @@
 // =============================================================================
-// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.14.2) — ЛОГИКА И СОСТОЯНИЕ (script.js)
+// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.14.3) — ЛОГИКА И СОСТОЯНИЕ (script.js)
 // Оптимизированная и модульная версия с гранулярным рендерингом и кэшированием
 // =============================================================================
 
@@ -42,6 +42,11 @@ const dom = {
   legValBonuses:            $('legValBonuses'),
   legValGoals:              $('legValGoals'),
   legValTips:               $('legValTips'),
+  btnToggleBenchmarks:      $('btnToggleBenchmarks'),
+  benchmarksDot:            $('benchmarksDot'),
+  benchmarksLabel:          $('benchmarksLabel'),
+  chartLegendContainer:     $('chartLegendContainer'),
+  legendTipsItem:           $('legendTipsItem'),
   btnWeather:               $('btnWeather'),
   heatUnitSwitchContainer:  $('heatUnitSwitchContainer'),
   btnDistrictSeasonContainer: $('btnDistrictSeasonContainer'),
@@ -442,6 +447,7 @@ const state = {
   viewMode: 'chart',
   period: 'days',
   selectedBarIndex: 5,
+  showBenchmarks: true,
 
   accountTransport: 'ebike',
   includeGoals: false,
@@ -1748,6 +1754,7 @@ function processLoadedRows(rawRows, fileName) {
   const userDatasets = buildDatasetsFromOrders(parsedOrders);
 
   state.usingUserData = true;
+  state.showBenchmarks = false;
   state.userDataFileName = fileName;
   state.userDataOrders = parsedOrders;
   state.userDatasets = userDatasets;
@@ -1865,6 +1872,7 @@ function handleUserDataFileUpload(event) {
  */
 function resetToDemoData() {
   state.usingUserData = false;
+  state.showBenchmarks = true;
   state.userDataFileName = '';
   state.userDataOrders = [];
   state.userDatasets = null;
@@ -2571,6 +2579,58 @@ function renderAll(skipSettingsSlidersRebuild = false) {
 }
 
 // Блок 1: Динамика дохода (Диаграмма / Таблица)
+
+/**
+ * Обновление внешнего вида и доступности кнопки ориентиров (Вы / Район / Город)
+ */
+function updateBenchmarksButton() {
+  const btn = dom.btnToggleBenchmarks;
+  const dot = dom.benchmarksDot;
+  const lbl = dom.benchmarksLabel;
+  if (!btn) return;
+
+  const isDisabled = !!state.usingUserData;
+  btn.disabled = isDisabled;
+
+  if (isDisabled) {
+    btn.classList.add('benchmarks-inactive', 'cursor-not-allowed', 'opacity-40');
+    btn.classList.remove('benchmarks-active');
+    btn.title = 'Ориентиры (Вы / Район / Город) недоступны для пользовательских данных';
+    if (dot) dot.className = 'w-2 h-2 rounded-full bg-amber-400/30 shrink-0';
+    if (lbl) lbl.className = 'text-mut font-normal';
+  } else {
+    btn.classList.remove('cursor-not-allowed', 'opacity-40');
+    btn.title = state.showBenchmarks
+      ? 'Ориентиры включены (Вы / Район / Город). Нажмите, чтобы скрыть'
+      : 'Ориентиры выключены. Нажмите, чтобы показать';
+
+    if (state.showBenchmarks) {
+      btn.classList.add('benchmarks-active');
+      btn.classList.remove('benchmarks-inactive');
+      if (dot) dot.className = 'w-2 h-2 rounded-full bg-amber-400 shrink-0';
+      if (lbl) lbl.className = 'text-main font-semibold';
+    } else {
+      btn.classList.add('benchmarks-inactive');
+      btn.classList.remove('benchmarks-active');
+      if (dot) dot.className = 'w-2 h-2 rounded-full bg-gray-400/40 shrink-0';
+      if (lbl) lbl.className = 'text-mut font-normal';
+    }
+  }
+}
+
+/**
+ * Переключение видимости линий ориентиров
+ */
+function toggleBenchmarks() {
+  if (state.usingUserData) {
+    showToast('Ориентиры района и города доступны только на демо-данных');
+    return;
+  }
+  state.showBenchmarks = !state.showBenchmarks;
+  updateBenchmarksButton();
+  renderBlock1();
+}
+
 function renderBlock1() {
   const data = getCurrentDataset();
   if (state.selectedBarIndex >= data.length) {
@@ -2583,6 +2643,10 @@ function renderBlock1() {
 
   dom.legendGoalsItem.classList.toggle('hidden', !state.includeGoals);
   dom.legendGrossBg.classList.toggle('hidden', !state.isNet);
+  if (dom.btnToggleBenchmarks) {
+    dom.btnToggleBenchmarks.classList.toggle('hidden', state.viewMode !== 'chart');
+    updateBenchmarksButton();
+  }
 
   renderDetailedTable(data);
   if (state.viewMode === 'chart') {
@@ -2608,7 +2672,7 @@ function renderBarChart(data) {
   const yTop = Math.round(maxGrossVal);
   const yMid = Math.round(maxGrossVal / 2);
 
-  const benchmarkLinesHtml = state.usingUserData ? '' : `
+  const benchmarkLinesHtml = (!state.showBenchmarks || state.usingUserData) ? '' : `
     <div class="absolute left-9 right-1 bottom-6 top-3 pointer-events-none">
       <div style="bottom: ${pctUser}%" class="absolute left-0 right-0 border-t border-dashed border-gray-300/75 z-20">
         <span class="absolute left-1 -top-3.5 text-[8.5px] font-semibold px-1 rounded bg-black/70 text-gray-100 whitespace-nowrap">
@@ -2667,7 +2731,7 @@ function renderBarChart(data) {
     if (isLoss) {
       barStackHtml = `
         <div id="barStack-${idx}" style="height: ${netHeightPct}%"
-             class="w-full relative z-10 rounded-t-lg overflow-hidden flex flex-col items-center justify-center bg-rose-500/25 border border-rose-500/70 shadow ${isSelected ? 'ring-2 ring-rose-400' : 'opacity-90 group-hover:opacity-100'}"
+             class="w-full relative z-10 rounded-t-lg overflow-hidden flex flex-col items-center justify-center bg-rose-500/25 border border-rose-500/70 shadow ${isSelected ? 'opacity-100' : 'opacity-90 group-hover:opacity-100'}"
              title="Убыток: -${formatNum(Math.abs(displayMetric))} ${unitSuffix}">
           <span class="text-[8.5px] font-extrabold text-rose-500 leading-none">−</span>
         </div>
@@ -2675,7 +2739,7 @@ function renderBarChart(data) {
     } else {
       barStackHtml = `
         <div id="barStack-${idx}" style="height: ${netHeightPct}%"
-             class="w-full relative z-10 rounded-t-lg overflow-hidden flex flex-col-reverse shadow ${isSelected ? 'ring-2 ring-black' : 'opacity-90 group-hover:opacity-100'}">
+             class="w-full relative z-10 rounded-t-lg overflow-hidden flex flex-col-reverse shadow ${isSelected ? 'opacity-100' : 'opacity-90 group-hover:opacity-100'}">
           <div style="height: ${p('ordersCost')}%" class="w-full bg-blue-500"></div>
           <div style="height: ${p('surgeRub')}%"   class="w-full bg-[#FCE000]"></div>
           <div style="height: ${p('ratingRub')}%"  class="w-full bg-orange-400"></div>
@@ -2697,12 +2761,14 @@ function renderBarChart(data) {
     }
 
     html += `
-      <div id="barCol-${idx}" onclick="selectBar(${idx})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectBar(${idx});}" tabindex="0" role="button" aria-label="Период ${escapeHtml(d.date)}, прибыль ${valText}" class="chart-bar-item cursor-pointer group focus:outline-none focus-visible:outline-none">
-        <div id="barValue-${idx}" class="text-[9px] font-bold mb-0.5 whitespace-nowrap shrink-0 ${valClass}">
+      <div id="barCol-${idx}" onclick="selectBar(${idx})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectBar(${idx});}" tabindex="0" role="button" aria-label="Период ${escapeHtml(d.date)}, прибыль ${valText}" class="chart-bar-item relative flex flex-col items-center justify-between cursor-pointer group focus:outline-none focus-visible:outline-none ${isSelected ? 'chart-bar-selected opacity-100' : 'opacity-75 hover:opacity-100'}">
+        <div id="barBackdrop-${idx}" class="chart-bar-backdrop absolute inset-x-0.5 -inset-y-1 rounded-2xl transition-all duration-150 pointer-events-none ${isSelected ? 'block' : 'hidden'}"></div>
+
+        <div id="barValue-${idx}" class="text-[9px] font-bold mb-0.5 whitespace-nowrap shrink-0 tabular-nums relative z-10 ${valClass}">
           ${valText}
         </div>
 
-        <div class="flex-1 w-full max-w-[28px] min-h-0 flex items-end justify-center relative">
+        <div class="flex-1 w-full max-w-[28px] min-h-0 flex items-end justify-center relative z-10">
           ${state.isNet ? `
             <div style="height: ${grossHeightPct}%"
                  class="w-full bg-gray-500/35 border border-dashed border-gray-400/70 rounded-t-lg absolute bottom-0 left-0 right-0">
@@ -2712,7 +2778,7 @@ function renderBarChart(data) {
           ${barStackHtml}
         </div>
 
-        <div id="barDate-${idx}" class="text-[9px] font-semibold text-center mt-1 shrink-0 ${isSelected ? 'opacity-100 font-black text-main text-[10px]' : 'opacity-70'}">
+        <div id="barDate-${idx}" class="text-[9px] font-semibold text-center mt-1 shrink-0 relative z-10 ${isSelected ? 'opacity-100 font-black text-main text-[10px]' : 'opacity-70'}">
           ${dateDisplayHtml}
         </div>
       </div>
@@ -2755,30 +2821,30 @@ function renderSelectedBarDetails(sel) {
   const deductionBadges = [];
   if (sel.tax > 0) {
     deductionBadges.push(`
-      <span class="ya-badge ya-badge-red inline-flex items-center gap-1">
+      <button type="button" onclick="openExpenseInfoModal('tax', ${sel.tax})" class="ya-badge ya-badge-red inline-flex items-center gap-1 cursor-pointer group hover:opacity-90 active:scale-95 transition" title="Налог (6%): подробнее и справка">
         <span>Налог (6%): <b>-${formatNum(sel.tax)} ₽</b></span>
-        <button type="button" onclick="openExpenseInfoModal('tax', ${sel.tax})" class="expense-help-btn" title="Справка о налоге">?</button>
-      </span>
+        <span class="text-rose-600 dark:text-rose-400 font-extrabold ml-0.5 opacity-80 group-hover:opacity-100 text-xs leading-none">?</span>
+      </button>
     `);
   }
   sel.itemizedExpenses.forEach(expItem => {
     if (expItem.amount > 0) {
       const eNameEscaped = escapeHtml(expItem.name);
       deductionBadges.push(`
-        <span class="ya-badge ya-badge-red inline-flex items-center gap-1">
+        <button type="button" onclick="openExpenseInfoModal('${eNameEscaped}', ${expItem.amount})" class="ya-badge ya-badge-red inline-flex items-center gap-1 cursor-pointer group hover:opacity-90 active:scale-95 transition" title="${eNameEscaped}: подробнее и справка">
           <span>${eNameEscaped}: <b>-${formatNum(expItem.amount)} ₽</b></span>
-          <button type="button" onclick="openExpenseInfoModal('${eNameEscaped}', ${expItem.amount})" class="expense-help-btn" title="Справка о расходе">?</button>
-        </span>
+          <span class="text-rose-600 dark:text-rose-400 font-extrabold ml-0.5 opacity-80 group-hover:opacity-100 text-xs leading-none">?</span>
+        </button>
       `);
     }
   });
   if (sel.adjustments < 0) {
     const adjAbs = Math.abs(sel.adjustments);
     deductionBadges.push(`
-      <span class="ya-badge ya-badge-red inline-flex items-center gap-1">
+      <button type="button" onclick="openExpenseInfoModal('adjustments', ${adjAbs})" class="ya-badge ya-badge-red inline-flex items-center gap-1 cursor-pointer group hover:opacity-90 active:scale-95 transition" title="Корректировки и удержания: оспорить">
         <span>Коррект.: <b>-${formatNum(adjAbs)} ₽</b></span>
-        <button type="button" onclick="openExpenseInfoModal('adjustments', ${adjAbs})" class="expense-help-btn" title="Справка и оспаривание">?</button>
-      </span>
+        <span class="text-rose-600 dark:text-rose-400 font-extrabold ml-0.5 opacity-80 group-hover:opacity-100 text-xs leading-none">?</span>
+      </button>
     `);
   }
 
@@ -4025,15 +4091,22 @@ function selectBar(idx) {
   const newMetric = newItem ? (state.isNet ? (state.isHourly ? newItem.profitPerHr : newItem.netProfit) : (state.isHourly ? newItem.grossPerHr : newItem.grossTotal)) : 0;
 
   // Быстрое обновление DOM без перерисовки всей диаграммы
+  const prevBackdrop = $(`barBackdrop-${prevIdx}`);
+  if (prevBackdrop) {
+    prevBackdrop.classList.remove('block');
+    prevBackdrop.classList.add('hidden');
+  }
   const prevCol = $(`barCol-${prevIdx}`);
+  if (prevCol) {
+    prevCol.classList.remove('chart-bar-selected', 'opacity-100');
+    prevCol.classList.add('opacity-75');
+  }
   const prevStack = $(`barStack-${prevIdx}`);
-  const prevVal = $(`barValue-${prevIdx}`);
-  const prevDate = $(`barDate-${prevIdx}`);
-
   if (prevStack) {
-    prevStack.classList.remove('ring-2', 'ring-black', 'ring-[#FCE000]', 'ring-rose-400');
+    prevStack.classList.remove('ring-2', 'ring-black', 'ring-[#FCE000]', 'ring-rose-400', 'opacity-100');
     prevStack.classList.add('opacity-90');
   }
+  const prevVal = $(`barValue-${prevIdx}`);
   if (prevVal) {
     prevVal.classList.remove('opacity-100', 'font-black', 'text-[8.5px]', 'sm:text-[9px]', 'text-[10px]');
     prevVal.classList.add('opacity-75', 'text-[8px]', 'sm:text-[8.5px]');
@@ -4042,23 +4115,28 @@ function selectBar(idx) {
       prevVal.classList.remove('text-main');
     }
   }
+  const prevDate = $(`barDate-${prevIdx}`);
   if (prevDate) {
     prevDate.classList.remove('opacity-100', 'font-black', 'text-main', 'text-[10px]');
     prevDate.classList.add('opacity-70', 'font-semibold', 'text-[9px]');
   }
 
-  const newStack = $(`barStack-${idx}`);
-  const newVal = $(`barValue-${idx}`);
-  const newDate = $(`barDate-${idx}`);
-
-  if (newStack) {
-    newStack.classList.remove('opacity-90');
-    if (newMetric < 0) {
-      newStack.classList.add('ring-2', 'ring-rose-400');
-    } else {
-      newStack.classList.add('ring-2', 'ring-black');
-    }
+  const newBackdrop = $(`barBackdrop-${idx}`);
+  if (newBackdrop) {
+    newBackdrop.classList.remove('hidden');
+    newBackdrop.classList.add('block');
   }
+  const newCol = $(`barCol-${idx}`);
+  if (newCol) {
+    newCol.classList.add('chart-bar-selected', 'opacity-100');
+    newCol.classList.remove('opacity-75');
+  }
+  const newStack = $(`barStack-${idx}`);
+  if (newStack) {
+    newStack.classList.remove('ring-2', 'ring-black', 'ring-rose-400', 'opacity-90');
+    newStack.classList.add('opacity-100');
+  }
+  const newVal = $(`barValue-${idx}`);
   if (newVal) {
     newVal.classList.remove('opacity-75', 'text-[8px]', 'sm:text-[8.5px]');
     newVal.classList.add('opacity-100', 'font-black', 'text-[8.5px]', 'sm:text-[9px]');
@@ -4070,6 +4148,7 @@ function selectBar(idx) {
       newVal.classList.remove('text-rose-500', 'font-extrabold');
     }
   }
+  const newDate = $(`barDate-${idx}`);
   if (newDate) {
     newDate.classList.remove('opacity-70', 'font-semibold', 'text-[9px]');
     newDate.classList.add('opacity-100', 'font-black', 'text-main', 'text-[10px]');
@@ -4635,6 +4714,7 @@ Object.assign(window, {
   closeRealMapModal,
   cancelRealMapModal,
   confirmRealMapDistrict,
+  toggleBenchmarks,
   openExpenseInfoModal,
   closeExpenseInfoModal,
   disputeAdjustment,
