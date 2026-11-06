@@ -2780,7 +2780,7 @@ function renderBarChart(data) {
     if (isLoss) {
       barStackHtml = `
         <div id="barStack-${idx}" style="height: ${netHeightPct}%"
-             class="w-full relative z-10 rounded-t-lg overflow-hidden flex flex-col items-center justify-center bg-rose-500/25 border border-rose-500/70 shadow ${isSelected ? 'opacity-100' : 'opacity-90 group-hover:opacity-100'}"
+             class="w-full relative z-10 rounded-t-lg overflow-hidden flex flex-col items-center justify-center bg-rose-500/25 border border-rose-500/70 shadow"
              title="Убыток: -${formatNum(Math.abs(displayMetric))} ${unitSuffix}">
           <span class="text-[8.5px] font-extrabold text-rose-500 leading-none">−</span>
         </div>
@@ -2796,7 +2796,7 @@ function renderBarChart(data) {
 
       barStackHtml = `
         <div id="barStack-${idx}" style="height: ${netHeightPct}%"
-             class="chart-stack-divider w-full relative z-10 rounded-t-lg overflow-hidden flex flex-col-reverse shadow">
+             class="chart-stack-divider w-full relative z-10 rounded-t-lg overflow-hidden flex flex-col-reverse shadow bg-white dark:bg-[#141518]">
           ${segs.join('')}
         </div>
       `;
@@ -4155,8 +4155,7 @@ function selectBar(idx) {
   }
   const prevStack = $(`barStack-${prevIdx}`);
   if (prevStack) {
-    prevStack.classList.remove('ring-2', 'ring-black', 'ring-[#FCE000]', 'ring-rose-400', 'opacity-100');
-    prevStack.classList.add('opacity-90');
+    prevStack.classList.remove('ring-2', 'ring-black', 'ring-[#FCE000]', 'ring-rose-400', 'opacity-90');
   }
   const prevVal = $(`barValue-${prevIdx}`);
   if (prevVal) {
@@ -4185,7 +4184,6 @@ function selectBar(idx) {
   const newStack = $(`barStack-${idx}`);
   if (newStack) {
     newStack.classList.remove('ring-2', 'ring-black', 'ring-rose-400', 'opacity-90');
-    newStack.classList.add('opacity-100');
   }
   const newVal = $(`barValue-${idx}`);
   if (newVal) {
