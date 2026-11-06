@@ -665,6 +665,10 @@ body.desktop-mode #block1SwitchCards #switchChartTable {
   flex: 0 1 auto !important;
 }
 
+#chartLegendContainer > div:not(#legendGrossBg) b {
+  margin-left: 0 !important;
+}
+
 body.desktop-mode #chartLegendContainer {
   display: flex !important;
   flex-direction: row !important;
