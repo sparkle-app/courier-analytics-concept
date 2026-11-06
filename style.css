@@ -387,23 +387,32 @@ body.desktop-mode #chartLegendContainer {
   flex-direction: row !important;
   flex-wrap: nowrap !important;
   align-items: center !important;
-  gap: 0.75rem !important;
+  justify-content: flex-start !important;
+  gap: 0.5rem !important;
   overflow-x: auto !important;
 }
 
 body.desktop-mode #chartLegendContainer > div:not(#legendGrossBg) {
-  flex: 0 0 115px !important;
-  width: 115px !important;
+  flex: 0 0 120px !important;
+  width: 120px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.35rem !important;
   grid-column: auto !important;
+}
+
+body.desktop-mode #chartLegendContainer > div:not(#legendGrossBg) b {
+  margin-left: 0 !important;
 }
 
 body.desktop-mode #legendGrossBg {
   flex: 0 0 auto !important;
   width: auto !important;
   padding-top: 0 !important;
-  margin-left: auto !important;
-  border-left: 1px solid var(--border-subtle);
-  padding-left: 0.75rem;
+  margin-left: 0.5rem !important;
+  border-left: none !important;
+  padding-left: 0 !important;
+  white-space: nowrap !important;
 }
 
 .desktop-grid-split {
@@ -545,7 +554,7 @@ body.desktop-mode #presetButtonsContainer {
 
 /* Светло-серый ореол-подложка активного столбца на всю высоту */
 .chart-bar-backdrop {
-  background-color: rgba(220, 224, 232, 0.7);
+  background-color: rgba(215, 220, 230, 0.85);
 }
 body:not(.light-mode) .chart-bar-backdrop {
   background-color: rgba(255, 255, 255, 0.1);

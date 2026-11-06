@@ -1,5 +1,5 @@
 // =============================================================================
-// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.14.3) — ЛОГИКА И СОСТОЯНИЕ (script.js)
+// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.14.4) — ЛОГИКА И СОСТОЯНИЕ (script.js)
 // Оптимизированная и модульная версия с гранулярным рендерингом и кэшированием
 // =============================================================================
 
@@ -1899,8 +1899,8 @@ function toggleLayoutMode() {
   state.layoutMode = state.layoutMode === 'phone' ? 'pc' : 'phone';
   const isPc = state.layoutMode === 'pc';
   document.body.classList.toggle('desktop-mode', isPc);
-  if (dom.lblLayoutMode) dom.lblLayoutMode.textContent = isPc ? 'ПК' : 'Телефон';
-  if (dom.lblLayoutIcon) dom.lblLayoutIcon.textContent = isPc ? '💻' : '📱';
+  if (dom.lblLayoutMode) dom.lblLayoutMode.textContent = isPc ? 'Мобильная' : 'ПК';
+  if (dom.lblLayoutIcon) dom.lblLayoutIcon.textContent = isPc ? '📱' : '💻';
   if (dom.btnLayoutMode) {
     dom.btnLayoutMode.classList.toggle('bg-[#FCE000]', isPc);
     dom.btnLayoutMode.classList.toggle('text-[#141518]', isPc);
@@ -2761,8 +2761,8 @@ function renderBarChart(data) {
     }
 
     html += `
-      <div id="barCol-${idx}" onclick="selectBar(${idx})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectBar(${idx});}" tabindex="0" role="button" aria-label="Период ${escapeHtml(d.date)}, прибыль ${valText}" class="chart-bar-item relative flex flex-col items-center justify-between cursor-pointer group focus:outline-none focus-visible:outline-none ${isSelected ? 'chart-bar-selected opacity-100' : 'opacity-75 hover:opacity-100'}">
-        <div id="barBackdrop-${idx}" class="chart-bar-backdrop absolute inset-x-0.5 -inset-y-1 rounded-2xl transition-all duration-150 pointer-events-none ${isSelected ? 'block' : 'hidden'}"></div>
+      <div id="barCol-${idx}" onclick="selectBar(${idx})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectBar(${idx});}" tabindex="0" role="button" aria-label="Период ${escapeHtml(d.date)}, прибыль ${valText}" class="chart-bar-item relative flex flex-col items-center justify-between cursor-pointer group focus:outline-none focus-visible:outline-none ${isSelected ? 'chart-bar-selected' : ''}">
+        <div id="barBackdrop-${idx}" class="chart-bar-backdrop absolute -inset-x-1 -inset-y-1.5 rounded-2xl transition-all duration-150 pointer-events-none ${isSelected ? 'block' : 'hidden'}"></div>
 
         <div id="barValue-${idx}" class="text-[9px] font-bold mb-0.5 whitespace-nowrap shrink-0 tabular-nums relative z-10 ${valClass}">
           ${valText}
@@ -4098,8 +4098,7 @@ function selectBar(idx) {
   }
   const prevCol = $(`barCol-${prevIdx}`);
   if (prevCol) {
-    prevCol.classList.remove('chart-bar-selected', 'opacity-100');
-    prevCol.classList.add('opacity-75');
+    prevCol.classList.remove('chart-bar-selected');
   }
   const prevStack = $(`barStack-${prevIdx}`);
   if (prevStack) {
@@ -4128,8 +4127,7 @@ function selectBar(idx) {
   }
   const newCol = $(`barCol-${idx}`);
   if (newCol) {
-    newCol.classList.add('chart-bar-selected', 'opacity-100');
-    newCol.classList.remove('opacity-75');
+    newCol.classList.add('chart-bar-selected');
   }
   const newStack = $(`barStack-${idx}`);
   if (newStack) {
