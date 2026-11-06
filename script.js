@@ -1,5 +1,5 @@
 // =============================================================================
-// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.14.8) — ЛОГИКА И СОСТОЯНИЕ (script.js)
+// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.15.0) — ЛОГИКА И СОСТОЯНИЕ (script.js)
 // Оптимизированная и модульная версия с гранулярным рендерингом и кэшированием
 // =============================================================================
 
@@ -1791,6 +1791,8 @@ function triggerUserDataFileInput() {
  * Обработчик загрузки файла пользователем (Excel .xlsx/.xls или CSV/.txt)
  */
 function handleUserDataFileUpload(event) {
+  closeImportModal();
+  closeImportDropdown();
   const file = event.target.files && event.target.files[0];
   if (!file) return;
 
@@ -4498,6 +4500,165 @@ function openExpenseInfoModal(type, amount) {
   dom.expenseInfoModal.classList.remove('hidden');
 }
 
+/**
+ * Открытие модального окна мастера импорта (Вариант 5)
+ */
+function openImportModal() {
+  const modal = document.getElementById('importDataModal');
+  if (modal) {
+    modal.classList.remove('hidden');
+    document.body.classList.add('overflow-hidden');
+  }
+}
+
+/**
+ * Закрытие модального окна мастера импорта
+ */
+function closeImportModal() {
+  const modal = document.getElementById('importDataModal');
+  if (modal) {
+    modal.classList.add('hidden');
+    document.body.classList.remove('overflow-hidden');
+  }
+}
+
+/**
+ * Переключение выпадающего меню быстрых действий импорта (Вариант 2)
+ */
+function toggleImportDropdown(event) {
+  if (event) {
+    event.stopPropagation();
+    event.preventDefault();
+  }
+  const menu = document.getElementById('importDropdownMenu');
+  const icon = document.getElementById('importChevronIcon');
+  if (!menu) return;
+  const isHidden = menu.classList.contains('hidden');
+  if (isHidden) {
+    menu.classList.remove('hidden');
+    if (icon) icon.classList.add('rotate-180');
+  } else {
+    menu.classList.add('hidden');
+    if (icon) icon.classList.remove('rotate-180');
+  }
+}
+
+/**
+ * Закрытие выпадающего меню импорта
+ */
+function closeImportDropdown() {
+  const menu = document.getElementById('importDropdownMenu');
+  const icon = document.getElementById('importChevronIcon');
+  if (menu && !menu.classList.contains('hidden')) {
+    menu.classList.add('hidden');
+    if (icon) icon.classList.remove('rotate-180');
+  }
+}
+
+/**
+ * Генерация и скачивание эталонного Excel-шаблона для курьера (.xlsx)
+ */
+function downloadSampleImportFile() {
+  try {
+    if (typeof XLSX === 'undefined') {
+      showToast('Библиотека генерации Excel еще загружается...');
+      return;
+    }
+    const headers = [
+      'Дата',
+      'Начало',
+      'Окончание',
+      'Дистанция (км)',
+      'Вес (кг)',
+      'Стоимость (руб)',
+      'Ожидание (руб)',
+      'Спрос (%)',
+      'Рейтинг (%)',
+      'Бонус (руб)',
+      'Расход (руб)',
+      'Транспорт',
+      'Тип слота'
+    ];
+
+    const sampleRows = [
+      ['20.09.2024', '10:15', '10:42', 3.2, 2.5, 280, 0, '15%', '100%', 50, 0, 'Электровело', 'Плановый'],
+      ['20.09.2024', '11:00', '11:28', 2.8, 1.8, 240, 30, '20%', '100%', 0, 0, 'Электровело', 'Плановый'],
+      ['20.09.2024', '11:45', '12:18', 4.5, 5.0, 360, 0, '35%', '98%', 100, 0, 'Электровело', 'Плановый'],
+      ['20.09.2024', '12:30', '13:05', 3.9, 3.1, 310, 20, '25%', '100%', 0, 0, 'Электровело', 'Плановый'],
+      ['20.09.2024', '13:20', '13:52', 2.1, 1.2, 210, 0, '10%', '100%', 0, 0, 'Электровело', 'Плановый'],
+      ['20.09.2024', '14:10', '14:40', 3.0, 4.0, 290, 0, '15%', '95%', 50, 0, 'Электровело', 'Плановый'],
+      ['21.09.2024', '10:00', '10:35', 4.1, 3.5, 330, 0, '30%', '100%', 0, 0, 'Электровело', 'Свободный'],
+      ['21.09.2024', '10:50', '11:15', 1.9, 1.0, 190, 0, '5%', '100%', 0, 0, 'Электровело', 'Свободный'],
+      ['21.09.2024', '11:30', '12:08', 3.7, 2.8, 305, 15, '20%', '100%', 50, 0, 'Электровело', 'Свободный'],
+      ['21.09.2024', '12:20', '12:55', 3.4, 3.0, 285, 0, '15%', '100%', 0, 0, 'Электровело', 'Свободный']
+    ];
+
+    const data = [headers, ...sampleRows];
+    const ws = XLSX.utils.aoa_to_sheet(data);
+
+    ws['!cols'] = [
+      { wch: 12 },
+      { wch: 10 },
+      { wch: 12 },
+      { wch: 16 },
+      { wch: 12 },
+      { wch: 16 },
+      { wch: 16 },
+      { wch: 12 },
+      { wch: 14 },
+      { wch: 14 },
+      { wch: 14 },
+      { wch: 14 },
+      { wch: 14 }
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Отчет_курьера');
+    XLSX.writeFile(wb, 'courier_sample_template.xlsx');
+    showToast('Образец courier_sample_template.xlsx успешно сформирован!');
+  } catch (err) {
+    console.error('Ошибка создания образца Excel:', err);
+    showToast('Не удалось сформировать файл образца');
+  }
+}
+
+/**
+ * Инициализация Drag & Drop и закрытия выпадающего меню по внешнему клику
+ */
+function setupImportMaster() {
+  const dropZone = document.getElementById('importDropZone');
+  if (dropZone) {
+    ['dragenter', 'dragover'].forEach(name => {
+      dropZone.addEventListener(name, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.classList.add('border-blue-500', 'bg-blue-500/10');
+      });
+    });
+    ['dragleave', 'drop'].forEach(name => {
+      dropZone.addEventListener(name, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.classList.remove('border-blue-500', 'bg-blue-500/10');
+      });
+    });
+    dropZone.addEventListener('drop', (e) => {
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        closeImportModal();
+        handleUserDataFileUpload({ target: { files: e.dataTransfer.files } });
+      }
+    });
+  }
+
+  // Закрытие меню импорта при клике вне него
+  document.addEventListener('click', (e) => {
+    const wrapper = document.getElementById('importSplitWrapper');
+    if (wrapper && !wrapper.contains(e.target)) {
+      closeImportDropdown();
+    }
+  });
+}
+
 function closeExpenseInfoModal() {
   if (dom.expenseInfoModal) dom.expenseInfoModal.classList.add('hidden');
 }
@@ -4513,9 +4674,8 @@ function openLegalModal(docType) {
   if (!modal || !title || !body) return;
 
   if (docType === 'sample') {
-    title.textContent = 'Скачать пример импорта';
-    subtitle.textContent = '';
-    body.innerHTML = '';
+    openImportModal();
+    return;
   } else if (docType === 'terms') {
     title.textContent = 'Пользовательское соглашение (Оферта)';
     subtitle.textContent = 'Условия использования аналитического концепта';
@@ -5044,6 +5204,7 @@ function setupTableDragScroll() {
 setupColumnDragDelegation();
 setupTableDragScroll();
 updateWeekStartDayUI();
+setupImportMaster();
 
 // Автоопределение типа устройства (ПК / Мобильный) при первой загрузке страницы
 const isDesktopDevice = (window.innerWidth >= 1024) &&
