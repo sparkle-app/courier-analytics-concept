@@ -3806,9 +3806,7 @@ function setWeekStartDay(dayIdx) {
   const parsed = parseInt(dayIdx, 10);
   if (isNaN(parsed) || parsed < 0 || parsed > 6) return;
   state.weekStartDay = parsed;
-  try {
-    localStorage.setItem('courier_week_start_day', String(parsed));
-  } catch (e) {}
+  // Хранится исключительно в оперативной памяти (in-memory) без записи на диск / localStorage
 
   if (state.usingUserData && state.userDataOrders) {
     state.userDatasets = buildDatasetsFromOrders(state.userDataOrders);
@@ -4458,7 +4456,7 @@ function openExpenseInfoModal(type, amount) {
         </div>
         <div class="space-y-1">
           <div class="font-bold text-main">Как оспорить:</div>
-          <p class="text-[11px] text-sec">Если вы не согласны со списанием, откройте в курьерском приложении службы доставки (например, <b>Яндекс Про</b>) раздел <i>«Профиль → Поддержка → Начисления и выплаты»</i> и выберите конкретный заказ для отправки обращения диспетчеру.</p>
+          <p class="text-[11px] text-sec">Если вы не согласны со списанием, откройте в курьерском приложении службы доставки раздел <i>«Профиль → Поддержка → Начисления и выплаты»</i> и выберите конкретный заказ для отправки обращения диспетчеру.</p>
         </div>
       `;
     }
@@ -4492,6 +4490,76 @@ function openExpenseInfoModal(type, amount) {
 
 function closeExpenseInfoModal() {
   if (dom.expenseInfoModal) dom.expenseInfoModal.classList.add('hidden');
+}
+
+/**
+ * Открытие модального окна юридических документов (Оферта / Политика конфиденциальности)
+ */
+function openLegalModal(docType) {
+  const modal = document.getElementById('legalDocModal');
+  const title = document.getElementById('legalDocTitle');
+  const subtitle = document.getElementById('legalDocSubtitle');
+  const body = document.getElementById('legalDocBody');
+  if (!modal || !title || !body) return;
+
+  if (docType === 'terms') {
+    title.textContent = 'Пользовательское соглашение (Оферта)';
+    subtitle.textContent = 'Условия использования аналитического концепта';
+    body.innerHTML = `
+      <div class="space-y-3">
+        <div>
+          <div class="font-bold text-main mb-1">1. Предмет соглашения</div>
+          <p>Настоящее Пользовательское соглашение (Оферта) определяет условия использования веб-интерфейса «Курьерская аналитика» (далее — Сервис), являющегося независимым исследовательским прототипом для аналитики доходов курьеров и самозанятых исполнителей.</p>
+        </div>
+        <div>
+          <div class="font-bold text-main mb-1">2. Информационно-расчетный характер</div>
+          <p>Все производимые расчеты (почасовая ставка, чистый доход, оценка налога самозанятого 6%, матрицы спроса и коэффициенты осадков) носят исключительно аналитический, ознакомительный и расчетный характер.</p>
+        </div>
+        <div>
+          <div class="font-bold text-main mb-1">3. Отказ от ответственности</div>
+          <p>Сервис не является работодателем, агрегатором заказов или налоговым агентом. Сервис не гарантирует получение определенного уровня дохода. Фактические начисления определяются исключительно вашим договором с используемой службой доставки.</p>
+        </div>
+        <div>
+          <div class="font-bold text-main mb-1">4. Интеллектуальная собственность</div>
+          <p>Программный код, интерфейс, алгоритмы расчетов и графические элементы защищены авторским правом. Коммерческое использование или тиражирование без согласования с правообладателем не допускается.</p>
+        </div>
+      </div>
+    `;
+  } else {
+    title.textContent = 'Политика конфиденциальности';
+    subtitle.textContent = 'Безопасность и 100% In-Memory обработка данных';
+    body.innerHTML = `
+      <div class="space-y-3">
+        <div class="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+          <div class="font-extrabold text-xs mb-0.5">🔒 100% In-Memory обработка (Zero-Server)</div>
+          <p class="text-[11px] text-sec">Все пользовательские файлы обрабатываются исключительно в оперативной памяти браузера.</p>
+        </div>
+        <div>
+          <div class="font-bold text-main mb-1">1. Локальная обработка на вашем устройстве</div>
+          <p>Сервис работает по бессерверной клиентской архитектуре (Client-Side Only). При импорте отчетов Excel или CSV разбор файла выполняется встроенным кодом в оперативной памяти браузера на вашем устройстве.</p>
+        </div>
+        <div>
+          <div class="font-bold text-main mb-1">2. Отсутствие передачи на сервера</div>
+          <p>Данные о доходах, отработанных часах, чаевых и заказах никуда не передаются и не сохраняются на внешних серверах. В коде полностью отсутствуют сетевые запросы отправки данных.</p>
+        </div>
+        <div>
+          <div class="font-bold text-main mb-1">3. Полное уничтожение данных при закрытии</div>
+          <p>Загруженные отчеты и настройки существуют только в оперативной памяти текущей сессии. При закрытии вкладки или перезагрузке страницы все данные курьера безвозвратно удаляются.</p>
+        </div>
+        <div>
+          <div class="font-bold text-main mb-1">4. Отсутствие трекеров</div>
+          <p>Сервис не использует рекламные трекеры, маркетинговые пиксели и следящие файлы cookies.</p>
+        </div>
+      </div>
+    `;
+  }
+
+  modal.classList.remove('hidden');
+}
+
+function closeLegalModal() {
+  const modal = document.getElementById('legalDocModal');
+  if (modal) modal.classList.add('hidden');
 }
 
 function disputeAdjustment(adjId) {
@@ -4861,22 +4929,19 @@ Object.assign(window, {
   stepExpense,
   deleteExpenseItem,
   toggleTableColumn,
-  setWeekStartDay
+  setWeekStartDay,
+  openLegalModal,
+  closeLegalModal
 });
 
 // -----------------------------------------------------------------------------
 // 11. ПЕРВИЧНЫЙ ЗАПУСК
 // -----------------------------------------------------------------------------
 
-try {
-  const savedWs = localStorage.getItem('courier_week_start_day');
-  if (savedWs !== null) {
-    const parsedWs = parseInt(savedWs, 10);
-    if (!isNaN(parsedWs) && parsedWs >= 0 && parsedWs <= 6) {
-      state.weekStartDay = parsedWs;
-    }
-  }
-} catch (e) {}
+// Инициализация дня начала недели (понедельник: 1) исключительно в оперативной памяти
+if (typeof state.weekStartDay !== 'number') {
+  state.weekStartDay = 1;
+}
 
 /**
  * Поддержка горизонтальной и вертикальной прокрутки таблиц и графиков зажатием ЛКМ (drag-to-scroll)

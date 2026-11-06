@@ -76,6 +76,13 @@
         ✕ Демо
       </button>
     </div>
+
+    <!-- 6. ЮРИДИЧЕСКИЕ ДОКУМЕНТЫ (ОФЕРТА И КОНФИДЕНЦИАЛЬНОСТЬ) -->
+    <div class="pt-1 border-t border-subtle flex items-center justify-between text-[10px] leading-snug text-mut">
+      <button type="button" onclick="openLegalModal('terms')" class="hover:underline hover:text-sec transition text-left">Оферта</button>
+      <span class="opacity-40">•</span>
+      <button type="button" onclick="openLegalModal('privacy')" class="hover:underline hover:text-sec transition text-right">Конфиденциальность</button>
+    </div>
   </div>
 
   <!-- ОСНОВНОЙ КОНТЕЙНЕР -->
@@ -597,6 +604,25 @@
       </div>
       <div id="expenseInfoFooter" class="p-3.5 border-t border-subtle bg-card flex items-center justify-end gap-2">
         <button type="button" onclick="closeExpenseInfoModal()" class="py-2.5 px-4 rounded-xl text-xs font-extrabold active:scale-95 transition btn-primary">Понятно</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- МОДАЛЬНОЕ ОКНО: ЮРИДИЧЕСКИЕ ДОКУМЕНТЫ (ОФЕРТА / ПОЛИТИКА КОНФИДЕНЦИАЛЬНОСТИ) -->
+  <div id="legalDocModal" onclick="if(event.target===this) closeLegalModal()" class="fixed inset-0 z-50 hidden bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="legalDocTitle">
+    <div class="app-shell w-full max-w-lg rounded-[28px] overflow-hidden flex flex-col shadow-2xl border border-white/15">
+      <div class="p-4 flex items-center justify-between border-b border-subtle">
+        <div class="min-w-0 pr-2">
+          <h3 id="legalDocTitle" class="text-sm font-extrabold truncate">Юридический документ</h3>
+          <p id="legalDocSubtitle" class="text-[11px] text-sec truncate">Условия использования и защита данных</p>
+        </div>
+        <button type="button" onclick="closeLegalModal()" aria-label="Закрыть" class="ya-nav-btn w-8 h-8 flex items-center justify-center text-sm font-bold shrink-0">✕</button>
+      </div>
+      <div id="legalDocBody" class="p-4 space-y-3 text-xs leading-relaxed max-h-[70vh] overflow-y-auto custom-scroll text-sec">
+        <!-- Контент генерируется динамически в script.js -->
+      </div>
+      <div id="legalDocFooter" class="p-3.5 border-t border-subtle bg-card flex items-center justify-end gap-2">
+        <button type="button" onclick="closeLegalModal()" class="py-2.5 px-4 rounded-xl text-xs font-extrabold active:scale-95 transition btn-primary">Понятно</button>
       </div>
     </div>
   </div>
