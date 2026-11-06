@@ -2602,7 +2602,7 @@ function updateBenchmarksButton() {
     btn.classList.add('benchmarks-inactive', 'cursor-not-allowed', 'opacity-40');
     btn.classList.remove('benchmarks-active');
     btn.title = 'Ориентиры (Вы / Район / Город) недоступны для пользовательских данных';
-    if (dot) dot.className = 'w-2 h-2 rounded-full border border-amber-400/40 bg-transparent shrink-0';
+    if (dot) dot.className = 'w-2 h-2 rounded-full benchmarks-dot-off opacity-40 shrink-0';
     if (lbl) lbl.className = 'text-mut font-normal';
   } else {
     btn.classList.remove('cursor-not-allowed', 'opacity-40');
@@ -4696,9 +4696,13 @@ function toggleColorTheme() {
   document.body.classList.toggle('light-mode', state.lightMode);
   const iconWrap = dom.btnColorTheme ? (dom.btnColorTheme.querySelector('#lblThemeIcon') || dom.btnColorTheme) : null;
   if (iconWrap) {
+    // In light mode, offer to switch to dark (Moon icon). In dark mode, offer to switch to light (Sun icon).
     iconWrap.innerHTML = state.lightMode
-      ? '<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>'
-      : '<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>';
+      ? '<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>'
+      : '<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>';
+  }
+  if (dom.btnColorTheme) {
+    dom.btnColorTheme.title = state.lightMode ? 'Включить темный режим' : 'Включить светлый режим';
   }
   renderBlock1();
 }
