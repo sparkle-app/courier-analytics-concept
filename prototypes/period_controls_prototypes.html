@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Courier Analytics — 7 Period Controls Prototypes (R4)</title>
+  
+  <!-- Fonts: Plus Jakarta Sans & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    /* ==========================================================================
+       DESIGN TOKENS & CSS VARIABLES (Dark Slate & Light Modes)
+       ========================================================================== */
+    :root {
+      /* Dark Theme (Default) */
+      --bg-app-canvas: #0A0C10;
+      --bg-surface-primary: #12151C;
+      --bg-surface-card: #181C26;
+      --bg-surface-elevated: #202634;
+      --bg-surface-hover: #262D3E;
+      --bg-pill: #131722;
+      
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-medium: rgba(255, 255, 255, 0.15);
+      --border-strong: rgba(255, 255, 255, 0.25);
+      
+      --text-primary: #F8FAFC;
+      --text-secondary: #94A3B8;
+      --text-muted: #64748B;
+      --text-inverse: #0F172A;
+      
+      --brand-yellow: #FCE000;
+      --brand-yellow-hover: #E6CC00;
+      --brand-yellow-glow: rgba(252, 224, 0, 0.25);
+      
+      --brand-blue: #3B82F6;
+      --brand-blue-hover: #2563EB;
+      --brand-blue-glow: rgba(59, 130, 246, 0.25);
+
+      --card-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.35);
+      --pill-bg: rgba(255, 255, 255, 0.05);
+    }
+
+    /* Light Theme (Daylight Mode) */
+    body.light-mode {
+      --bg-app-canvas: #EEF0F4;
+      --bg-surface-primary: #F8F9FA;
+      --bg-surface-card: #FFFFFF;
+      --bg-surface-elevated: #F1F3F7;
+      --bg-surface-hover: #E8EBF0;
+      --bg-pill: #E2E6EE;
+      
+      --border-subtle: rgba(0, 0, 0, 0.08);
+      --border-medium: rgba(0, 0, 0, 0.14);
+      --border-strong: rgba(0, 0, 0, 0.24);
+      
+      --text-primary: #0F172A;
+      --text-secondary: #475569;
+      --text-muted: #838E9E;
+      --text-inverse: #FFFFFF;
+      
+      --card-shadow: 0 4px 18px -2px rgba(0, 0, 0, 0.06);
+      --pill-bg: #EAEFF5;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg-app-canvas);
+      color: var(--text-primary);
+      transition: background-color 0.25s ease, color 0.25s ease;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .font-heading {
+      font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+    }
+
+    .font-mono-code {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .app-card {
+      background-color: var(--bg-surface-card);
+      border: 1px solid var(--border-subtle);
+      box-shadow: var(--card-shadow);
+      border-radius: 1.25rem;
+    }
+
+    /* Active Yellow Pill Standard */
+    .pill-active-yellow {
+      background-color: var(--brand-yellow) !important;
+      color: #0F172A !important;
+      font-weight: 700 !important;
+      box-shadow: 0 2px 8px var(--brand-yellow-glow);
+    }
+
+    /* Active Blue Pill Standard (Screenshot 2 Match) */
+    .pill-active-blue {
+      background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%) !important;
+      color: #FFFFFF !important;
+      font-weight: 700 !important;
+      box-shadow: 0 2px 10px rgba(37, 99, 235, 0.35);
+    }
+
+    /* Variant 6: Timeline Slider Custom Styling */
+    .slider-track-container {
+      position: relative;
+      user-select: none;
+    }
+    .slider-track-bar {
+      height: 4px;
+      background-color: var(--border-medium);
+      border-radius: 9999px;
+    }
+    .slider-thumb-node {
+      position: absolute;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 18px;
+      height: 18px;
+      border-radius: 9999px;
+      background-color: var(--brand-yellow);
+      border: 2px solid #0F172A;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+      transition: left 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      cursor: pointer;
+    }
+    body.light-mode .slider-thumb-node {
+      border: 2px solid #FFFFFF;
+    }
+
+    /* Responsive preview frame width transitions */
+    #prototypeCanvas {
+      transition: max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+  </style>
+</head>
+<body class="light-mode min-h-screen p-3 sm:p-6 flex flex-col items-center">
+
+  <!-- ========================================================================
+       TOP TOOLBAR (Demo Controls: Theme, Frame Width, Reset)
+       ======================================================================== -->
+  <aside class="w-full max-w-4xl mb-5 p-3 sm:p-3.5 rounded-2xl bg-slate-900 text-white border border-slate-700/70 shadow-xl flex flex-wrap items-center justify-between gap-3 text-xs">
+    <div class="flex items-center gap-2">
+      <span class="px-2.5 py-0.5 rounded-md bg-amber-400 text-slate-950 font-bold uppercase tracking-wider text-[11px]">
+        R4 Prototype
+      </span>
+      <span class="font-bold text-slate-100 text-sm">
+        Периоды: 7 Концептуальных Вариантов Компоновки
+      </span>
+      <span class="hidden md:inline text-slate-400 text-xs">| «Дни / Недели / Месяцы»</span>
+    </div>
+
+    <div class="flex items-center gap-2.5">
+      <!-- Frame Width Toggle -->
+      <div class="flex items-center bg-slate-800 p-0.5 rounded-xl border border-slate-700">
+        <button id="btnFrameMobile" onclick="setFrameWidth('mobile')" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-400 text-slate-950 flex items-center gap-1 transition-all">
+          <i data-lucide="smartphone" class="w-3.5 h-3.5"></i>
+          <span>Смартфон (390px)</span>
+        </button>
+        <button id="btnFrameDesktop" onclick="setFrameWidth('desktop')" class="px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-300 hover:text-white flex items-center gap-1 transition-all">
+          <i data-lucide="monitor" class="w-3.5 h-3.5"></i>
+          <span>Полная ширина</span>
+        </button>
+      </div>
+
+      <!-- Theme Switcher -->
+      <button onclick="toggleTheme()" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-semibold flex items-center gap-1.5 transition-all">
+        <i id="themeIcon" data-lucide="sun" class="w-3.5 h-3.5 text-amber-300"></i>
+        <span id="themeLabel">Светлая</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ========================================================================
+       MAIN CANVAS CONTAINER (Holds 7 Isolated Variant Cards)
+       ======================================================================== -->
+  <main id="prototypeCanvas" class="w-full max-w-[430px] space-y-4 transition-all duration-300">
+
+    <!-- OVERVIEW BANNER -->
+    <div class="p-3.5 rounded-2xl app-card border-l-4 border-l-amber-400 text-xs space-y-1">
+      <div class="font-bold text-sm flex items-center gap-1.5">
+        <i data-lucide="layers" class="w-4 h-4 text-amber-400"></i>
+        <span>Изолированное тестирование переключателей периодов (R4)</span>
+      </div>
+      <p class="text-slate-500 dark:text-slate-400 leading-relaxed">
+        Все 7 блоков отрисованы исключительно изолированно — только кнопки управления без основного интерфейса дашборда. 
+        Опробуйте интерактивные клики, анимации и оцените баланс плотности и эргономики.
+      </p>
+    </div>
+
+    <!-- ======================================================================
+         ВАРИАНТ 1: Ультракомпактный сегментированный Pill-бар (Отдельная строка)
+         ====================================================================== -->
+    <section class="p-4 rounded-3xl app-card space-y-3">
+      <div class="flex items-start justify-between gap-2">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full bg-amber-400/20 text-amber-500 font-bold flex items-center justify-center text-xs">1</span>
+            <h2 class="font-bold text-sm">Ультракомпактный сегментированный Pill-бар</h2>
+          </div>
+          <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+            Парадигма: Сегментированный переключатель (iOS/Яндекс Про). Отдельная строка.
+          </p>
+        </div>
+        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-500/10 text-blue-500 border border-blue-500/20 whitespace-nowrap">
+          Высота 30px
+        </span>
+      </div>
+
+      <!-- ИЗОЛИРОВАННЫЙ БЛОК ВАРИАНТА 1 -->
+      <div class="p-2.5 rounded-2xl bg-black/[0.03] dark:bg-white/[0.03] border border-dashed border-subtle flex flex-col items-center justify-center">
+        <div id="v1Container" class="w-full max-w-[320px] p-0.5 rounded-xl bg-slate-200/80 dark:bg-slate-800/80 border border-subtle grid grid-cols-3 gap-0.5 select-none" role="tablist">
+          <button id="v1-days" onclick="setV1('days')" role="tab" aria-selected="true" class="py-1 text-xs rounded-lg font-bold pill-active-yellow transition-all">
+            Дни
+          </button>
+          <button id="v1-weeks" onclick="setV1('weeks')" role="tab" aria-selected="false" class="py-1 text-xs rounded-lg font-medium text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-all">
+            Недели
+          </button>
+          <button id="v1-months" onclick="setV1('months')" role="tab" aria-selected="false" class="py-1 text-xs rounded-lg font-medium text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-all">
+            Месяцы
+          </button>
+        </div>
+      </div>
+
+      <!-- ТТХ и Особенности -->
+      <div class="grid grid-cols-3 gap-1.5 text-[10px] text-slate-500 dark:text-slate-400 pt-1 border-t border-subtle">
+        <div><strong>Расположение:</strong> 1 отдельная строка</div>
+        <div><strong>Клик:</strong> В 1 касание</div>
+        <div><strong>Ширина:</strong> 100% (до 320px)</div>
+      </div>
+    </section>
+
+    <!-- ======================================================================
+         ВАРИАНТ 2: Встроенный однострочный Flex-кластер (В одной строке с контролами)
+         ====================================================================== -->
+    <section class="p-4 rounded-3xl app-card space-y-3">
+      <div class="flex items-start justify-between gap-2">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full bg-amber-400/20 text-amber-500 font-bold flex items-center justify-center text-xs">2</span>
+            <h2 class="font-bold text-sm">Встроенный однострочный кластер (Zero-Height)</h2>
+          </div>
+          <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+            Парадигма: Единая горизонтальная линия с остальными контролами R2. Reclaims 38px!
+          </p>
+        </div>
+        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 whitespace-nowrap">
+          0px доп. высоты
+        </span>
+      </div>
+
+      <!-- ИЗОЛИРОВАННЫЙ БЛОК ВАРИАНТА 2 -->
+      <div class="p-2.5 rounded-2xl bg-black/[0.03] dark:bg-white/[0.03] border border-dashed border-subtle space-y-2">
+        <div class="text-[10px] text-slate-400 font-medium">Как блок периодов встает в единую строку с двухэтажными контролами:</div>
+        
+        <div class="flex items-center justify-between gap-1.5 w-full overflow-x-auto py-1">
+          <!-- Контрол 1: Показатель (R2 мини-карточка) -->
+          <div class="px-2 py-1 rounded-xl bg-white dark:bg-slate-800 border border-subtle flex flex-col items-center justify-center min-w-[70px] shrink-0 opacity-70">
+            <span class="text-[8px] uppercase tracking-wider text-slate-400 font-semibold">ПОКАЗАТЕЛЬ</span>
+            <span class="text-[11px] font-bold text-slate-700 dark:text-slate-200">В час</span>
+          </div>
+
+          <!-- Контрол 2: Режим (R2 мини-карточка) -->
+          <div class="px-2 py-1 rounded-xl bg-white dark:bg-slate-800 border border-subtle flex flex-col items-center justify-center min-w-[70px] shrink-0 opacity-70">
+            <span class="text-[8px] uppercase tracking-wider text-slate-400 font-semibold">РЕЖИМ</span>
+            <span class="text-[11px] font-bold text-slate-700 dark:text-slate-200">Чистыми</span>
+          </div>
+
+          <!-- САМ БЛОК ПЕРИОДОВ (Вариант 2 — компактный инлайн micro-pill) -->
+          <div id="v2PeriodCluster" class="p-0.5 rounded-xl bg-slate-200/90 dark:bg-slate-800/90 border border-subtle flex items-center shrink-0">
+            <button id="v2-days" onclick="setV2('days')" class="px-2 py-1.5 rounded-lg text-[10px] font-bold pill-active-yellow transition-all">
+              Дни
+            </button>
+            <button id="v2-weeks" onclick="setV2('weeks')" class="px-2 py-1.5 rounded-lg text-[10px] font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-all">
+              Нед
+            </button>
+            <button id="v2-months" onclick="setV2('months')" class="px-2 py-1.5 rounded-lg text-[10px] font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-all">
+              Мес
+            </button>
+          </div>
+
+          <!-- Контрол 3: Вид График/Таблица (R2 pill) -->
+          <div class="p-0.5 rounded-xl bg-slate-200 dark:bg-slate-800 border border-subtle flex items-center shrink-0 opacity-70">
+            <div class="p-1 rounded-lg bg-blue-600 text-white"><i data-lucide="bar-chart-2" class="w-3 h-3"></i></div>
+            <div class="p-1 text-slate-400"><i data-lucide="table" class="w-3 h-3"></i></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-3 gap-1.5 text-[10px] text-slate-500 dark:text-slate-400 pt-1 border-t border-subtle">
+        <div><strong>Расположение:</strong> В 1 общей строке</div>
+        <div><strong>Экономия:</strong> ~38-44px высоты</div>
+        <div><strong>Ширина блока:</strong> ~115px</div>
+      </div>
+    </section>
+
+    <!-- ======================================================================
+         ВАРИАНТ 3: Компактный бейдж-поповер / Выпадающее меню («Период: Дни ▾»)
+         ====================================================================== -->
+    <section class="p-4 rounded-3xl app-card space-y-3">
+      <div class="flex items-start justify-between gap-2">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full bg-amber-400/20 text-amber-500 font-bold flex items-center justify-center text-xs">3</span>
+            <h2 class="font-bold text-sm">Компактный Popover-бейдж с меню</h2>
+          </div>
+          <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+            Парадигма: Свернутая плашка с выпадающим окном выбора (Google Maps / Apple Health).
+          </p>
+        </div>
+        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-500/10 text-purple-500 border border-purple-500/20 whitespace-nowrap">
+          Ширина ~95px
+        </span>
+      </div>
+
+      <!-- ИЗОЛИРОВАННЫЙ БЛОК ВАРИАНТА 3 -->
+      <div class="p-4 rounded-2xl bg-black/[0.03] dark:bg-white/[0.03] border border-dashed border-subtle flex flex-col items-center justify-center relative min-h-[90px]">
+        <div class="relative">
+          <!-- Кнопка-бейдж -->
+          <button id="v3TriggerBtn" onclick="toggleV3Popover()" class="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-subtle shadow-sm flex items-center gap-1.5 text-xs font-semibold hover:border-amber-400 transition-all">
+            <i data-lucide="calendar" class="w-3.5 h-3.5 text-amber-400"></i>
+            <span>Период:</span>
+            <strong id="v3ActiveLabel" class="text-amber-500 dark:text-amber-300">Дни</strong>
+            <i data-lucide="chevron-down" id="v3Chevron" class="w-3.5 h-3.5 text-slate-400 transition-transform"></i>
+          </button>
+
+          <!-- Выпадающий Popover -->
+          <div id="v3PopoverMenu" class="hidden absolute top-full left-1/2 -translate-x-1/2 mt-1.5 w-44 rounded-2xl bg-white dark:bg-slate-800 border border-medium shadow-2xl p-1 z-30 space-y-0.5">
+            <button onclick="selectV3('days', 'Дни')" class="w-full px-2.5 py-1.5 rounded-xl text-left text-xs font-semibold flex items-center justify-between hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-colors">
+              <span class="flex items-center gap-1.5">
+                <i data-lucide="calendar-days" class="w-3.5 h-3.5 text-blue-500"></i>
+                Дни (посуточно)
+              </span>
+              <span id="v3Check-days" class="text-amber-500 font-bold">✓</span>
+            </button>
+            <button onclick="selectV3('weeks', 'Недели')" class="w-full px-2.5 py-1.5 rounded-xl text-left text-xs font-semibold flex items-center justify-between hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-colors">
+              <span class="flex items-center gap-1.5">
+                <i data-lucide="calendar-range" class="w-3.5 h-3.5 text-purple-500"></i>
+                Недели (пн–вс)
+              </span>
+              <span id="v3Check-weeks" class="text-transparent font-bold">✓</span>
+            </button>
+            <button onclick="selectV3('months', 'Месяцы')" class="w-full px-2.5 py-1.5 rounded-xl text-left text-xs font-semibold flex items-center justify-between hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-colors">
+              <span class="flex items-center gap-1.5">
+                <i data-lucide="calendar-check-2" class="w-3.5 h-3.5 text-emerald-500"></i>
+                Месяцы (итоги)
+              </span>
+              <span id="v3Check-months" class="text-transparent font-bold">✓</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-3 gap-1.5 text-[10px] text-slate-500 dark:text-slate-400 pt-1 border-t border-subtle">
+        <div><strong>Расположение:</strong> В шапке или строке</div>
+        <div><strong>Клик:</strong> В 2 касания (раскрытие)</div>
+        <div><strong>Скрытие:</strong> Автоклик вне окна</div>
+      </div>
+    </section>
+
+    <!-- ======================================================================
+         ВАРИАНТ 4: Вертикальный рельс / Боковая колонка мини-кнопок
+         ====================================================================== -->
+    <section class="p-4 rounded-3xl app-card space-y-3">
+      <div class="flex items-start justify-between gap-2">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full bg-amber-400/20 text-amber-500 font-bold flex items-center justify-center text-xs">4</span>
+            <h2 class="font-bold text-sm">Вертикальный боковой рельс (Side Rail)</h2>
+          </div>
+          <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+            Парадигма: Вертикальная ориентация. Док к боковой грани диаграммы или карточки.
+          </p>
+        </div>
+        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-orange-500/10 text-orange-500 border border-orange-500/20 whitespace-nowrap">
+          Вертикальный
+        </span>
+      </div>
+
+      <!-- ИЗОЛИРОВАННЫЙ БЛОК ВАРИАНТА 4 -->
+      <div class="p-3 rounded-2xl bg-black/[0.03] dark:bg-white/[0.03] border border-dashed border-subtle flex items-center justify-center gap-6">
+        <!-- Сам вертикальный рельс -->
+        <div id="v4Rail" class="p-1 rounded-2xl bg-white dark:bg-slate-800 border border-subtle shadow-md flex flex-col gap-1 w-20">
+          <button id="v4-days" onclick="setV4('days')" class="py-1 px-2 rounded-xl text-[11px] font-bold pill-active-blue flex items-center justify-center gap-1 transition-all">
+            <span>Дни</span>
+          </button>
+          <button id="v4-weeks" onclick="setV4('weeks')" class="py-1 px-2 rounded-xl text-[11px] font-medium text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 flex items-center justify-center gap-1 transition-all">
+            <span>Нед</span>
+          </button>
+          <button id="v4-months" onclick="setV4('months')" class="py-1 px-2 rounded-xl text-[11px] font-medium text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 flex items-center justify-center gap-1 transition-all">
+            <span>Мес</span>
+          </button>
+        </div>
+
+        <!-- Поясняющий мокап размещения -->
+        <div class="text-[10px] text-slate-500 max-w-[200px] leading-tight">
+          Блок размещается справа от диаграммы, повторяя вертикальную шкалу оси Y. Не занимает горизонтальные строки сверху!
+        </div>
+      </div>
+
+      <div class="grid grid-cols-3 gap-1.5 text-[10px] text-slate-500 dark:text-slate-400 pt-1 border-t border-subtle">
+        <div><strong>Размер:</strong> 80px × 36px</div>
+        <div><strong>Привязка:</strong> Боковой док Y-оси</div>
+        <div><strong>Клик:</strong> В 1 касание</div>
+      </div>
+    </section>
+
+    <!-- ======================================================================
+         ВАРИАНТ 5: Минималистичные контурные табы (Underline Ghost Tabs)
+         ====================================================================== -->
+    <section class="p-4 rounded-3xl app-card space-y-3">
+      <div class="flex items-start justify-between gap-2">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full bg-amber-400/20 text-amber-500 font-bold flex items-center justify-center text-xs">5</span>
+            <h2 class="font-bold text-sm">Минималистичные табы с подчеркиванием</h2>
+          </div>
+          <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+            Парадигма: Ghost Tab Bar (Apple / Substack / Linear). Без фоновых капсул.
+          </p>
+        </div>
+        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-500/10 text-rose-500 border border-rose-500/20 whitespace-nowrap">
+          Ghost / Flat
+        </span>
+      </div>
+
+      <!-- ИЗОЛИРОВАННЫЙ БЛОК ВАРИАНТА 5 -->
+      <div class="p-3 rounded-2xl bg-black/[0.03] dark:bg-white/[0.03] border border-dashed border-subtle flex flex-col items-center justify-center">
+        <div class="flex items-center justify-center gap-6 border-b border-subtle w-full max-w-[280px]">
+          <!-- Таб Дни -->
+          <button id="v5-days" onclick="setV5('days')" class="pb-2 text-xs font-bold text-amber-500 dark:text-amber-300 border-b-2 border-amber-400 relative transition-all flex items-center gap-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+            <span>Дни</span>
+          </button>
+          <!-- Таб Недели -->
+          <button id="v5-weeks" onclick="setV5('weeks')" class="pb-2 text-xs font-medium text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 border-b-2 border-transparent transition-all flex items-center gap-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-transparent"></span>
+            <span>Недели</span>
+          </button>
+          <!-- Таб Месяцы -->
+          <button id="v5-months" onclick="setV5('months')" class="pb-2 text-xs font-medium text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 border-b-2 border-transparent transition-all flex items-center gap-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-transparent"></span>
+            <span>Месяцы</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-3 gap-1.5 text-[10px] text-slate-500 dark:text-slate-400 pt-1 border-t border-subtle">
+        <div><strong>Стиль:</strong> Легкий воздух, нет плашек</div>
+        <div><strong>Толщина:</strong> 2px линия-акцент</div>
+        <div><strong>Индикатор:</strong> Цветная точка + линия</div>
+      </div>
+    </section>
+
+    <!-- ======================================================================
+         ВАРИАНТ 6: Таймлайн-слайдер / Дискретный степпер (Timeline Zoom Scale)
+         ====================================================================== -->
+    <section class="p-4 rounded-3xl app-card space-y-3">
+      <div class="flex items-start justify-between gap-2">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full bg-amber-400/20 text-amber-500 font-bold flex items-center justify-center text-xs">6</span>
+            <h2 class="font-bold text-sm">Таймлайн-слайдер со степпером (Масштаб)</h2>
+          </div>
+          <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+            Парадигма: Аналоговый бегунок / зум временной шкалы (Дни ➔ Недели ➔ Месяцы).
+          </p>
+        </div>
+        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-cyan-500/10 text-cyan-500 border border-cyan-500/20 whitespace-nowrap">
+          Степпер / Зум
+        </span>
+      </div>
+
+      <!-- ИЗОЛИРОВАННЫЙ БЛОК ВАРИАНТА 6 -->
+      <div class="p-3.5 rounded-2xl bg-black/[0.03] dark:bg-white/[0.03] border border-dashed border-subtle flex flex-col items-center justify-center space-y-2.5">
+        <div class="w-full max-w-[280px] flex items-center justify-between gap-2">
+          <!-- Кнопка Влево (Назад по масштабу) -->
+          <button onclick="stepV6(-1)" title="Более подробный масштаб" class="p-1 rounded-lg bg-white dark:bg-slate-800 border border-subtle text-slate-500 hover:text-slate-800 dark:hover:text-slate-100 transition-colors">
+            <i data-lucide="chevron-left" class="w-4 h-4"></i>
+          </button>
+
+          <!-- Трек со слайдером -->
+          <div class="flex-1 slider-track-container px-2 py-1">
+            <div class="slider-track-bar"></div>
+            <!-- Слайдер-бегунок -->
+            <div id="v6Thumb" class="slider-thumb-node" style="left: 10%;"></div>
+          </div>
+
+          <!-- Кнопка Вправо (Вперед по масштабу) -->
+          <button onclick="stepV6(1)" title="Более агрегированный масштаб" class="p-1 rounded-lg bg-white dark:bg-slate-800 border border-subtle text-slate-500 hover:text-slate-800 dark:hover:text-slate-100 transition-colors">
+            <i data-lucide="chevron-right" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <!-- Метки точек трека -->
+        <div class="w-full max-w-[280px] flex justify-between px-7 text-[10px] font-semibold text-slate-400 select-none">
+          <span id="v6Lbl-days" onclick="setV6(0)" class="cursor-pointer text-amber-500 font-bold transition-colors">Дни</span>
+          <span id="v6Lbl-weeks" onclick="setV6(1)" class="cursor-pointer hover:text-slate-200 transition-colors">Недели</span>
+          <span id="v6Lbl-months" onclick="setV6(2)" class="cursor-pointer hover:text-slate-200 transition-colors">Месяцы</span>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-3 gap-1.5 text-[10px] text-slate-500 dark:text-slate-400 pt-1 border-t border-subtle">
+        <div><strong>Смысл:</strong> Физический зум графика</div>
+        <div><strong>Управление:</strong> Клик по метке / стрелки</div>
+        <div><strong>Тактильность:</strong> Плавный слайд бегунка</div>
+      </div>
+    </section>
+
+    <!-- ======================================================================
+         ВАРИАНТ 7: Финансовые трейдер-чипы («1д / 7д / 30д» с таймфреймами)
+         ====================================================================== -->
+    <section class="p-4 rounded-3xl app-card space-y-3">
+      <div class="flex items-start justify-between gap-2">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full bg-amber-400/20 text-amber-500 font-bold flex items-center justify-center text-xs">7</span>
+            <h2 class="font-bold text-sm">Финансовые трейдер-чипы с таймфреймом</h2>
+          </div>
+          <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+            Парадигма: Финтех-терминал (Тинькофф Инвестиции / TradingView). Раздельные чипы с кодом периода.
+          </p>
+        </div>
+        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 whitespace-nowrap">
+          Таймфрейм-чипы
+        </span>
+      </div>
+
+      <!-- ИЗОЛИРОВАННЫЙ БЛОК ВАРИАНТА 7 -->
+      <div class="p-3 rounded-2xl bg-black/[0.03] dark:bg-white/[0.03] border border-dashed border-subtle flex items-center justify-center">
+        <div class="grid grid-cols-3 gap-2 w-full max-w-[320px]">
+          <!-- Чип 1Д (Дни) -->
+          <button id="v7-days" onclick="setV7('days')" class="p-1.5 rounded-xl border border-amber-400/80 bg-amber-400/15 text-amber-500 dark:text-amber-300 shadow-sm flex items-center justify-center gap-1.5 transition-all active:scale-95">
+            <span class="px-1 py-0.5 rounded bg-amber-400 text-slate-950 font-mono-code font-bold text-[9px] leading-none">1Д</span>
+            <span class="text-xs font-bold">Дни</span>
+          </button>
+          
+          <!-- Чип 7Д (Недели) -->
+          <button id="v7-weeks" onclick="setV7('weeks')" class="p-1.5 rounded-xl border border-subtle bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:border-slate-400 flex items-center justify-center gap-1.5 transition-all active:scale-95">
+            <span class="px-1 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-mono-code font-bold text-[9px] leading-none">7Д</span>
+            <span class="text-xs font-semibold">Недели</span>
+          </button>
+
+          <!-- Чип 1М (Месяцы) -->
+          <button id="v7-months" onclick="setV7('months')" class="p-1.5 rounded-xl border border-subtle bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:border-slate-400 flex items-center justify-center gap-1.5 transition-all active:scale-95">
+            <span class="px-1 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-mono-code font-bold text-[9px] leading-none">1М</span>
+            <span class="text-xs font-semibold">Месяцы</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-3 gap-1.5 text-[10px] text-slate-500 dark:text-slate-400 pt-1 border-t border-subtle">
+        <div><strong>Стиль:</strong> Трейдинговый микро-тег</div>
+        <div><strong>Формат:</strong> [1Д/7Д/1М] + Имя</div>
+        <div><strong>Мобильность:</strong> Можно свернуть в [1Д][7Д][1М]</div>
+      </div>
+    </section>
+
+    <!-- СВОДНАЯ СРАВНИТЕЛЬНАЯ МАТРИЦА ДЛЯ ВЫБОРА -->
+    <section class="p-4 rounded-3xl app-card space-y-2 text-xs">
+      <h3 class="font-bold text-sm text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
+        <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400"></i>
+        <span>Сравнительная матрица вариантов для внедрения в проект</span>
+      </h3>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-[11px]">
+          <thead>
+            <tr class="border-b border-subtle text-slate-400 font-semibold">
+              <th class="py-1.5 pr-2">Вариант</th>
+              <th class="py-1.5 px-2">Строки</th>
+              <th class="py-1.5 px-2">Высота</th>
+              <th class="py-1.5 px-2">Скорость переключения</th>
+              <th class="py-1.5 pl-2">Главный плюс</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-subtle text-slate-600 dark:text-slate-300">
+            <tr>
+              <td class="py-1.5 pr-2 font-bold text-amber-500">1. Сегментированный Pill-бар</td>
+              <td class="py-1.5 px-2">Отдельная</td>
+              <td class="py-1.5 px-2">30px</td>
+              <td class="py-1.5 px-2">1 клик (быстро)</td>
+              <td class="py-1.5 pl-2">Привычность iOS/Яндекс</td>
+            </tr>
+            <tr class="bg-amber-400/5">
+              <td class="py-1.5 pr-2 font-bold text-emerald-500">2. Встроенный Flex-кластер</td>
+              <td class="py-1.5 px-2">1 строка со свитчами</td>
+              <td class="py-1.5 px-2">0px доп.</td>
+              <td class="py-1.5 px-2">1 клик (быстро)</td>
+              <td class="py-1.5 pl-2">Максимум экрана под диаграмму</td>
+            </tr>
+            <tr>
+              <td class="py-1.5 pr-2 font-bold text-purple-500">3. Popover-бейдж</td>
+              <td class="py-1.5 px-2">В шапке графика</td>
+              <td class="py-1.5 px-2">26px</td>
+              <td class="py-1.5 px-2">2 клика (поповер)</td>
+              <td class="py-1.5 pl-2">Минимальная ширина (90px)</td>
+            </tr>
+            <tr>
+              <td class="py-1.5 pr-2 font-bold text-blue-500">4. Вертикальный рельс</td>
+              <td class="py-1.5 px-2">Боковой док</td>
+              <td class="py-1.5 px-2">80px (Y-ось)</td>
+              <td class="py-1.5 px-2">1 клик</td>
+              <td class="py-1.5 pl-2">Освобождает всю верхнюю зону</td>
+            </tr>
+            <tr>
+              <td class="py-1.5 pr-2 font-bold text-rose-500">5. Ghost Underline Tabs</td>
+              <td class="py-1.5 px-2">Отдельная/Шапка</td>
+              <td class="py-1.5 px-2">26px</td>
+              <td class="py-1.5 px-2">1 клик</td>
+              <td class="py-1.5 pl-2">Чистый журнальный минимализм</td>
+            </tr>
+            <tr>
+              <td class="py-1.5 pr-2 font-bold text-cyan-500">6. Таймлайн-слайдер</td>
+              <td class="py-1.5 px-2">Отдельная</td>
+              <td class="py-1.5 px-2">32px</td>
+              <td class="py-1.5 px-2">1 клик / степ</td>
+              <td class="py-1.5 pl-2">Аналоговое чувство масштабирования</td>
+            </tr>
+            <tr>
+              <td class="py-1.5 pr-2 font-bold text-emerald-400">7. Трейдер-чипы</td>
+              <td class="py-1.5 px-2">Отдельная</td>
+              <td class="py-1.5 px-2">30px</td>
+              <td class="py-1.5 px-2">1 клик</td>
+              <td class="py-1.5 pl-2">Информативные коды 1Д/7Д/1М</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ========================================================================
+       INTERACTIVE PROTOTYPE JAVASCRIPT (State handling for each variant)
+       ======================================================================== -->
+  <script>
+    // 1. Theme toggle
+    function toggleTheme() {
+      const isLight = document.body.classList.toggle('light-mode');
+      const icon = document.getElementById('themeIcon');
+      const label = document.getElementById('themeLabel');
+      if (isLight) {
+        icon.setAttribute('data-lucide', 'sun');
+        icon.className = 'w-3.5 h-3.5 text-amber-300';
+        label.textContent = 'Светлая';
+      } else {
+        icon.setAttribute('data-lucide', 'moon');
+        icon.className = 'w-3.5 h-3.5 text-blue-400';
+        label.textContent = 'Темная';
+      }
+      lucide.createIcons();
+    }
+
+    // 2. Frame width toggle (Mobile 390px vs Desktop)
+    function setFrameWidth(mode) {
+      const canvas = document.getElementById('prototypeCanvas');
+      const btnMob = document.getElementById('btnFrameMobile');
+      const btnDesk = document.getElementById('btnFrameDesktop');
+      if (mode === 'mobile') {
+        canvas.style.maxWidth = '430px';
+        btnMob.className = 'px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-400 text-slate-950 flex items-center gap-1 transition-all';
+        btnDesk.className = 'px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-300 hover:text-white flex items-center gap-1 transition-all';
+      } else {
+        canvas.style.maxWidth = '880px';
+        btnDesk.className = 'px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-400 text-slate-950 flex items-center gap-1 transition-all';
+        btnMob.className = 'px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-300 hover:text-white flex items-center gap-1 transition-all';
+      }
+    }
+
+    // ========================================================================
+    // VARIANT 1 HANDLERS (Segmented Pill)
+    // ========================================================================
+    function setV1(period) {
+      ['days', 'weeks', 'months'].forEach(p => {
+        const btn = document.getElementById(`v1-${p}`);
+        if (p === period) {
+          btn.className = 'py-1 text-xs rounded-lg font-bold pill-active-yellow transition-all';
+          btn.setAttribute('aria-selected', 'true');
+        } else {
+          btn.className = 'py-1 text-xs rounded-lg font-medium text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-all';
+          btn.setAttribute('aria-selected', 'false');
+        }
+      });
+    }
+
+    // ========================================================================
+    // VARIANT 2 HANDLERS (Inline Cluster)
+    // ========================================================================
+    function setV2(period) {
+      ['days', 'weeks', 'months'].forEach(p => {
+        const btn = document.getElementById(`v2-${p}`);
+        if (p === period) {
+          btn.className = 'px-2 py-1.5 rounded-lg text-[10px] font-bold pill-active-yellow transition-all';
+        } else {
+          btn.className = 'px-2 py-1.5 rounded-lg text-[10px] font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-all';
+        }
+      });
+    }
+
+    // ========================================================================
+    // VARIANT 3 HANDLERS (Popover Badge)
+    // ========================================================================
+    function toggleV3Popover() {
+      const menu = document.getElementById('v3PopoverMenu');
+      const chevron = document.getElementById('v3Chevron');
+      const isHidden = menu.classList.contains('hidden');
+      if (isHidden) {
+        menu.classList.remove('hidden');
+        chevron.style.transform = 'rotate(180deg)';
+      } else {
+        menu.classList.add('hidden');
+        chevron.style.transform = 'rotate(0deg)';
+      }
+    }
+
+    function selectV3(period, labelText) {
+      document.getElementById('v3ActiveLabel').textContent = labelText;
+      ['days', 'weeks', 'months'].forEach(p => {
+        const check = document.getElementById(`v3Check-${p}`);
+        if (p === period) {
+          check.className = 'text-amber-500 font-bold';
+        } else {
+          check.className = 'text-transparent font-bold';
+        }
+      });
+      toggleV3Popover();
+    }
+
+    // Close popover on external click
+    document.addEventListener('click', (e) => {
+      const trigger = document.getElementById('v3TriggerBtn');
+      const menu = document.getElementById('v3PopoverMenu');
+      if (trigger && menu && !trigger.contains(e.target) && !menu.contains(e.target)) {
+        menu.classList.add('hidden');
+        const chevron = document.getElementById('v3Chevron');
+        if (chevron) chevron.style.transform = 'rotate(0deg)';
+      }
+    });
+
+    // ========================================================================
+    // VARIANT 4 HANDLERS (Vertical Rail)
+    // ========================================================================
+    function setV4(period) {
+      ['days', 'weeks', 'months'].forEach(p => {
+        const btn = document.getElementById(`v4-${p}`);
+        if (p === period) {
+          btn.className = 'py-1 px-2 rounded-xl text-[11px] font-bold pill-active-blue flex items-center justify-center gap-1 transition-all';
+        } else {
+          btn.className = 'py-1 px-2 rounded-xl text-[11px] font-medium text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 flex items-center justify-center gap-1 transition-all';
+        }
+      });
+    }
+
+    // ========================================================================
+    // VARIANT 5 HANDLERS (Underline Tabs)
+    // ========================================================================
+    function setV5(period) {
+      ['days', 'weeks', 'months'].forEach(p => {
+        const btn = document.getElementById(`v5-${p}`);
+        const dot = btn.querySelector('span');
+        if (p === period) {
+          btn.className = 'pb-2 text-xs font-bold text-amber-500 dark:text-amber-300 border-b-2 border-amber-400 relative transition-all flex items-center gap-1';
+          if (dot) dot.className = 'w-1.5 h-1.5 rounded-full bg-amber-400';
+        } else {
+          btn.className = 'pb-2 text-xs font-medium text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 border-b-2 border-transparent transition-all flex items-center gap-1';
+          if (dot) dot.className = 'w-1.5 h-1.5 rounded-full bg-transparent';
+        }
+      });
+    }
+
+    // ========================================================================
+    // VARIANT 6 HANDLERS (Timeline Stepper Slider)
+    // ========================================================================
+    let currentV6Index = 0; // 0=days, 1=weeks, 2=months
+    const v6Positions = ['10%', '50%', '90%'];
+    const v6Periods = ['days', 'weeks', 'months'];
+
+    function setV6(idx) {
+      currentV6Index = Math.max(0, Math.min(2, idx));
+      const thumb = document.getElementById('v6Thumb');
+      thumb.style.left = v6Positions[currentV6Index];
+      v6Periods.forEach((p, i) => {
+        const lbl = document.getElementById(`v6Lbl-${p}`);
+        if (i === currentV6Index) {
+          lbl.className = 'cursor-pointer text-amber-500 font-bold transition-colors';
+        } else {
+          lbl.className = 'cursor-pointer text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors';
+        }
+      });
+    }
+
+    function stepV6(delta) {
+      setV6(currentV6Index + delta);
+    }
+
+    // ========================================================================
+    // VARIANT 7 HANDLERS (Financial Trader Chips)
+    // ========================================================================
+    function setV7(period) {
+      const map = {
+        days: { badge: 'bg-amber-400 text-slate-950', text: '1Д' },
+        weeks: { badge: 'bg-amber-400 text-slate-950', text: '7Д' },
+        months: { badge: 'bg-amber-400 text-slate-950', text: '1М' }
+      };
+
+      ['days', 'weeks', 'months'].forEach(p => {
+        const btn = document.getElementById(`v7-${p}`);
+        const badge = btn.querySelector('span:first-child');
+        if (p === period) {
+          btn.className = 'p-1.5 rounded-xl border border-amber-400/80 bg-amber-400/15 text-amber-500 dark:text-amber-300 shadow-sm flex items-center justify-center gap-1.5 transition-all active:scale-95';
+          badge.className = 'px-1 py-0.5 rounded bg-amber-400 text-slate-950 font-mono-code font-bold text-[9px] leading-none';
+        } else {
+          btn.className = 'p-1.5 rounded-xl border border-subtle bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:border-slate-400 flex items-center justify-center gap-1.5 transition-all active:scale-95';
+          badge.className = 'px-1 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-mono-code font-bold text-[9px] leading-none';
+        }
+      });
+    }
+
+    // Initialize Lucide icons on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      if (window.lucide) {
+        lucide.createIcons();
+      }
+    });
+  </script>
+</body>
+</html>

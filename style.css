@@ -125,18 +125,14 @@ body {
   color: var(--ya-yellow-text);
 }
 
-/* Switch & Segmented Controls */
+/* Switch & Segmented Controls Base */
 .ya-switch-card {
   background-color: var(--bg-card);
   border: 1px solid var(--border-subtle);
-  border-radius: 16px;
-  padding: 3px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
+  border-radius: 18px;
   cursor: pointer;
   user-select: none;
-  transition: border-color 0.15s ease, transform 0.1s ease;
+  transition: border-color 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
 }
 .ya-switch-card:hover {
   border-color: var(--border-strong);
@@ -145,6 +141,93 @@ body {
   transform: scale(0.97);
 }
 
+/* Two-tier cards layout in block1 */
+#block1SwitchCards .ya-switch-card {
+  min-height: 52px;
+  height: 52px;
+  padding: 6px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+/* Category header (top line) */
+.ya-switch-cat {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* Current value (bottom line) - font weight 700 in BOTH states prevents jumping */
+.ya-switch-val {
+  display: none;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-main);
+  line-height: 1.2;
+  margin-top: 2px;
+  text-align: center;
+  white-space: nowrap;
+}
+.ya-switch-val.ya-switch-opt-active {
+  display: block;
+}
+
+/* Segmented Pill Switch for Diagram / Table (Screenshot 2) */
+#block1SwitchCards #switchChartTable.ya-switch-pill-container {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 3.5px !important;
+  border-radius: 9999px !important;
+  min-height: 52px;
+  height: 52px;
+  gap: 3px;
+}
+
+.ya-pill-segment {
+  flex: 1;
+  height: 100%;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--text-secondary);
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 0;
+}
+
+.ya-pill-segment:hover {
+  color: var(--text-main);
+}
+
+.ya-pill-segment.ya-switch-opt-active {
+  background: linear-gradient(135deg, #2563EB 0%, #3B82F6 100%);
+  color: #FFFFFF !important;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.38);
+}
+
+.ya-pill-segment svg {
+  stroke: currentColor;
+  transition: stroke 0.15s ease, transform 0.15s ease;
+}
+
+.ya-pill-segment.ya-switch-opt-active svg {
+  stroke: #FFFFFF !important;
+}
+
+/* General switch option styling */
 .ya-switch-opt {
   display: block;
   text-align: center;
@@ -159,7 +242,7 @@ body {
 .ya-switch-opt-active {
   background-color: var(--ya-yellow);
   color: var(--ya-yellow-text);
-  font-weight: 700;
+  font-weight: 600;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
 }
 
@@ -181,7 +264,7 @@ body {
 .ya-seg-btn-active {
   background-color: var(--ya-yellow);
   color: var(--ya-yellow-text) !important;
-  font-weight: 700;
+  font-weight: 600;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
