@@ -1,5 +1,5 @@
 // =============================================================================
-// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.14.4) — ЛОГИКА И СОСТОЯНИЕ (script.js)
+// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.14.5) — ЛОГИКА И СОСТОЯНИЕ (script.js)
 // Оптимизированная и модульная версия с гранулярным рендерингом и кэшированием
 // =============================================================================
 
@@ -1902,8 +1902,7 @@ function toggleLayoutMode() {
   if (dom.lblLayoutMode) dom.lblLayoutMode.textContent = isPc ? 'Мобильная' : 'ПК';
   if (dom.lblLayoutIcon) dom.lblLayoutIcon.textContent = isPc ? '📱' : '💻';
   if (dom.btnLayoutMode) {
-    dom.btnLayoutMode.classList.toggle('bg-[#FCE000]', isPc);
-    dom.btnLayoutMode.classList.toggle('text-[#141518]', isPc);
+    dom.btnLayoutMode.title = isPc ? 'Переключить на мобильную версию' : 'Переключить на версию для ПК';
   }
   showToast(isPc ? 'Режим: ПК (на всю ширину браузера)' : 'Режим: Телефон (компактный)');
 }
