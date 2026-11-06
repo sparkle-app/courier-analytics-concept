@@ -29,5 +29,6 @@ More design ideas from Claude Sonnet 5.5 Extra (for fun):
   <img src="designs/Sonnet 5.5 Extra (1).png" width="150" alt="Базовая версия" />
   <img src="designs/Sonnet 5.5 Extra (3).png" width="150" alt="Футуризм" />
   <img src="designs/Sonnet 5.5 Extra (2).png" width="150" alt="Киберпанк" />
+  <img src="designs/Sonnet 5.5 Extra (5).png" width="150" alt="Чек/журнал" />
   <img src="designs/Sonnet 5.5 Extra (4).png" width="150" alt="Чек/журнал" />
 </p>
