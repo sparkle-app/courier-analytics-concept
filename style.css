@@ -495,19 +495,87 @@ body.light-mode .table-sticky-footer td.table-col-gross {
 /* ------------------------------------------------------------------------- */
 /* РЕЖИМ ОТОБРАЖЕНИЯ ПК (ДЕСКТОП)                                            */
 /* ------------------------------------------------------------------------- */
+/* =========================================================================
+   ОБЕРТКА СТРАНИЦЫ И БОКОВАЯ СЕРВИСНАЯ ПЛАШКА СТЕНДА (СЛЕВА ОТ ПРИЛОЖЕНИЯ)
+   ========================================================================= */
+.app-root-wrapper {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 1rem;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+#topBannerContainer {
+  flex: 0 1 240px;
+  width: 240px;
+  min-width: 170px;
+  max-width: 250px;
+  position: sticky;
+  top: 12px;
+  align-self: flex-start;
+  z-index: 30;
+  box-sizing: border-box;
+  margin-bottom: 0 !important;
+}
+
+body:not(.desktop-mode) #layoutContainer {
+  flex: 0 1 430px;
+  width: 100%;
+  max-width: 430px;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
 body.desktop-mode {
-  padding-left: 1.5rem !important;
-  padding-right: 1.5rem !important;
+  padding-left: 1rem !important;
+  padding-right: 1rem !important;
+}
+
+body.desktop-mode .app-root-wrapper {
+  max-width: 1600px !important;
+  justify-content: center !important;
+  gap: 1.25rem !important;
 }
 
 body.desktop-mode #topBannerContainer {
-  max-width: 1320px !important;
-  width: 100% !important;
+  flex: 0 1 220px !important;
+  width: 220px !important;
+  min-width: 155px !important;
+  max-width: 240px !important;
+  position: sticky !important;
+  top: 12px !important;
+  align-self: flex-start !important;
 }
 
 body.desktop-mode #layoutContainer {
-  max-width: 1320px !important;
+  flex: 1 1 0% !important;
+  max-width: 1280px !important;
   width: 100% !important;
+  min-width: 0 !important;
+}
+
+/* Адаптив для узких мобильных экранов (менее 720px): плашка встает над приложением */
+@media (max-width: 720px) {
+  .app-root-wrapper {
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 0.75rem !important;
+  }
+  #topBannerContainer {
+    width: 100% !important;
+    max-width: 430px !important;
+    min-width: 0 !important;
+    position: static !important;
+    margin-bottom: 0.25rem !important;
+  }
+  body.desktop-mode #topBannerContainer {
+    max-width: 100% !important;
+    width: 100% !important;
+  }
 }
 
 body.desktop-mode #screenMain,

@@ -18,8 +18,11 @@
 </head>
 <body class="light-mode min-h-screen flex flex-col items-center py-3 px-2 sm:px-4">
 
-  <!-- ВЕРХНЯЯ СЕРВИСНАЯ ПЛАШКА СТЕНДА -->
-  <div id="topBannerContainer" class="w-full max-w-[430px] mb-3 px-3.5 py-2.5 rounded-2xl ya-card text-xs space-y-1.5 transition-all duration-200">
+  <!-- ОБЕРТКА СТРАНИЦЫ: ПЛАШКА СТЕНДА СЛЕВА, ПРИЛОЖЕНИЕ СПРАВА/ПО ЦЕНТРУ -->
+  <div id="appRootWrapper" class="app-root-wrapper w-full flex justify-center items-start gap-3 sm:gap-4 transition-all duration-200">
+
+    <!-- БОКОВАЯ СЕРВИСНАЯ ПЛАШКА СТЕНДА (СЛЕВА ОТ ПРИЛОЖЕНИЯ) -->
+    <div id="topBannerContainer" class="px-3.5 py-2.5 rounded-2xl ya-card text-xs space-y-1.5 transition-all duration-200 shrink-0 select-none">
     <!-- Скрытый инпут для выбора файла через системное окно проводника Windows -->
     <input type="file" id="userDataFileInput" accept=".xlsx,.xls,.csv,.tsv,.txt" class="hidden" onchange="handleUserDataFileUpload(event)" />
 
@@ -76,7 +79,7 @@
   </div>
 
   <!-- ОСНОВНОЙ КОНТЕЙНЕР -->
-  <div id="layoutContainer" class="w-full max-w-[430px] transition-all duration-200">
+  <div id="layoutContainer" class="w-full transition-all duration-200">
     <div id="columnsGrid" class="grid grid-cols-1 gap-4 items-start">
 
       <!-- ========================================================================= -->
@@ -476,6 +479,7 @@
 
     </div>
   </div>
+  </div><!-- /#appRootWrapper -->
 
   <!-- МОДАЛЬНОЕ ОКНО: РЕАЛЬНАЯ КАРТА (LEAFLET) -->
   <div id="realMapModal" onclick="if(event.target===this) cancelRealMapModal()" class="fixed inset-0 z-50 hidden bg-black/75 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="realMapTitle">

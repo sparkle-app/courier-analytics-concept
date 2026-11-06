@@ -4669,15 +4669,28 @@ function selectDistrict(distId) {
 
 // Навигация по экранам
 function navigateScreen(screen) {
+  // Сохраняем положение прокрутки основного экрана перед переходом на экран района/сезона или настроек
+  if (state.currentScreen === 'main' && screen !== 'main') {
+    state.savedMainScrollY = window.scrollY || window.pageYOffset || document.documentElement.scrollTop || 0;
+  }
+
   state.currentScreen = screen;
   dom.screenMain.classList.toggle('hidden', screen !== 'main');
   dom.screenMiddleSpec.classList.toggle('hidden', screen !== 'middle');
   dom.screenSettings.classList.toggle('hidden', screen !== 'settings');
 
   if (screen !== 'main') {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'instant' });
   } else {
+    // Возвращаем пользователя ровно в то положение прокрутки, откуда он открыл окно выбора
+    const targetScrollY = (typeof state.savedMainScrollY === 'number') ? state.savedMainScrollY : 0;
+    window.scrollTo({ top: targetScrollY, behavior: 'instant' });
+
     requestAnimationFrame(() => {
+      if (typeof state.savedMainScrollY === 'number') {
+        window.scrollTo({ top: state.savedMainScrollY, behavior: 'instant' });
+      }
+
       const scrollContainer = document.getElementById('barScrollContainer');
       if (scrollContainer) {
         const activeBar = document.getElementById(`barCol-${state.selectedBarIndex}`);
