@@ -2673,39 +2673,73 @@ function renderBlock1() {
   }
 }
 
-function getNiceChartCeiling(rawMax) {
-  if (rawMax <= 0 || !isFinite(rawMax)) return 100;
-  const target = rawMax * 1.12;
-  const magnitude = Math.pow(10, Math.floor(Math.log10(target)));
-  const normalized = target / magnitude;
-  // Nice even steps ensuring yTop and yMid are round numbers
-  const niceSteps = [1.0, 1.2, 1.4, 1.5, 1.6, 2.0, 2.4, 2.5, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0];
-  let chosenStep = 10.0;
-  for (const step of niceSteps) {
-    if (step >= normalized) {
-      chosenStep = step;
+function getChartScaleConfig(rawMax) {
+  if (rawMax <= 0 || !isFinite(rawMax)) {
+    return { maxScaleVal: 100, yTop: 100, yMid: 50, pctTop: 100, pctMid: 50 };
+  }
+
+  // Специфический запрос: на импортированных данных (data) сумма/чистыми/дни макс ~3000-3100:
+  // сам график масштабируется до 3500 (чтобы штриховка начислено не вылезала за границу),
+  // а отображаются круглые значения 3000 и 1500 на своих позициях (85.7% и 42.9%)
+  if (rawMax > 2400 && rawMax <= 3250) {
+    return {
+      maxScaleVal: 3500,
+      yTop: 3000,
+      yMid: 1500,
+      pctTop: Math.round((3000 / 3500) * 1000) / 10, // 85.7%
+      pctMid: Math.round((1500 / 3500) * 1000) / 10  // 42.9%
+    };
+  }
+
+  // Общий алгоритм круглых меток оси Y с достаточным запасом (headroom) сверху графика
+  const mag = Math.pow(10, Math.floor(Math.log10(rawMax)));
+  const norm = rawMax / mag;
+
+  // Красивые круглые шаги для yTop
+  const tickSteps = [1.0, 1.2, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0];
+  let chosenTick = 10.0;
+  for (const t of tickSteps) {
+    if (t >= norm * 0.94) {
+      chosenTick = t;
       break;
     }
   }
-  const niceCeil = Math.round(chosenStep * magnitude);
-  const ratio = niceCeil / rawMax;
-  // If nice ceiling gives between 6% and 32% headroom, use it!
-  if (ratio >= 1.06 && ratio <= 1.32) {
-    return niceCeil;
+
+  let yTop = Math.round(chosenTick * mag);
+  let yMid = Math.round(yTop / 2);
+
+  // Если максимальный столбец превышает yTop или очень близок к нему,
+  // потолок графика (maxScaleVal) получает запас 12-18%, чтобы столбцы не упирались в верх
+  let maxScaleVal = yTop;
+  if (rawMax >= yTop * 0.88) {
+    const target = rawMax * 1.14;
+    const step = mag >= 1000 ? 500 : (mag >= 100 ? 50 : (mag >= 10 ? 5 : 1));
+    maxScaleVal = Math.ceil(target / step) * step;
+    if (maxScaleVal <= yTop) {
+      maxScaleVal = yTop + step;
+    }
   }
-  // Fallback to step-based rounding without making bars too small or large
-  const step = magnitude >= 1000 ? 500 : (magnitude >= 100 ? 50 : 10);
-  const roundedAlt = Math.ceil(target / step) * step;
-  if (roundedAlt / rawMax <= 1.28) {
-    return roundedAlt;
-  }
-  return target;
+
+  const pctTop = Math.min(100, Math.max(10, Math.round((yTop / maxScaleVal) * 1000) / 10));
+  const pctMid = Math.min(100, Math.max(5, Math.round((yMid / maxScaleVal) * 1000) / 10));
+
+  return {
+    maxScaleVal,
+    yTop,
+    yMid,
+    pctTop,
+    pctMid
+  };
+}
+
+function getNiceChartCeiling(rawMax) {
+  return getChartScaleConfig(rawMax).maxScaleVal;
 }
 
 function renderBarChart(data) {
   const canvas = dom.barChartCanvas;
   const rawMax = Math.max(...data.map(d => state.isHourly ? d.grossPerHr : d.grossTotal));
-  const maxGrossVal = getNiceChartCeiling(rawMax);
+  const { maxScaleVal, yTop, yMid, pctTop, pctMid } = getChartScaleConfig(rawMax);
 
   const avgUserVal = Math.round(
     data.reduce((a, d) => a + (state.isHourly ? (state.isNet ? d.profitPerHr : d.grossPerHr) : (state.isNet ? d.netProfit : d.grossTotal)), 0) / data.length
@@ -2713,13 +2747,11 @@ function renderBarChart(data) {
   const avgDistrictVal = Math.round(avgUserVal * 0.91);
   const avgCityVal = Math.round(avgUserVal * 0.83);
 
-  const pctUser = Math.min(94, Math.max(12, Math.round((avgUserVal / maxGrossVal) * 100)));
-  const pctDist = Math.min(94, Math.max(12, Math.round((avgDistrictVal / maxGrossVal) * 100)));
-  const pctCity = Math.min(94, Math.max(12, Math.round((avgCityVal / maxGrossVal) * 100)));
+  const pctUser = Math.min(94, Math.max(12, Math.round((avgUserVal / maxScaleVal) * 100)));
+  const pctDist = Math.min(94, Math.max(12, Math.round((avgDistrictVal / maxScaleVal) * 100)));
+  const pctCity = Math.min(94, Math.max(12, Math.round((avgCityVal / maxScaleVal) * 100)));
 
   const unitSuffix = state.isHourly ? '₽/ч' : '₽';
-  const yTop = Math.round(maxGrossVal);
-  const yMid = Math.round(maxGrossVal / 2);
 
   const benchmarkLinesHtml = (!state.showBenchmarks || state.usingUserData) ? '' : `
     <div class="absolute left-9 right-1 bottom-6 top-3 pointer-events-none">
@@ -2744,10 +2776,17 @@ function renderBarChart(data) {
   const itemWidth = 44;
 
   let html = `
-    <div class="absolute left-0 top-3 bottom-6 w-8 flex flex-col justify-between text-[9px] pr-1 text-right text-mut">
-      <span>${formatCompact(yTop)}</span>
-      <span>${formatCompact(yMid)}</span>
-      <span>0</span>
+    <!-- Метки оси Y на точных математических позициях (с круглыми числами) -->
+    <div class="absolute left-0 top-3 bottom-6 w-8 text-[9px] pr-1 text-right text-mut pointer-events-none select-none">
+      <span class="absolute right-1 -translate-y-1/2" style="bottom: ${pctTop}%">${formatCompact(yTop)}</span>
+      <span class="absolute right-1 -translate-y-1/2" style="bottom: ${pctMid}%">${formatCompact(yMid)}</span>
+      <span class="absolute right-1 translate-y-1/2" style="bottom: 0%">0</span>
+    </div>
+
+    <!-- Тонкие направляющие сетки на уровне меток yTop и yMid -->
+    <div class="absolute left-9 right-1 bottom-6 top-3 pointer-events-none">
+      <div style="bottom: ${pctTop}%" class="absolute left-0 right-0 border-t border-dashed border-gray-300/35 dark:border-gray-700/35 z-0"></div>
+      <div style="bottom: ${pctMid}%" class="absolute left-0 right-0 border-t border-dashed border-gray-300/35 dark:border-gray-700/35 z-0"></div>
     </div>
 
     ${benchmarkLinesHtml}
@@ -2762,8 +2801,8 @@ function renderBarChart(data) {
     const displayMetric = state.isNet ? netMetric : grossMetric;
     const isLoss = displayMetric < 0;
 
-    const grossHeightPct = Math.max(6, Math.min(100, Math.round((grossMetric / maxGrossVal) * 100)));
-    const netHeightPct   = isLoss ? 12 : Math.max(4, Math.min(100, Math.round((displayMetric / maxGrossVal) * 100)));
+    const grossHeightPct = Math.max(6, Math.min(100, Math.round((grossMetric / maxScaleVal) * 100)));
+    const netHeightPct   = isLoss ? 12 : Math.max(4, Math.min(100, Math.round((displayMetric / maxScaleVal) * 100)));
 
     const totalParts = d.grossTotal || 1;
     const p = key => ((d[key] / totalParts) * 100).toFixed(1);
@@ -4809,6 +4848,89 @@ try {
   }
 } catch (e) {}
 
+/**
+ * Поддержка горизонтальной и вертикальной прокрутки таблиц и графиков зажатием ЛКМ (drag-to-scroll)
+ * Обеспечивает удобную навигацию на ПК без необходимости попадать по узкому слайдеру скроллбара
+ */
+function setupTableDragScroll() {
+  let isDown = false;
+  let startX = 0;
+  let startY = 0;
+  let scrollLeft = 0;
+  let scrollTop = 0;
+  let activeContainer = null;
+  let hasMoved = false;
+
+  document.addEventListener('mousedown', (e) => {
+    // Только основная левая кнопка мыши (button === 0)
+    if (e.button !== 0) return;
+
+    // Не перехватываем клики по интерактивным формам
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA')) {
+      return;
+    }
+
+    const container = e.target.closest('.table-scroll-container, .overflow-x-auto, #barScrollContainer');
+    if (!container) return;
+
+    // Проверяем, есть ли что скроллить
+    const canScrollX = container.scrollWidth > container.clientWidth + 2;
+    const canScrollY = container.scrollHeight > container.clientHeight + 2;
+    if (!canScrollX && !canScrollY) return;
+
+    isDown = true;
+    hasMoved = false;
+    activeContainer = container;
+    startX = e.pageX;
+    startY = e.pageY;
+    scrollLeft = container.scrollLeft;
+    scrollTop = container.scrollTop;
+  }, { passive: true });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!isDown || !activeContainer) return;
+
+    const dx = e.pageX - startX;
+    const dy = e.pageY - startY;
+
+    if (!hasMoved && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) {
+      hasMoved = true;
+      document.body.classList.add('is-dragging-scroll');
+      activeContainer.classList.add('active-dragging');
+    }
+
+    if (hasMoved) {
+      activeContainer.scrollLeft = scrollLeft - dx;
+      activeContainer.scrollTop = scrollTop - dy;
+      e.preventDefault();
+    }
+  }, { passive: false });
+
+  const endDrag = () => {
+    if (isDown) {
+      isDown = false;
+      document.body.classList.remove('is-dragging-scroll');
+      if (activeContainer) {
+        activeContainer.classList.remove('active-dragging');
+        activeContainer = null;
+      }
+    }
+  };
+
+  window.addEventListener('mouseup', endDrag, { passive: true });
+  window.addEventListener('blur', endDrag, { passive: true });
+
+  // Предотвращаем случайное срабатывание клика (например, по строке или ячейке) при перетаскивании
+  document.addEventListener('click', (e) => {
+    if (hasMoved) {
+      e.preventDefault();
+      e.stopPropagation();
+      hasMoved = false;
+    }
+  }, true);
+}
+
 setupColumnDragDelegation();
+setupTableDragScroll();
 updateWeekStartDayUI();
 renderAll();

@@ -918,3 +918,26 @@ body:not(.light-mode) .version-badge {
   background-color: #334155 !important;
   color: #F8FAFC !important;
 }
+
+/* Поддержка горизонтальной и вертикальной прокрутки зажатием ЛКМ */
+.table-scroll-container,
+.overflow-x-auto.custom-scroll,
+#barScrollContainer {
+  cursor: grab;
+}
+.table-scroll-container:active,
+.overflow-x-auto.custom-scroll:active,
+#barScrollContainer:active,
+.table-scroll-container.active-dragging,
+.overflow-x-auto.custom-scroll.active-dragging,
+#barScrollContainer.active-dragging {
+  cursor: grabbing !important;
+  user-select: none !important;
+}
+body.is-dragging-scroll {
+  cursor: grabbing !important;
+  user-select: none !important;
+}
+body.is-dragging-scroll * {
+  user-select: none !important;
+}
