@@ -378,14 +378,7 @@ body.desktop-mode #block1SwitchCards {
 }
 
 body.desktop-mode #block1SwitchCards .ya-switch-card {
-  width: 114px !important;
-  flex-shrink: 0 !important;
-}
-
-body.desktop-mode #block1SwitchCards button.ya-card {
-  width: 84px !important;
-  padding-top: 4px !important;
-  padding-bottom: 4px !important;
+  width: 120px !important;
   flex-shrink: 0 !important;
 }
 
