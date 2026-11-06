@@ -497,73 +497,57 @@ body.light-mode .table-sticky-footer td.table-col-gross {
 /* ------------------------------------------------------------------------- */
 /* =========================================================================
    ОБЕРТКА СТРАНИЦЫ И БОКОВАЯ СЕРВИСНАЯ ПЛАШКА СТЕНДА (СЛЕВА ОТ ПРИЛОЖЕНИЯ)
+   Центрирование строго по приложению (#layoutContainer), плашка в левой колонке
    ========================================================================= */
 .app-root-wrapper {
-  display: flex;
-  flex-direction: row;
-  justify-content: center;
-  align-items: flex-start;
-  gap: 1rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  column-gap: 1.25rem;
+  align-items: start;
   width: 100%;
-  max-width: 100%;
   box-sizing: border-box;
 }
 
+.app-root-wrapper::after {
+  content: "";
+  grid-column: 3;
+  display: block;
+}
+
 #topBannerContainer {
-  flex: 0 1 240px;
-  width: 240px;
-  min-width: 170px;
-  max-width: 250px;
+  grid-column: 1;
+  justify-self: end;
+  width: 100%;
+  min-width: 160px;
+  max-width: 240px;
   position: sticky;
   top: 12px;
   align-self: flex-start;
   z-index: 30;
   box-sizing: border-box;
-  margin-bottom: 0 !important;
+  margin: 0 !important;
 }
 
 body:not(.desktop-mode) #layoutContainer {
-  flex: 0 1 430px;
-  width: 100%;
-  max-width: 430px;
+  grid-column: 2;
+  justify-self: center;
+  width: 430px;
+  max-width: 100%;
   min-width: 0;
   box-sizing: border-box;
+  margin: 0 !important;
 }
 
-body.desktop-mode {
-  padding-left: 1rem !important;
-  padding-right: 1rem !important;
-}
-
-body.desktop-mode .app-root-wrapper {
-  max-width: 1600px !important;
-  justify-content: center !important;
-  gap: 1.25rem !important;
-}
-
-body.desktop-mode #topBannerContainer {
-  flex: 0 1 220px !important;
-  width: 220px !important;
-  min-width: 155px !important;
-  max-width: 240px !important;
-  position: sticky !important;
-  top: 12px !important;
-  align-self: flex-start !important;
-}
-
-body.desktop-mode #layoutContainer {
-  flex: 1 1 0% !important;
-  max-width: 1280px !important;
-  width: 100% !important;
-  min-width: 0 !important;
-}
-
-/* Адаптив для узких мобильных экранов (менее 720px): плашка встает над приложением */
-@media (max-width: 720px) {
+/* Адаптив для узких экранов (менее 780px): плашка встает над приложением */
+@media (max-width: 780px) {
   .app-root-wrapper {
+    display: flex !important;
     flex-direction: column !important;
     align-items: center !important;
     gap: 0.75rem !important;
+  }
+  .app-root-wrapper::after {
+    display: none !important;
   }
   #topBannerContainer {
     width: 100% !important;
@@ -572,9 +556,56 @@ body.desktop-mode #layoutContainer {
     position: static !important;
     margin-bottom: 0.25rem !important;
   }
+}
+
+body.desktop-mode {
+  padding-left: 1rem !important;
+  padding-right: 1rem !important;
+}
+
+body.desktop-mode .app-root-wrapper {
+  grid-template-columns: minmax(160px, 1fr) minmax(auto, 1160px) minmax(160px, 1fr) !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  column-gap: 1.25rem !important;
+}
+
+body.desktop-mode #topBannerContainer {
+  grid-column: 1 !important;
+  justify-self: end !important;
+  width: 100% !important;
+  min-width: 155px !important;
+  max-width: 220px !important;
+  position: sticky !important;
+  top: 12px !important;
+  align-self: flex-start !important;
+  margin: 0 !important;
+}
+
+body.desktop-mode #layoutContainer {
+  grid-column: 2 !important;
+  justify-self: center !important;
+  width: 100% !important;
+  max-width: 1160px !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+}
+
+@media (max-width: 1024px) {
+  body.desktop-mode .app-root-wrapper {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 0.75rem !important;
+  }
+  body.desktop-mode .app-root-wrapper::after {
+    display: none !important;
+  }
   body.desktop-mode #topBannerContainer {
-    max-width: 100% !important;
     width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    position: static !important;
   }
 }
 
