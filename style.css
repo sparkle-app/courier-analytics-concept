@@ -119,10 +119,19 @@ body {
   background-color: var(--bg-elevated);
 }
 
-/* Yellow Action Button */
+/* Primary Action Button: Dark Slate like segmented switches */
 .btn-primary {
-  background-color: var(--ya-yellow);
-  color: var(--ya-yellow-text);
+  background-color: #1E293B !important;
+  color: #FFFFFF !important;
+  font-weight: 700;
+  transition: all 0.15s ease;
+}
+.btn-primary:hover {
+  opacity: 0.92;
+}
+body:not(.light-mode) .btn-primary {
+  background-color: #334155 !important;
+  color: #F8FAFC !important;
 }
 
 /* Switch & Segmented Controls Base */
@@ -344,9 +353,29 @@ body:not(.light-mode) .ya-switch-opt.ya-switch-opt-active {
   border-radius: 9999px;
 }
 
-/* Range Inputs */
+/* Range Inputs & Checkboxes */
 input[type="range"] {
-  accent-color: #FCE000;
+  accent-color: #1E293B;
+}
+body:not(.light-mode) input[type="range"] {
+  accent-color: #475569;
+}
+input[type="checkbox"] {
+  accent-color: #1E293B;
+}
+body:not(.light-mode) input[type="checkbox"] {
+  accent-color: #334155;
+}
+
+/* Активный пресет транспорта в настройках (темный сланец) */
+.ya-preset-btn-active {
+  background-color: #1E293B !important;
+  color: #FFFFFF !important;
+  font-weight: 700 !important;
+}
+body:not(.light-mode) .ya-preset-btn-active {
+  background-color: #334155 !important;
+  color: #F8FAFC !important;
 }
 
 /* Heatmap Grid */

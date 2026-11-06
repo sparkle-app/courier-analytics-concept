@@ -3812,8 +3812,10 @@ function renderSettingsScreen(skipSlidersRebuild = false) {
     const btn = $(`presetBtn-${t}`);
     if (btn) {
       const isSelected = state.selectedPreset === t;
-      btn.style.backgroundColor = isSelected ? 'var(--ya-yellow)' : 'var(--bg-elevated)';
-      btn.style.color = isSelected ? 'var(--ya-yellow-text)' : 'var(--text-main)';
+      btn.classList.toggle('ya-preset-btn-active', isSelected);
+      btn.classList.toggle('bg-elevated', !isSelected);
+      btn.style.backgroundColor = '';
+      btn.style.color = '';
     }
 
     const sumSpan = $(`presetSum-${t}`);
@@ -3874,7 +3876,7 @@ function renderReorderableColumnsList() {
         <input type="checkbox" ${c.enabled ? 'checked' : ''}
                aria-label="${escapeHtml(c.label)}"
                onchange="toggleTableColumn('${c.key}', this.checked)"
-               class="w-4 h-4 accent-[#FCE000] cursor-pointer shrink-0" />
+               class="w-4 h-4 accent-[#1E293B] dark:accent-[#334155] cursor-pointer shrink-0" />
       </div>
     `;
   }).join('');
@@ -4371,12 +4373,12 @@ function openExpenseInfoModal(type, amount) {
     subtitle = `Сумма за выбранный период: -${formatNum(amount || 0)} ₽`;
     bodyHtml = `
       <div class="p-3 rounded-2xl bg-black/5 dark:bg-white/5 space-y-1.5 border border-subtle">
-        <div class="font-extrabold text-[#FCE000] text-xs">🏛️ Налог на профессиональный доход</div>
+        <div class="font-extrabold text-[#1E293B] dark:text-[#94A3B8] text-xs">🏛️ Налог на профессиональный доход</div>
         <p class="text-sec">Автоматический расчет для самозанятых курьеров (плательщиков НПД), сотрудничающих напрямую с сервисом или партнерами (юрлицами).</p>
       </div>
       <div class="space-y-1">
         <div class="font-bold text-main">Формула расчета:</div>
-        <div class="p-2 rounded-xl bg-black/10 dark:bg-white/10 font-mono text-[11px] text-amber-400">
+        <div class="p-2 rounded-xl bg-black/10 dark:bg-white/10 font-mono text-[11px] text-[#1E293B] dark:text-[#F8FAFC] font-semibold">
           Налог = Начислено (Gross) × 6%
         </div>
         <p class="text-[11px] text-sec">Рассчитывается от полной начисленной суммы вознаграждения до вычета расходов на транспорт и аренду.</p>
@@ -4444,18 +4446,18 @@ function openExpenseInfoModal(type, amount) {
     subtitle = `Сумма за выбранный период: -${formatNum(amount || 0)} ₽`;
     bodyHtml = `
       <div class="p-3 rounded-2xl bg-black/5 dark:bg-white/5 space-y-1.5 border border-subtle">
-        <div class="font-extrabold text-[#FCE000] text-xs">⚙️ Статья расходов курьера</div>
+        <div class="font-extrabold text-[#1E293B] dark:text-[#94A3B8] text-xs">⚙️ Статья расходов курьера</div>
         <p class="text-sec">Персонализированная статья расходов, заданная для типа транспорта «${escapeHtml(transportMeta[state.accountTransport]?.label || 'Курьер')}».</p>
       </div>
       <div class="space-y-1.5">
         <div class="font-bold text-main">Как рассчитывается в выбранном периоде:</div>
         <p class="text-[11px] text-sec">Базовые расходы задаются в настройках как сумма в неделю. Они пропорционально распределяются на дни, недели или месяцы:</p>
-        <div class="p-2 rounded-xl bg-black/10 dark:bg-white/10 font-mono text-[11px] text-amber-400">
+        <div class="p-2 rounded-xl bg-black/10 dark:bg-white/10 font-mono text-[11px] text-[#1E293B] dark:text-[#F8FAFC] font-semibold">
           Дневной расход = (Недельная ставка / 7)
         </div>
         <p class="text-[11px] text-sec">В режиме пользовательских данных расходы по слотам распределяются строго пропорционально реально отработанным часам.</p>
       </div>
-      <div class="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-sec">
+      <div class="p-2.5 rounded-xl bg-slate-500/10 border border-slate-500/20 text-[11px] text-sec">
         ⚙️ <b>Редактирование:</b> Изменить сумму этой статьи или отключить ее можно в любой момент в «Настройках» (значок ⚙️ вверху экрана).
       </div>
     `;
