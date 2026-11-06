@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Независимый исследовательский UI/UX-концепт аналитики дохода для курьеров доставки (версия 13.14.7)" />
+  <meta name="description" content="Независимый исследовательский UI/UX-концепт аналитики дохода для курьеров доставки (версия 13.15.1)" />
   <meta name="theme-color" content="#F4F5F7" />
-  <title>Концепт аналитики дохода курьера (v13.14.7) — Неофициальный UX-прототип</title>
+  <title>Концепт аналитики дохода курьера (v13.15.1) — Неофициальный UX-прототип</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <script src="https://cdn.tailwindcss.com"></script>
@@ -18,50 +18,99 @@
 </head>
 <body class="light-mode min-h-screen flex flex-col items-center py-3 px-2 sm:px-4">
 
-  <!-- ВЕРХНЯЯ СЕРВИСНАЯ ПЛАШКА СТЕНДА -->
-  <div id="topBannerContainer" class="w-full max-w-[430px] mb-3 px-3.5 py-2.5 rounded-2xl ya-card text-xs space-y-1.5 transition-all duration-200">
+  <!-- ОБЕРТКА СТРАНИЦЫ: ПЛАШКА СТЕНДА СЛЕВА, ПРИЛОЖЕНИЕ СПРАВА/ПО ЦЕНТРУ -->
+  <div id="appRootWrapper" class="app-root-wrapper w-full transition-all duration-200">
+
+    <!-- БОКОВАЯ СЕРВИСНАЯ ПЛАШКА СТЕНДА (СЛЕВА ОТ ПРИЛОЖЕНИЯ) -->
+    <div id="topBannerContainer" class="px-3.5 py-2.5 rounded-2xl ya-card text-xs space-y-1.5 transition-all duration-200 shrink-0 select-none">
     <!-- Скрытый инпут для выбора файла через системное окно проводника Windows -->
     <input type="file" id="userDataFileInput" accept=".xlsx,.xls,.csv,.tsv,.txt" class="hidden" onchange="handleUserDataFileUpload(event)" />
 
-    <div class="flex flex-wrap items-center justify-between gap-2">
-      <div class="flex items-center gap-2">
-        <span class="px-2 py-0.5 rounded-md bg-[#FCE000] text-[#141518] font-extrabold">v13.14.7</span>
-        <span class="font-semibold">UX-концепт аналитики курьера</span>
-      </div>
-      <div class="flex flex-wrap items-center gap-1.5">
-        <!-- КНОПКИ ИМПОРТА И СБРОСА ДАННЫХ -->
-        <button type="button" onclick="triggerUserDataFileInput()" id="btnImportData" title="Загрузить свои данные (Excel / CSV)" class="px-2.5 py-1.5 rounded-xl ya-nav-btn font-semibold transition flex items-center gap-1 text-[#18191C] active:scale-95">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M16 10l-4 4m0 0l-4-4m4 4V4"/></svg>
-          <span>Импорт</span>
-        </button>
-        <button type="button" onclick="resetToDemoData()" id="btnResetData" title="Сбросить на демо-данные" class="hidden px-2 py-1.5 rounded-xl ya-nav-btn font-semibold transition text-rose-400 hover:text-rose-300 active:scale-95">
-          ✕ Демо
-        </button>
-        <!-- ПЕРЕКЛЮЧАТЕЛЬ РЕЖИМА ТЕЛЕФОН / ПК -->
-        <button type="button" onclick="toggleLayoutMode()" id="btnLayoutMode" title="Переключить на версию для ПК" class="px-2.5 py-1.5 rounded-xl ya-nav-btn font-medium transition flex items-center gap-1">
-          <span id="lblLayoutIcon">💻</span>
-          <span id="lblLayoutMode">ПК</span>
-        </button>
-        <!-- ТЕМА ОФОРМЛЕНИЯ -->
-        <button type="button" onclick="toggleColorTheme()" id="btnColorTheme" title="Переключить темный / светлый режим" aria-label="Переключить тему" class="w-8 h-8 rounded-xl ya-nav-btn text-base flex items-center justify-center transition">
-          🌙
-        </button>
-      </div>
+    <!-- 1. ВЕРСИЯ И ЗАГОЛОВОК -->
+    <div class="flex items-center gap-2">
+      <span class="version-badge px-2 py-0.5 rounded-md font-extrabold text-[11px] leading-tight shadow-sm">v13.15.1</span>
+      <span class="font-semibold text-main">UX-концепт аналитики курьера</span>
     </div>
 
-    <!-- ПОДПИСЬ ИСТОЧНИКА ДАННЫХ (ПЕРЕНЕСЕНА НАД ОГОВОРКОЙ) -->
-    <div class="pt-1 border-t text-[11px] border-subtle flex items-center justify-between">
+    <!-- 2. ОГОВОРКА О НЕЗАВИСИМОСТИ -->
+    <div class="text-[10px] leading-snug text-mut">
+      Независимый некоммерческий UI/UX-концепт (исследовательский прототип). Не является официальным продуктом сервисов доставки. Все данные вымышленные.
+    </div>
+
+    <!-- 3. РАЗДЕЛИТЕЛЬ -->
+    <div class="border-t border-subtle pt-0.5"></div>
+
+    <!-- 4. ПОДПИСЬ ИСТОЧНИКА ДАННЫХ -->
+    <div class="text-[11px] flex items-center justify-between">
       <span id="dataStatusBadge" class="font-bold text-sec">Источник: <b class="text-amber-500">Демо-данные</b></span>
     </div>
 
-    <!-- ОГОВОРКА О НЕЗАВИСИМОСТИ С ПОЛНЫМ ВТОРЫМ ПРЕДЛОЖЕНИЕМ -->
-    <div class="text-[10px] leading-snug text-mut">
-      Независимый некоммерческий UI/UX-концепт (исследовательский прототип). Не является официальным продуктом сервисов доставки. Все данные вымышленные.
+    <!-- 5. КНОПКИ УПРАВЛЕНИЯ (Порядок: Тема, ПК/Моб, Импорт, Сброс демо) -->
+    <div class="flex flex-wrap items-center gap-1.5 pt-0.5">
+      <!-- 1. ТЕМА ОФОРМЛЕНИЯ -->
+      <button type="button" onclick="toggleColorTheme()" id="btnColorTheme" title="Переключить темный / светлый режим" aria-label="Переключить тему" class="w-8 h-8 rounded-xl ya-nav-btn flex items-center justify-center transition">
+        <span id="lblThemeIcon" class="flex items-center justify-center">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </span>
+      </button>
+      <!-- 2. ПЕРЕКЛЮЧАТЕЛЬ РЕЖИМА ТЕЛЕФОН / ПК -->
+      <button type="button" onclick="toggleLayoutMode()" id="btnLayoutMode" title="Переключить на версию для ПК" class="px-2.5 py-1.5 rounded-xl ya-nav-btn font-medium transition flex items-center gap-1.5 text-xs">
+        <span id="lblLayoutIcon" class="flex items-center justify-center">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+            <line x1="8" y1="21" x2="16" y2="21"></line>
+            <line x1="12" y1="17" x2="12" y2="21"></line>
+          </svg>
+        </span>
+        <span id="lblLayoutMode">ПК</span>
+      </button>
+      <!-- 3. SPLIT-КНОПКА ИМПОРТА ДАННЫХ (ОБЪЕДИНЕНИЕ ВАРИАНТОВ 2 И 5) -->
+      <div class="relative flex items-center rounded-xl ya-nav-btn" id="importSplitWrapper">
+        <button type="button" onclick="openImportModal()" id="btnImportData" title="Загрузить свои данные (Excel / CSV)" class="pl-2.5 pr-1.5 py-1.5 font-semibold transition flex items-center gap-1 text-[#18191C] dark:text-[#F8FAFC] active:scale-95 rounded-l-xl">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M16 10l-4 4m0 0l-4-4m4 4V4"/></svg>
+          <span>Импорт</span>
+        </button>
+        <span class="w-px h-3.5 bg-black/10 dark:bg-white/15 my-auto"></span>
+        <button type="button" onclick="toggleImportDropdown(event)" id="btnImportDropdown" title="Дополнительные действия: скачать шаблон или быстрый выбор файла" aria-label="Меню импорта" aria-haspopup="true" class="px-1.5 py-1.5 font-semibold transition flex items-center justify-center text-[#18191C] dark:text-[#F8FAFC] active:scale-95 rounded-r-xl">
+          <svg id="importChevronIcon" class="w-3 h-3 transition-transform duration-150" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+
+        <!-- Выпадающее меню быстрых действий (Вариант 2) -->
+        <div id="importDropdownMenu" class="hidden absolute top-full left-0 mt-1.5 w-[205px] rounded-xl ya-card shadow-2xl border border-subtle p-1.5 z-50 text-xs select-none space-y-1">
+          <button type="button" onclick="triggerUserDataFileInput(); closeImportDropdown();" class="w-full text-left px-2.5 py-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition flex items-center gap-2 text-main">
+            <svg class="w-4 h-4 text-blue-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M16 10l-4 4m0 0l-4-4m4 4V4"/></svg>
+            <div>
+              <div class="font-semibold">Выбрать файл...</div>
+              <div class="text-[10px] text-sec">Прямой выбор без модалки</div>
+            </div>
+          </button>
+          <button type="button" onclick="downloadSampleImportFile(); closeImportDropdown();" class="w-full text-left px-2.5 py-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+            <svg class="w-4 h-4 text-emerald-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            <div>
+              <div class="font-bold">Скачать пример (.xlsx)</div>
+              <div class="text-[10px] text-emerald-600/70 dark:text-emerald-400/70">Готовый шаблон с колонками</div>
+            </div>
+          </button>
+        </div>
+      </div>
+      <!-- 4. КНОПКА СБРОСА НА ДЕМО (отображается только при импорте) -->
+      <button type="button" onclick="resetToDemoData()" id="btnResetData" title="Сбросить на демо-данные" class="hidden px-2 py-1.5 rounded-xl ya-nav-btn font-semibold transition text-rose-400 hover:text-rose-300 active:scale-95">
+        ✕ Демо
+      </button>
+    </div>
+
+    <!-- 6. ЮРИДИЧЕСКИЕ ДОКУМЕНТЫ -->
+    <div class="pt-1 border-t border-subtle flex items-center justify-center gap-2 text-[10px] leading-snug text-mut">
+      <button type="button" onclick="openLegalModal('terms')" class="hover:underline hover:text-sec transition">Оферта</button>
+      <span class="opacity-40">•</span>
+      <button type="button" onclick="openLegalModal('privacy')" class="hover:underline hover:text-sec transition">Конфиденциальность</button>
     </div>
   </div>
 
   <!-- ОСНОВНОЙ КОНТЕЙНЕР -->
-  <div id="layoutContainer" class="w-full max-w-[430px] transition-all duration-200">
+  <div id="layoutContainer" class="w-full transition-all duration-200">
     <div id="columnsGrid" class="grid grid-cols-1 gap-4 items-start">
 
       <!-- ========================================================================= -->
@@ -79,9 +128,13 @@
             Аналитика дохода
           </h1>
           <button type="button" id="btnHeaderSettings" onclick="openSettingsScreen()" title="Настройки расходов и аналитики" aria-label="Настройки" class="ya-nav-btn w-10 h-10 flex items-center justify-center text-sec hover:text-main active:scale-95 transition shrink-0">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-              <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="6" y1="4" x2="6" y2="20"></line>
+              <line x1="3" y1="15" x2="9" y2="15"></line>
+              <line x1="12" y1="4" x2="12" y2="20"></line>
+              <line x1="9" y1="8" x2="15" y2="8"></line>
+              <line x1="18" y1="4" x2="18" y2="20"></line>
+              <line x1="15" y1="16" x2="21" y2="16"></line>
             </svg>
           </button>
         </header>
@@ -92,29 +145,49 @@
           <span id="allTimeHourlyProfit" class="font-medium">694 ₽/ч</span>
         </div>
 
-        <!-- 3-4. КНОПКИ УПРАВЛЕНИЯ ПЕРВЫМ БЛОКОМ (ГРАФИК/ТАБЛИЦА И ПЕРИОД) -->
-        <div id="block1ControlsWrapper" class="space-y-1.5">
-          <!-- Четыре кнопки управления (свитчи и настройки) -->
+        <!-- 3-4. КНОПКИ УПРАВЛЕНИЯ ПЕРВЫМ БЛОКОМ (ГРАФИК/ТАБЛИЦА И ПЕРИОД) — ВАРИАНТ 2 (ZERO-HEIGHT CLUSTER) -->
+        <div id="block1ControlsWrapper">
+          <!-- Единая строка контролов: Показатель, Режим, Период (Дни/Нед/Мес), Вид (График/Таблица) -->
           <div id="block1SwitchCards" class="grid grid-cols-3 gap-1.5">
-            <div id="switchGrossNet" role="switch" aria-checked="true" aria-label="Переключение: Начислено или Чистыми" tabindex="0" onclick="toggleGrossNet()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleGrossNet();}" class="ya-switch-card">
-              <span id="lblGross" class="ya-switch-opt">Начислено</span>
-              <span id="lblNet" class="ya-switch-opt ya-switch-opt-active">Чистыми</span>
-            </div>
-            <div id="switchSumHourly" role="switch" aria-checked="false" aria-label="Переключение: Сумма или В час" tabindex="0" onclick="toggleSumHourly()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleSumHourly();}" class="ya-switch-card">
-              <span id="lblSum" class="ya-switch-opt ya-switch-opt-active">Сумма</span>
-              <span id="lblHourly" class="ya-switch-opt">В час</span>
-            </div>
-            <div id="switchChartTable" role="switch" aria-checked="false" aria-label="Переключение: Диаграмма или Таблица" tabindex="0" onclick="toggleChartTable()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleChartTable();}" class="ya-switch-card">
-              <span id="lblChart" class="ya-switch-opt ya-switch-opt-active">Диаграмма</span>
-              <span id="lblTable" class="ya-switch-opt">Таблица</span>
-            </div>
+            <!-- 1. Показатель: Сумма / В час -->
+            <div id="switchSumHourly" role="switch" aria-checked="false" aria-label="Показатель: Сумма или В час" tabindex="0" onclick="toggleSumHourly()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleSumHourly();}" class="ya-switch-card">
+              <span class="ya-switch-cat">ПОКАЗАТЕЛЬ</span>
+              <span id="lblSum" class="ya-switch-val ya-switch-opt-active">Сумма</span>
+              <span id="lblHourly" class="ya-switch-val">В час</span>
             </div>
 
-          <!-- Три кнопки периода (Дни, Недели, Месяцы) -->
-          <div id="block1PeriodButtons" class="ya-segmented grid grid-cols-3 gap-1">
-            <button type="button" onclick="setPeriod('days')" id="btnPeriod-days" class="py-1.5 text-xs ya-seg-btn ya-seg-btn-active">Дни</button>
-            <button type="button" onclick="setPeriod('weeks')" id="btnPeriod-weeks" class="py-1.5 text-xs ya-seg-btn">Недели</button>
-            <button type="button" onclick="setPeriod('months')" id="btnPeriod-months" class="py-1.5 text-xs ya-seg-btn">Месяцы</button>
+            <!-- 2. Режим: Начислено / Чистыми -->
+            <div id="switchGrossNet" role="switch" aria-checked="true" aria-label="Режим: Начислено или Чистыми" tabindex="0" onclick="toggleGrossNet()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleGrossNet();}" class="ya-switch-card">
+              <span class="ya-switch-cat">РЕЖИМ</span>
+              <span id="lblGross" class="ya-switch-val">Начислено</span>
+              <span id="lblNet" class="ya-switch-val ya-switch-opt-active">Чистыми</span>
+            </div>
+
+            <!-- 3. Период: Дни / Нед / Мес (Встроенный однострочный микро-кластер) -->
+            <div id="block1PeriodButtons" class="ya-segmented">
+              <button type="button" onclick="setPeriod('days')" id="btnPeriod-days" class="ya-seg-btn ya-seg-btn-active">Дни</button>
+              <button type="button" onclick="setPeriod('weeks')" id="btnPeriod-weeks" class="ya-seg-btn">Нед</button>
+              <button type="button" onclick="setPeriod('months')" id="btnPeriod-months" class="ya-seg-btn">Мес</button>
+            </div>
+
+            <!-- 4. Диаграмма / Таблица (Сегментированный pill-переключатель) -->
+            <div id="switchChartTable" role="switch" aria-checked="false" aria-label="Переключение: Диаграмма или Таблица" tabindex="0" onclick="toggleChartTable()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleChartTable();}" class="ya-switch-card ya-switch-pill-container cursor-pointer" title="Переключить вид: Диаграмма / Таблица">
+              <span id="lblChart" class="ya-pill-segment ya-switch-opt-active pointer-events-none" aria-label="Диаграмма">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="18" y1="20" x2="18" y2="10"></line>
+                  <line x1="12" y1="20" x2="12" y2="4"></line>
+                  <line x1="6" y1="20" x2="6" y2="14"></line>
+                </svg>
+              </span>
+              <span id="lblTable" class="ya-pill-segment pointer-events-none" aria-label="Таблица">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                  <path d="M3 9h18"></path>
+                  <path d="M3 15h18"></path>
+                  <path d="M12 3v18"></path>
+                </svg>
+              </span>
+            </div>
           </div>
         </div>
 
@@ -128,7 +201,7 @@
               <div class="flex items-center justify-between gap-2">
                 <h2 id="block1Title" class="text-xs font-bold tracking-tight">Динамика дохода</h2>
                 <button type="button" id="btnToggleBenchmarks" onclick="toggleBenchmarks()" title="Ориентиры: Вы, Район, Город" class="ya-benchmarks-btn px-2.5 py-1 rounded-full text-[11px] font-semibold flex items-center gap-1.5 transition active:scale-95 border">
-                  <span id="benchmarksDot" class="w-2 h-2 rounded-full bg-amber-400 shrink-0"></span>
+                  <span id="benchmarksDot" class="w-2 h-2 rounded-full benchmarks-dot-on shrink-0 transition-all"></span>
                   <span id="benchmarksLabel">Ориентиры</span>
                 </button>
               </div>
@@ -139,32 +212,32 @@
                   <div id="legendOrdersItem" class="flex items-center gap-1 min-w-0">
                     <i class="w-2 h-2 rounded-full bg-blue-500 inline-block shrink-0"></i>
                     <span class="truncate">Заказы</span>
-                    <b id="legValOrders" class="text-main font-semibold tabular-nums shrink-0 ml-auto"></b>
+                    <b id="legValOrders" class="text-main font-semibold tabular-nums shrink-0"></b>
                   </div>
                   <div id="legendSurgeItem" class="flex items-center gap-1 min-w-0">
                     <i class="w-2 h-2 rounded-full bg-[#FCE000] inline-block shrink-0"></i>
                     <span class="truncate">Спрос</span>
-                    <b id="legValSurge" class="text-main font-semibold tabular-nums shrink-0 ml-auto"></b>
+                    <b id="legValSurge" class="text-main font-semibold tabular-nums shrink-0"></b>
                   </div>
                   <div id="legendRatingItem" class="flex items-center gap-1 min-w-0">
                     <i class="w-2 h-2 rounded-full bg-orange-400 inline-block shrink-0"></i>
                     <span class="truncate">Рейтинг</span>
-                    <b id="legValRating" class="text-main font-semibold tabular-nums shrink-0 ml-auto"></b>
+                    <b id="legValRating" class="text-main font-semibold tabular-nums shrink-0"></b>
                   </div>
                   <div id="legendBonusesItem" class="flex items-center gap-1 min-w-0">
                     <i class="w-2 h-2 rounded-full bg-purple-500 inline-block shrink-0"></i>
                     <span class="truncate">Бонусы</span>
-                    <b id="legValBonuses" class="text-main font-semibold tabular-nums shrink-0 ml-auto"></b>
+                    <b id="legValBonuses" class="text-main font-semibold tabular-nums shrink-0"></b>
                   </div>
                   <div id="legendGoalsItem" class="hidden flex items-center gap-1 min-w-0">
                     <i class="w-2 h-2 rounded-full bg-pink-500 inline-block shrink-0"></i>
                     <span class="truncate">Цели</span>
-                    <b id="legValGoals" class="text-main font-semibold tabular-nums shrink-0 ml-auto"></b>
+                    <b id="legValGoals" class="text-main font-semibold tabular-nums shrink-0"></b>
                   </div>
                   <div id="legendTipsItem" class="flex items-center gap-1 min-w-0">
                     <i class="w-2 h-2 rounded-full bg-emerald-400 inline-block shrink-0"></i>
                     <span class="truncate">Чаевые</span>
-                    <b id="legValTips" class="text-main font-semibold tabular-nums shrink-0 ml-auto"></b>
+                    <b id="legValTips" class="text-main font-semibold tabular-nums shrink-0"></b>
                   </div>
                   <div id="legendGrossBg" class="col-start-3 flex items-center gap-1 text-[9.5px] opacity-75 min-w-0">
                     <i class="w-2.5 h-2.5 rounded-sm chart-gross-striped inline-block shrink-0"></i>
@@ -305,7 +378,7 @@
             </div>
           </div>
 
-          <button type="button" onclick="openRealMapModal()" class="w-full rounded-2xl py-3 px-4 font-extrabold text-xs flex items-center justify-between shadow active:scale-98 transition btn-primary">
+          <button type="button" onclick="openRealMapModal()" class="w-full rounded-2xl py-3 px-4 font-extrabold text-xs flex items-center justify-between shadow active:scale-98 transition ya-btn-slate">
             <span class="flex items-center gap-2">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
               <span>Выбрать район на карте</span>
@@ -383,7 +456,7 @@
               <div id="addExpenseForm" class="hidden ya-subcard p-2.5 space-y-2">
                 <div class="text-[11px] font-semibold">Название расхода:</div>
                 <div class="flex gap-2">
-                  <input type="text" id="newExpenseNameInput" maxlength="40" placeholder="Напр.: Бензин, Связь, ТО" class="flex-1 px-3 py-1.5 rounded-xl bg-black/20 border border-white/15 text-xs focus:outline-none focus:border-[#FCE000] text-main" />
+                  <input type="text" id="newExpenseNameInput" maxlength="40" placeholder="Напр.: Бензин, Связь, ТО" class="flex-1 px-3 py-1.5 rounded-xl bg-black/20 border border-white/15 text-xs focus:outline-none focus:border-[#1E293B] dark:focus:border-[#475569] text-main" />
                   <button type="button" onclick="confirmAddCustomExpense()" class="px-3.5 py-1.5 rounded-xl text-xs font-extrabold btn-primary">Добавить</button>
                 </div>
               </div>
@@ -417,7 +490,7 @@
               <div class="text-xs sm:text-sm font-bold">Учитывать цели</div>
               <div class="text-[10px] text-sec">Включать бонусные цели в расчет прибыли и графиков</div>
             </div>
-            <input type="checkbox" id="chkIncludeGoals" onchange="onToggleGoals(this.checked)" class="w-5 h-5 rounded accent-[#FCE000] cursor-pointer" />
+            <input type="checkbox" id="chkIncludeGoals" onchange="onToggleGoals(this.checked)" class="w-5 h-5 rounded accent-[#1E293B] dark:accent-[#334155] cursor-pointer" />
           </label>
         </div>
 
@@ -437,6 +510,7 @@
 
     </div>
   </div>
+  </div><!-- /#appRootWrapper -->
 
   <!-- МОДАЛЬНОЕ ОКНО: РЕАЛЬНАЯ КАРТА (LEAFLET) -->
   <div id="realMapModal" onclick="if(event.target===this) cancelRealMapModal()" class="fixed inset-0 z-50 hidden bg-black/75 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="realMapTitle">
@@ -554,6 +628,84 @@
       </div>
       <div id="expenseInfoFooter" class="p-3.5 border-t border-subtle bg-card flex items-center justify-end gap-2">
         <button type="button" onclick="closeExpenseInfoModal()" class="py-2.5 px-4 rounded-xl text-xs font-extrabold active:scale-95 transition btn-primary">Понятно</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- МОДАЛЬНОЕ ОКНО: МАСТЕР ИМПОРТА (ВАРИАНТ 5) -->
+  <div id="importDataModal" onclick="if(event.target===this) closeImportModal()" class="fixed inset-0 z-50 hidden bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="importModalTitle">
+    <div class="app-shell w-full max-w-lg rounded-[28px] overflow-hidden flex flex-col shadow-2xl border border-white/15">
+      <!-- Шапка -->
+      <div class="p-4 flex items-center justify-between border-b border-subtle">
+        <div class="min-w-0 pr-2">
+          <h3 id="importModalTitle" class="text-sm font-extrabold truncate text-main flex items-center gap-2">
+            <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M16 10l-4 4m0 0l-4-4m4 4V4"/></svg>
+            Импорт отчета о доходах
+          </h3>
+          <p class="text-[11px] text-sec truncate">Загрузка файла курьера для персональной аналитики</p>
+        </div>
+        <button type="button" onclick="closeImportModal()" aria-label="Закрыть" class="ya-nav-btn w-8 h-8 flex items-center justify-center text-sm font-bold shrink-0">✕</button>
+      </div>
+
+      <!-- Содержимое -->
+      <div class="p-4 space-y-3.5 text-xs leading-relaxed max-h-[75vh] overflow-y-auto custom-scroll">
+        <!-- Drag & Drop Зона -->
+        <div id="importDropZone" onclick="triggerUserDataFileInput()" class="group border-2 border-dashed border-subtle hover:border-blue-500 dark:hover:border-blue-400 rounded-2xl p-6 text-center cursor-pointer transition bg-card hover:bg-elevated flex flex-col items-center justify-center gap-2">
+          <div class="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-500 flex items-center justify-center group-hover:scale-110 transition duration-200">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+          </div>
+          <div>
+            <div class="font-bold text-main text-xs sm:text-sm">Перетащите файл сюда или нажмите для выбора</div>
+            <div class="text-[11px] text-sec mt-0.5">Поддерживаются форматы: .xlsx, .xls, .csv, .tsv, .txt (до 25 МБ)</div>
+          </div>
+        </div>
+
+        <!-- Блок скачивания шаблона -->
+        <div class="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div class="min-w-0">
+            <div class="font-extrabold text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+              <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+              Нужен образец таблицы?
+            </div>
+            <div class="text-[11px] text-sec mt-0.5">Скачайте готовый Excel-шаблон со всеми распознаваемыми колонками и тестовыми строками.</div>
+          </div>
+          <button type="button" onclick="downloadSampleImportFile()" class="ya-nav-btn px-3 py-2 rounded-xl text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center justify-center gap-1.5 shrink-0 active:scale-95 shadow-sm">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M16 10l-4 4m0 0l-4-4m4 4V4"/></svg>
+            <span>Скачать образец (.xlsx)</span>
+          </button>
+        </div>
+
+        <!-- Подсказка о безопасности In-Memory -->
+        <div class="p-3 rounded-2xl bg-card border border-subtle text-sec space-y-1">
+          <div class="font-bold text-main text-[11px] flex items-center gap-1.5">
+            <span>🔒 Безопасность и конфиденциальность:</span>
+          </div>
+          <p class="text-[11px]">Файл обрабатывается <b>исключительно в оперативной памяти вашего браузера</b> (In-Memory). Никакие данные не передаются на сторонние сервера или в облако.</p>
+        </div>
+      </div>
+
+      <!-- Футер -->
+      <div class="p-3.5 border-t border-subtle bg-card flex items-center justify-end">
+        <button type="button" onclick="closeImportModal()" class="py-2 px-4 rounded-xl text-xs font-bold active:scale-95 transition btn-primary">Закрыть</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- МОДАЛЬНОЕ ОКНО: ЮРИДИЧЕСКИЕ ДОКУМЕНТЫ (ОФЕРТА / ПОЛИТИКА КОНФИДЕНЦИАЛЬНОСТИ) -->
+  <div id="legalDocModal" onclick="if(event.target===this) closeLegalModal()" class="fixed inset-0 z-50 hidden bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="legalDocTitle">
+    <div class="app-shell w-full max-w-lg rounded-[28px] overflow-hidden flex flex-col shadow-2xl border border-white/15">
+      <div class="p-4 flex items-center justify-between border-b border-subtle">
+        <div class="min-w-0 pr-2">
+          <h3 id="legalDocTitle" class="text-sm font-extrabold truncate">Юридический документ</h3>
+          <p id="legalDocSubtitle" class="text-[11px] text-sec truncate">Условия использования и защита данных</p>
+        </div>
+        <button type="button" onclick="closeLegalModal()" aria-label="Закрыть" class="ya-nav-btn w-8 h-8 flex items-center justify-center text-sm font-bold shrink-0">✕</button>
+      </div>
+      <div id="legalDocBody" class="p-4 space-y-3 text-xs leading-relaxed max-h-[70vh] overflow-y-auto custom-scroll text-sec">
+        <!-- Контент генерируется динамически в script.js -->
+      </div>
+      <div id="legalDocFooter" class="p-3.5 border-t border-subtle bg-card flex items-center justify-end gap-2">
+        <button type="button" onclick="closeLegalModal()" class="py-2.5 px-4 rounded-xl text-xs font-extrabold active:scale-95 transition btn-primary">Понятно</button>
       </div>
     </div>
   </div>

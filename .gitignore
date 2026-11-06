@@ -4,6 +4,7 @@ GEMINI.md
 .agents/
 AGENTS.md
 server.py
+PROJECT.md
 
 # User data files
 data*
