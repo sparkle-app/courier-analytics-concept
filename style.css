@@ -378,15 +378,42 @@ body.desktop-mode #block1SwitchCards {
 }
 
 body.desktop-mode #block1SwitchCards .ya-switch-card {
-  width: 114px !important;
+  width: 120px !important;
   flex-shrink: 0 !important;
 }
 
-body.desktop-mode #block1SwitchCards button.ya-card {
-  width: 84px !important;
-  padding-top: 4px !important;
-  padding-bottom: 4px !important;
-  flex-shrink: 0 !important;
+body.desktop-mode #chartLegendContainer {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 0.5rem !important;
+  overflow-x: auto !important;
+}
+
+body.desktop-mode #chartLegendContainer > div:not(#legendGrossBg) {
+  flex: 0 0 120px !important;
+  width: 120px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.35rem !important;
+  grid-column: auto !important;
+}
+
+body.desktop-mode #chartLegendContainer > div:not(#legendGrossBg) b {
+  margin-left: 0 !important;
+}
+
+body.desktop-mode #legendGrossBg {
+  flex: 0 0 auto !important;
+  width: auto !important;
+  padding-top: 0 !important;
+  margin-left: 0.5rem !important;
+  border-left: none !important;
+  padding-left: 0 !important;
+  white-space: nowrap !important;
+  grid-column: auto !important;
 }
 
 .desktop-grid-split {
@@ -525,6 +552,74 @@ body.desktop-mode #presetButtonsContainer {
   outline: none !important;
   box-shadow: none !important;
 }
+
+
+/* Полосатая штриховка для части «Начислено» (Gross) */
+.chart-gross-striped {
+  opacity: 0.35;
+  background-color: #F8FAFC;
+  background-image: repeating-linear-gradient(
+    45deg,
+    #94A3B8,
+    #94A3B8 1.5px,
+    #FFFFFF 1.5px,
+    #FFFFFF 3.5px
+  );
+  border: 1px solid #CBD5E1;
+  border-bottom: none;
+}
+body:not(.light-mode) .chart-gross-striped {
+  background-color: #1E293B;
+  background-image: repeating-linear-gradient(
+    45deg,
+    #64748B,
+    #64748B 1.5px,
+    #0F172A 1.5px,
+    #0F172A 3.5px
+  );
+  border-color: #475569;
+}
+
+/* 1.5px разделительные полоски между цветными сегментами */
+.chart-stack-divider > div {
+  box-sizing: border-box;
+}
+.chart-stack-divider > div + div {
+  border-bottom: 1.5px solid var(--bg-card, #FFFFFF) !important;
+}
+
+/* Светло-серый ореол-подложка активного столбца на всю высоту */
+.chart-bar-backdrop {
+  background-color: rgba(215, 220, 230, 0.42);
+}
+body:not(.light-mode) .chart-bar-backdrop {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.ya-benchmarks-btn {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-main);
+  transition: all 0.15s ease;
+}
+.ya-benchmarks-btn:hover:not(:disabled) {
+  background-color: var(--bg-elevated);
+}
+.ya-benchmarks-btn.benchmarks-active {
+  background-color: var(--bg-card);
+  border-color: var(--border-subtle);
+  color: var(--text-main);
+}
+.ya-benchmarks-btn.benchmarks-inactive {
+  opacity: 0.65;
+  color: var(--text-mut);
+  background-color: transparent;
+}
+.ya-benchmarks-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 
 .expense-help-btn {
   width: 14px;
