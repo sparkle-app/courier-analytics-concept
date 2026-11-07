@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="Независимый исследовательский UI/UX-концепт аналитики дохода для курьеров доставки (версия 13.16.1)" />
   <meta name="theme-color" content="#F4F5F7" />
-  <title>Концепт аналитики дохода курьера (v13.17.0) — Неофициальный UX-прототип</title>
+  <title>Концепт аналитики дохода курьера (v13.17.1) — Неофициальный UX-прототип</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <script src="https://cdn.tailwindcss.com"></script>
@@ -14,7 +14,7 @@
   <!-- Leaflet для интерактивной карты районов -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <link rel="stylesheet" href="style.css?v=13.17.0" />
+  <link rel="stylesheet" href="style.css?v=13.17.1" />
 </head>
 <body class="light-mode min-h-screen flex flex-col items-center py-3 px-2 sm:px-4">
 
@@ -30,7 +30,7 @@
 
     <!-- 1. ВЕРСИЯ И ЗАГОЛОВОК -->
     <div class="flex items-center gap-2">
-      <span class="version-badge px-2 py-0.5 rounded-md font-extrabold text-[11px] leading-tight shadow-sm">v13.17.0</span>
+      <span class="version-badge px-2 py-0.5 rounded-md font-extrabold text-[11px] leading-tight shadow-sm">v13.17.1</span>
       <span class="font-semibold text-main">UX-концепт аналитики курьера</span>
     </div>
 
@@ -45,10 +45,51 @@
     <!-- 4. БЛОК УПРАВЛЕНИЯ (АДАПТИВНЫЙ КЛАСТЕР: ПК И МОБИЛЬНЫЙ РЕЖИМЫ) -->
     <div class="banner-controls-cluster">
       
-      <!-- КОЛОНКА 1 (МОБ) / СЕКЦИЯ 1 (ПК): ТЕМА И ПК/МОБ -->
+      <!-- КОЛОНКА 1 (МОБ) / СЕКЦИЯ 1 (ПК): ТЕМА, РЕЖИМ И СТИЛЬ -->
       <div class="banner-cluster-theme-layout relative z-20 flex items-center gap-1.5 shrink-0">
-        <!-- ТЕМА ОФОРМЛЕНИЯ -->
-        <button type="button" onclick="toggleColorTheme()" id="btnColorTheme" title="Переключить темный / светлый режим" aria-label="Переключить тему" class="w-8 h-8 rounded-xl ya-nav-btn flex items-center justify-center transition shrink-0">
+        
+        <!-- МОБИЛЬНЫЙ СПЛИТ ТЕМЫ И СТИЛЯ (ВАРИАНТ 7) / СКРЫТ НА ПК -->
+        <div class="banner-theme-style-mobile relative hidden" id="themeStyleSplitMobile">
+          <div class="relative flex items-center rounded-xl ya-nav-btn h-8 overflow-hidden shrink-0 w-full">
+            <!-- ЛЕВАЯ ЧАСТЬ: ПЕРЕКЛЮЧЕНИЕ СВЕТЛОЙ / ТЕМНОЙ ТЕМЫ -->
+            <button type="button" onclick="toggleColorTheme()" id="btnColorThemeMobile" title="Переключить темную / светлую тему" aria-label="Переключить тему" class="flex-1 h-full px-2 flex items-center justify-center transition hover:bg-black/5 dark:hover:bg-white/10 active:scale-95">
+              <span id="lblThemeIconMobile" class="flex items-center justify-center">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                </svg>
+              </span>
+            </button>
+            <span class="w-px h-3.5 bg-black/10 dark:bg-white/15 my-auto"></span>
+            <!-- ПРАВАЯ ЧАСТЬ: ВЫБОР СТИЛЯ ОФОРМЛЕНИЯ -->
+            <button type="button" onclick="toggleStyleDropdown(event, 'mobile')" id="btnStyleMobile" title="Стиль оформления: Обычный" aria-label="Стиль оформления" aria-haspopup="true" class="flex-1 h-full px-1.5 flex items-center justify-center gap-0.5 text-blue-500 transition hover:bg-black/5 dark:hover:bg-white/10 active:scale-95">
+              <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="13.5" cy="6.5" r=".5" fill="currentColor"></circle>
+                <circle cx="17.5" cy="10.5" r=".5" fill="currentColor"></circle>
+                <circle cx="8.5" cy="7.5" r=".5" fill="currentColor"></circle>
+                <circle cx="6.5" cy="12.5" r=".5" fill="currentColor"></circle>
+                <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"></path>
+              </svg>
+              <svg id="styleChevronIconMobile" class="w-2.5 h-2.5 transition-transform duration-150" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+          </div>
+
+          <!-- ВЫПАДАЮЩЕЕ МЕНЮ СТИЛЕЙ (МОБИЛЬНОЕ) -->
+          <div id="styleDropdownMenuMobile" class="hidden absolute top-full left-0 mt-1.5 w-[165px] rounded-xl ya-card shadow-2xl border border-subtle p-1.5 z-50 text-xs select-none space-y-1 bg-[var(--bg-card)]">
+            <div class="px-2 py-1 text-[10px] font-semibold text-sec uppercase tracking-wider">Стиль оформления</div>
+            <button type="button" onclick="selectUiStyle('default'); closeStyleDropdown();" class="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition flex items-center justify-between text-main font-semibold group">
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                <span>Обычный</span>
+              </div>
+              <svg class="w-3.5 h-3.5 text-blue-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- ДЕСКТОПНАЯ КНОПКА ТЕМЫ (СКРЫТА НА МОБИЛЬНОМ) -->
+        <button type="button" onclick="toggleColorTheme()" id="btnColorTheme" title="Переключить темный / светлый режим" aria-label="Переключить тему" class="banner-theme-desktop w-8 h-8 rounded-xl ya-nav-btn flex items-center justify-center transition shrink-0">
           <span id="lblThemeIcon" class="flex items-center justify-center">
             <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
@@ -57,7 +98,7 @@
         </button>
 
         <!-- ПЕРЕКЛЮЧАТЕЛЬ РЕЖИМА ТЕЛЕФОН / ПК -->
-        <button type="button" onclick="toggleLayoutMode()" id="btnLayoutMode" title="Переключить на версию для ПК" aria-label="Переключить режим ПК / мобильный" class="w-8 h-8 rounded-xl ya-nav-btn flex items-center justify-center transition shrink-0">
+        <button type="button" onclick="toggleLayoutMode()" id="btnLayoutMode" title="Переключить режим ПК / мобильный" aria-label="Переключить режим ПК / мобильный" class="h-8 rounded-xl ya-nav-btn flex items-center justify-center transition shrink-0">
           <span id="lblLayoutIcon" class="flex items-center justify-center">
             <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
               <rect x="2" y="3" width="20" height="14" rx="2"></rect>
@@ -70,7 +111,7 @@
 
         <!-- КНОПКА ВЫБОРА СТИЛЯ (ПК ВЕРСИЯ: СПРАВА ОТ ПК/МОБ) -->
         <div class="relative z-30 items-center rounded-xl ya-nav-btn shrink-0 banner-style-desktop" id="styleSplitWrapper">
-          <button type="button" onclick="toggleStyleDropdown(event)" id="btnStyleSelect" title="Стиль оформления: Обычный" class="pl-2 pr-1.5 py-1.5 font-semibold transition flex items-center gap-1.5 text-[#18191C] dark:text-[#F8FAFC] active:scale-95 rounded-l-xl">
+          <button type="button" onclick="toggleStyleDropdown(event, 'desktop')" id="btnStyleSelect" title="Стиль оформления: Обычный" class="pl-2 pr-1.5 py-1.5 font-semibold transition flex items-center gap-1.5 text-[#18191C] dark:text-[#F8FAFC] active:scale-95 rounded-l-xl">
             <svg class="w-3.5 h-3.5 text-blue-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="13.5" cy="6.5" r=".5" fill="currentColor"></circle>
               <circle cx="17.5" cy="10.5" r=".5" fill="currentColor"></circle>
@@ -81,11 +122,11 @@
             <span class="text-xs">Стиль</span>
           </button>
           <span class="w-px h-3.5 bg-black/10 dark:bg-white/15 my-auto"></span>
-          <button type="button" onclick="toggleStyleDropdown(event)" id="btnStyleDropdown" title="Выбрать стиль оформления" aria-label="Список стилей оформления" aria-haspopup="true" class="px-1.5 py-1.5 font-semibold transition flex items-center justify-center text-[#18191C] dark:text-[#F8FAFC] active:scale-95 rounded-r-xl">
+          <button type="button" onclick="toggleStyleDropdown(event, 'desktop')" id="btnStyleDropdown" title="Выбрать стиль оформления" aria-label="Список стилей оформления" aria-haspopup="true" class="px-1.5 py-1.5 font-semibold transition flex items-center justify-center text-[#18191C] dark:text-[#F8FAFC] active:scale-95 rounded-r-xl">
             <svg id="styleChevronIcon" class="w-3 h-3 transition-transform duration-150" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
           </button>
 
-          <!-- ВЫПАДАЮЩЕЕ МЕНЮ СТИЛЕЙ -->
+          <!-- ВЫПАДАЮЩЕЕ МЕНЮ СТИЛЕЙ (ДЕСКТОП) -->
           <div id="styleDropdownMenu" class="hidden absolute top-full right-0 mt-1.5 w-[165px] rounded-xl ya-card shadow-2xl border border-subtle p-1.5 z-50 text-xs select-none space-y-1 bg-[var(--bg-card)]">
             <div class="px-2 py-1 text-[10px] font-semibold text-sec uppercase tracking-wider">Стиль оформления</div>
             <button type="button" onclick="selectUiStyle('default'); closeStyleDropdown();" class="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition flex items-center justify-between text-main font-semibold group">
@@ -804,7 +845,7 @@
     </div>
   </div>
 
-  <!-- МОДАЛЬНОЕ ОКНО: НА ЧАЙ АВТОРУ & ИНТЕРАКТИВНАЯ ЧАЙНАЯ СТАНЦИЯ (v13.17.0) -->
+  <!-- МОДАЛЬНОЕ ОКНО: НА ЧАЙ АВТОРУ & ИНТЕРАКТИВНАЯ ЧАЙНАЯ СТАНЦИЯ (v13.17.1) -->
   <div id="authorTipModal" onclick="if(event.target===this) closeAuthorTipModal()" class="fixed inset-0 z-50 hidden bg-black/75 flex items-center justify-center p-2 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="authorTipModalTitle">
     <div class="app-shell w-full max-w-4xl max-h-[92vh] rounded-[28px] overflow-hidden flex flex-col shadow-2xl border border-white/15">
       <!-- Шапка -->
@@ -1000,6 +1041,6 @@
   </div>
 
   <!-- Подключение скрипта приложения -->
-  <script src="script.js?v=13.17.0"></script>
+  <script src="script.js?v=13.17.1"></script>
 </body>
 </html>

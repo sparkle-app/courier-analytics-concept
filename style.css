@@ -1495,8 +1495,36 @@ body:not(.light-mode) #authorTipModal .tea-gb:hover {
   .banner-style-desktop {
     display: none !important;
   }
+
+  .banner-theme-desktop {
+    display: none !important;
+  }
+
+  .banner-theme-style-mobile {
+    display: flex !important;
+    width: 100% !important;
+  }
+
+  #btnLayoutMode {
+    width: 100% !important;
+    min-width: 54px !important;
+  }
 }
 
-.banner-style-desktop {
-  display: inline-flex !important;
+@media (min-width: 781px) {
+  .banner-style-desktop {
+    display: inline-flex !important;
+  }
+
+  .banner-theme-desktop {
+    display: flex !important;
+  }
+
+  .banner-theme-style-mobile {
+    display: none !important;
+  }
+
+  #btnLayoutMode {
+    width: 32px !important;
+  }
 }
