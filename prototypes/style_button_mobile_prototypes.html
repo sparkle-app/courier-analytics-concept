@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>12 вариантов кнопки «Стиль» в мобильной версии — Интерактивная витрина</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      transition: background-color 0.2s, color 0.2s;
+    }
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+    
+    /* Стили темы стенда */
+    body.light-mode {
+      background-color: #F4F5F7;
+      color: #18191C;
+    }
+    body:not(.light-mode) {
+      background-color: #0B0C0E;
+      color: #F8FAFC;
+    }
+    
+    .ya-card {
+      background: #FFFFFF;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.05);
+    }
+    body:not(.light-mode) .ya-card {
+      background: #1C1E23;
+      border-color: rgba(255, 255, 255, 0.08);
+      box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.4);
+    }
+
+    .ya-nav-btn {
+      background: #FFFFFF;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      color: #18191C;
+    }
+    body:not(.light-mode) .ya-nav-btn {
+      background: #1C1E23;
+      border-color: rgba(255, 255, 255, 0.1);
+      color: #F8FAFC;
+    }
+    .ya-nav-btn:hover {
+      background: rgba(0, 0, 0, 0.04);
+    }
+    body:not(.light-mode) .ya-nav-btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .border-subtle {
+      border-color: rgba(0, 0, 0, 0.08);
+    }
+    body:not(.light-mode) .border-subtle {
+      border-color: rgba(255, 255, 255, 0.08);
+    }
+
+    .text-sec {
+      color: #6B7280;
+    }
+    body:not(.light-mode) .text-sec {
+      color: #94A3B8;
+    }
+
+    .text-mut {
+      color: #9CA3AF;
+    }
+    body:not(.light-mode) .text-mut {
+      color: #64748B;
+    }
+
+    .mockup-phone {
+      width: 100%;
+      max-width: 390px;
+      border-radius: 28px;
+      overflow: hidden;
+      border: 1px solid rgba(0,0,0,0.1);
+      background: #FAFAFA;
+      box-shadow: 0 12px 36px -4px rgba(0,0,0,0.12);
+    }
+    body:not(.light-mode) .mockup-phone {
+      background: #141518;
+      border-color: rgba(255,255,255,0.1);
+      box-shadow: 0 16px 40px -4px rgba(0,0,0,0.5);
+    }
+  </style>
+</head>
+<body class="light-mode min-h-screen p-4 sm:p-8">
+
+  <!-- ТОСТ УВЕДОМЛЕНИЙ -->
+  <div id="toast" class="fixed top-5 right-5 z-50 transform -translate-y-12 opacity-0 pointer-events-none transition-all duration-200 bg-black/90 text-white dark:bg-white dark:text-black px-4 py-2.5 rounded-xl shadow-2xl text-xs font-semibold flex items-center gap-2">
+    <span>💡</span>
+    <span id="toastMsg">Уведомление</span>
+  </div>
+
+  <!-- ШАПКА ВИТРИНЫ -->
+  <header class="max-w-7xl mx-auto mb-8">
+    <div class="flex flex-wrap items-center justify-between gap-4 pb-6 border-b border-subtle">
+      <div>
+        <div class="flex items-center gap-3">
+          <a href="../index.html" class="px-3 py-1.5 rounded-xl ya-nav-btn text-xs font-semibold flex items-center gap-1.5 transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+            В приложение
+          </a>
+          <span class="px-2.5 py-0.5 rounded-md bg-[#FCE000] text-black font-extrabold text-xs">v13.17.0</span>
+          <span class="text-xs font-semibold text-sec">UX-лаборатория концептов</span>
+        </div>
+        <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight mt-2">12 вариантов кнопки «Стиль» в мобильной версии</h1>
+        <p class="text-sm text-sec mt-1 max-w-3xl">
+          Интерактивная витрина всех возможных архитектурных и эргономических способов вписывания кнопки выбора стиля оформления в мобильный интерфейс стенда. Кликайте на кнопки и меню для проверки работы.
+        </p>
+      </div>
+
+      <!-- ПЕРЕКЛЮЧАТЕЛЬ ТЕМЫ ВИТРИНЫ -->
+      <div class="flex items-center gap-3">
+        <button type="button" onclick="toggleShowcaseTheme()" id="btnThemeToggle" class="px-4 py-2 rounded-xl ya-nav-btn text-xs font-bold flex items-center gap-2 shadow-sm transition">
+          <span id="themeIcon">🌙</span>
+          <span id="themeText">Темная тема</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ФИЛЬТРЫ КАТЕГОРИЙ -->
+    <div class="flex flex-wrap gap-2 mt-4 text-xs font-semibold">
+      <button type="button" onclick="filterCards('all')" class="cat-pill px-3 py-1.5 rounded-lg bg-blue-500 text-white transition">Все 12 вариантов</button>
+      <button type="button" onclick="filterCards('col1')" class="cat-pill px-3 py-1.5 rounded-lg ya-nav-btn transition">Колонка 1 (Вместе с темой)</button>
+      <button type="button" onclick="filterCards('col2')" class="cat-pill px-3 py-1.5 rounded-lg ya-nav-btn transition">Колонка 2 (Рядом с импортом)</button>
+      <button type="button" onclick="filterCards('header-footer')" class="cat-pill px-3 py-1.5 rounded-lg ya-nav-btn transition">Шапка / Подвал плашки</button>
+      <button type="button" onclick="filterCards('novel')" class="cat-pill px-3 py-1.5 rounded-lg ya-nav-btn transition">Альтернативные подходы (FAB / Меню / Шапка)</button>
+    </div>
+  </header>
+
+  <!-- СЕТКА ИЗ 12 ВАРИАНТОВ -->
+  <main class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+    <!-- ========================================================================= -->
+    <!-- ВАРИАНТ 1: ТРИО В КОЛОНКЕ 1 (ВЕРТИКАЛЬНО) -->
+    <!-- ========================================================================= -->
+    <div class="variant-card ya-card rounded-2xl p-5 flex flex-col justify-between" data-cat="col1">
+      <div>
+        <div class="flex items-center justify-between mb-3">
+          <span class="px-2 py-0.5 rounded-md bg-blue-500/15 text-blue-600 dark:text-blue-400 font-bold text-xs">Вариант 1</span>
+          <span class="text-[11px] font-semibold text-sec">Колонка 1 • Вертикально</span>
+        </div>
+        <h3 class="font-bold text-base mb-1">«Трио настроек в колонке 1»</h3>
+        <p class="text-xs text-sec mb-4">Третья квадратная кнопка 32×32 добавляется под ПК/моб. Все 3 системных контрола (Тема, Режим, Стиль) идут аккуратным столбиком.</p>
+
+        <!-- РЕАЛЬНЫЙ МОКАП -->
+        <div class="mockup-phone p-3.5 mx-auto mb-4 text-xs">
+          <div class="flex items-center justify-between text-[11px] font-bold pb-2 border-b border-subtle">
+            <span class="px-1.5 py-0.5 rounded bg-black text-white text-[10px]">v13.17.0</span>
+            <span class="truncate ml-1 text-sec">UX-концепт аналитики</span>
+          </div>
+          
+          <div class="flex items-stretch justify-between gap-1.5 py-2.5">
+            <!-- КОЛОНКА 1: 3 КНОПКИ СТОЛБИКОМ -->
+            <div class="flex flex-col items-center justify-center gap-1 shrink-0 relative">
+              <button class="w-8 h-8 rounded-xl ya-nav-btn flex items-center justify-center text-xs">🌙</button>
+              <button class="w-8 h-8 rounded-xl ya-nav-btn flex items-center justify-center text-xs">🖥️</button>
+              <button onclick="toggleMockDropdown('drop-1')" class="w-8 h-8 rounded-xl ya-nav-btn flex items-center justify-center text-xs text-blue-500 hover:scale-105 transition" title="Выбрать стиль">🎨</button>
+              
+              <!-- DROPDOWN -->
+              <div id="drop-1" class="hidden absolute left-full top-8 ml-2 w-36 rounded-xl ya-card shadow-2xl p-1.5 border border-subtle z-50 text-[11px] space-y-1">
+                <div class="text-[9px] uppercase font-bold text-sec px-1.5 py-0.5">Стиль</div>
+                <div onclick="pickStyle('Обычный', 'drop-1')" class="flex items-center justify-between p-1.5 rounded-lg bg-black/5 dark:bg-white/10 font-bold cursor-pointer">
+                  <span>Обычный</span><span class="text-blue-500">✓</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="w-px bg-black/10 dark:bg-white/10 my-0.5"></div>
+
+            <!-- КОЛОНКА 2 -->
+            <div class="flex-1 min-w-0 flex flex-col justify-center px-1">
+              <span class="text-[10px] text-sec font-semibold">Источник: <b class="text-amber-500">Демо</b></span>
+              <div class="flex items-center gap-1 mt-1">
+                <button class="px-2 py-1 rounded-lg ya-nav-btn font-semibold text-[10px] flex items-center gap-1"><span>Импорт</span><span>▾</span></button>
+              </div>
+            </div>
+
+            <div class="w-px bg-black/10 dark:bg-white/10 my-0.5"></div>
+
+            <!-- КОЛОНКА 3 -->
+            <div class="flex items-center justify-center w-24 shrink-0">
+              <div class="text-center p-1 rounded-xl ya-nav-btn w-full">
+                <div class="text-sm">☕</div>
+                <div class="text-[9px] font-bold leading-tight">Чаевые</div>
+              </div>
+            </div>
+          </div>
+          <div class="text-center text-[10px] text-mut pt-2 border-t border-subtle">Оферта • Конфиденциальность</div>
+        </div>
+
+        <!-- ОЦЕНКА -->
+        <div class="space-y-1.5 text-xs">
+          <div class="text-emerald-600 dark:text-emerald-400 font-semibold flex items-start gap-1.5">
+            <span>+</span> <span>Все системные переключатели UI объединены в одном блоке, ширина колонок 2 и 3 не уменьшается.</span>
+          </div>
+          <div class="text-rose-500 font-semibold flex items-start gap-1.5">
+            <span>−</span> <span>Увеличивает высоту плашки примерно на 34px (3 кнопки вертикально).</span>
+          </div>
+        </div>
+      </div>
+      <button onclick="selectVariant(1)" class="w-full mt-4 py-2 rounded-xl ya-nav-btn hover:bg-blue-500 hover:text-white transition font-bold text-xs">Выбрать Вариант 1</button>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- ВАРИАНТ 2: МИКРО-СЕТКА 2x2 В КОЛОНКЕ 1 -->
+    <!-- ========================================================================= -->
+    <div class="variant-card ya-card rounded-2xl p-5 flex flex-col justify-between" data-cat="col1">
+      <div>
+        <div class="flex items-center justify-between mb-3">
+          <span class="px-2 py-0.5 rounded-md bg-blue-500/15 text-blue-600 dark:text-blue-400 font-bold text-xs">Вариант 2</span>
+          <span class="text-[11px] font-semibold text-sec">Колонка 1 • Компакт-сетка</span>
+        </div>
+        <h3 class="font-bold text-base mb-1">«Микро-сетка в колонке 1»</h3>
+        <p class="text-xs text-sec mb-4">Вверху ряд из 2 микро-кнопок 28×28 `[ 🌙 ][ 🖥️ ]`, под ними компактная кнопка `[ 🎨 Стиль ▾ ]` на ширину колонки.</p>
+
+        <!-- РЕАЛЬНЫЙ МОКАП -->
+        <div class="mockup-phone p-3.5 mx-auto mb-4 text-xs">
+          <div class="flex items-center justify-between text-[11px] font-bold pb-2 border-b border-subtle">
+            <span class="px-1.5 py-0.5 rounded bg-black text-white text-[10px]">v13.17.0</span>
+            <span class="truncate ml-1 text-sec">UX-концепт аналитики</span>
+          </div>
+          
+          <div class="flex items-stretch justify-between gap-1.5 py-2.5">
+            <!-- КОЛОНКА 1: 2 СВЕРХУ + 1 СНИЗУ -->
+            <div class="flex flex-col items-center justify-center gap-1 shrink-0 relative w-[68px]">
+              <div class="flex items-center gap-1 w-full justify-between">
+                <button class="w-7 h-7 rounded-lg ya-nav-btn flex items-center justify-center text-xs">🌙</button>
+                <button class="w-7 h-7 rounded-lg ya-nav-btn flex items-center justify-center text-xs">🖥️</button>
+              </div>
+              <button onclick="toggleMockDropdown('drop-2')" class="w-full py-1 rounded-lg ya-nav-btn text-[10px] font-bold text-blue-500 flex items-center justify-center gap-1 hover:scale-102 transition">
+                <span>🎨</span><span>Стиль ▾</span>
+              </button>
+
+              <div id="drop-2" class="hidden absolute left-0 top-12 w-36 rounded-xl ya-card shadow-2xl p-1.5 border border-subtle z-50 text-[11px] space-y-1">
+                <div class="text-[9px] uppercase font-bold text-sec px-1.5 py-0.5">Стиль</div>
+                <div onclick="pickStyle('Обычный', 'drop-2')" class="flex items-center justify-between p-1.5 rounded-lg bg-black/5 dark:bg-white/10 font-bold cursor-pointer">
+                  <span>Обычный</span><span class="text-blue-500">✓</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="w-px bg-black/10 dark:bg-white/10 my-0.5"></div>
+
+            <!-- КОЛОНКА 2 -->
+            <div class="flex-1 min-w-0 flex flex-col justify-center px-1">
+              <span class="text-[10px] text-sec font-semibold">Источник: <b class="text-amber-500">Демо</b></span>
+              <div class="flex items-center gap-1 mt-1">
+                <button class="px-2 py-1 rounded-lg ya-nav-btn font-semibold text-[10px] flex items-center gap-1"><span>Импорт</span><span>▾</span></button>
+              </div>
+            </div>
+
+            <div class="w-px bg-black/10 dark:bg-white/10 my-0.5"></div>
+
+            <!-- КОЛОНКА 3 -->
+            <div class="flex items-center justify-center w-24 shrink-0">
+              <div class="text-center p-1 rounded-xl ya-nav-btn w-full">
+                <div class="text-sm">☕</div>
+                <div class="text-[9px] font-bold leading-tight">Чаевые</div>
+              </div>
+            </div>
+          </div>
+          <div class="text-center text-[10px] text-mut pt-2 border-t border-subtle">Оферта • Конфиденциальность</div>
+        </div>
+
+        <!-- ОЦЕНКА -->
+        <div class="space-y-1.5 text-xs">
+          <div class="text-emerald-600 dark:text-emerald-400 font-semibold flex items-start gap-1.5">
+            <span>+</span> <span>Высота плашки не увеличивается, у кнопки стиля есть понятная подпись текстом.</span>
+          </div>
+          <div class="text-rose-500 font-semibold flex items-start gap-1.5">
+            <span>−</span> <span>Колонка 1 становится шире (~68px вместо ~36px), уменьшая пространство для названия файла.</span>
+          </div>
+        </div>
+      </div>
+      <button onclick="selectVariant(2)" class="w-full mt-4 py-2 rounded-xl ya-nav-btn hover:bg-blue-500 hover:text-white transition font-bold text-xs">Выбрать Вариант 2</button>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- ВАРИАНТ 3: ИНЛАЙН-ЧИП В КОЛОНКЕ 2 НАД ИМПОРТОМ -->
+    <!-- ========================================================================= -->
+    <div class="variant-card ya-card rounded-2xl p-5 flex flex-col justify-between" data-cat="col2">
+      <div>
+        <div class="flex items-center justify-between mb-3">
+          <span class="px-2 py-0.5 rounded-md bg-blue-500/15 text-blue-600 dark:text-blue-400 font-bold text-xs">Вариант 3</span>
+          <span class="text-[11px] font-semibold text-sec">Колонка 2 • Инлайн-чип</span>
+        </div>
+        <h3 class="font-bold text-base mb-1">«Инлайн-чип в колонке 2»</h3>
+        <p class="text-xs text-sec mb-4">В строке источника данных рядом с надписью появляется элегантный микро-чип `[ 🎨 Обычный ▾ ]`.</p>
+
+        <!-- РЕАЛЬНЫЙ МОКАП -->
+        <div class="mockup-phone p-3.5 mx-auto mb-4 text-xs">
+          <div class="flex items-center justify-between text-[11px] font-bold pb-2 border-b border-subtle">
+            <span class="px-1.5 py-0.5 rounded bg-black text-white text-[10px]">v13.17.0</span>
+            <span class="truncate ml-1 text-sec">UX-концепт аналитики</span>
+          </div>
+          
+          <div class="flex items-stretch justify-between gap-1.5 py-2.5">
+            <div class="flex flex-col items-center justify-center gap-1 shrink-0">
+              <button class="w-8 h-8 rounded-xl ya-nav-btn flex items-center justify-center text-xs">🌙</button>
+              <button class="w-8 h-8 rounded-xl ya-nav-btn flex items-center justify-center text-xs">🖥️</button>
+            </div>
+
+            <div class="w-px bg-black/10 dark:bg-white/10 my-0.5"></div>
+
+            <!-- КОЛОНКА 2: ИНЛАЙН ЧИП -->
+            <div class="flex-1 min-w-0 flex flex-col justify-center px-1 relative">
+              <div class="flex items-center justify-between gap-1">
+                <span class="text-[10px] text-sec font-semibold truncate">Ист: <b class="text-amber-500">Демо</b></span>
+                <button onclick="toggleMockDropdown('drop-3')" class="px-1.5 py-0.5 rounded-md ya-nav-btn text-[9px] font-bold text-blue-500 shrink-0 flex items-center gap-0.5">
+                  <span>🎨</span><span>Обычный ▾</span>
+                </button>
+              </div>
+              <div class="flex items-center gap-1 mt-1">
+                <button class="px-2 py-1 rounded-lg ya-nav-btn font-semibold text-[10px] flex items-center gap-1"><span>Импорт</span><span>▾</span></button>
+              </div>
+
+              <div id="drop-3" class="hidden absolute left-10 top-6 w-36 rounded-xl ya-card shadow-2xl p-1.5 border border-subtle z-50 text-[11px] space-y-1">
+                <div class="text-[9px] uppercase font-bold text-sec px-1.5 py-0.5">Стиль</div>
+                <div onclick="pickStyle('Обычный', 'drop-3')" class="flex items-center justify-between p-1.5 rounded-lg bg-black/5 dark:bg-white/10 font-bold cursor-pointer">
+                  <span>Обычный</span><span class="text-blue-500">✓</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="w-px bg-black/10 dark:bg-white/10 my-0.5"></div>
+
+            <div class="flex items-center justify-center w-24 shrink-0">
+              <div class="text-center p-1 rounded-xl ya-nav-btn w-full">
+                <div class="text-sm">☕</div>
+                <div class="text-[9px] font-bold leading-tight">Чаевые</div>
+              </div>
+            </div>
+          </div>
+          <div class="text-center text-[10px] text-mut pt-2 border-t border-subtle">Оферта • Конфиденциальность</div>
+        </div>
+
+        <!-- ОЦЕНКА -->
+        <div class="space-y-1.5 text-xs">
+          <div class="text-emerald-600 dark:text-emerald-400 font-semibold flex items-start gap-1.5">
+            <span>+</span> <span>Очень компактно, использует пустоту справа от статуса источника, не меняет высоту плашки.</span>
+          </div>
+          <div class="text-rose-500 font-semibold flex items-start gap-1.5">
+            <span>−</span> <span>Если загружен файл с длинным именем, место для чипа сужается.</span>
+          </div>
+        </div>
+      </div>
+      <button onclick="selectVariant(3)" class="w-full mt-4 py-2 rounded-xl ya-nav-btn hover:bg-blue-500 hover:text-white transition font-bold text-xs">Выбрать Вариант 3</button>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- ВАРИАНТ 4: 3-Я КНОПКА В РЯДУ ДЕЙСТВИЙ (КОЛОНКА 2) -->
+    <!-- ========================================================================= -->
+    <div class="variant-card ya-card rounded-2xl p-5 flex flex-col justify-between" data-cat="col2">
+      <div>
+        <div class="flex items-center justify-between mb-3">
+          <span class="px-2 py-0.5 rounded-md bg-blue-500/15 text-blue-600 dark:text-blue-400 font-bold text-xs">Вариант 4</span>
+          <span class="text-[11px] font-semibold text-sec">Колонка 2 • Ряд кнопок</span>
+        </div>
+        <h3 class="font-bold text-base mb-1">«Ряд действий: 3-я кнопка»</h3>
+        <p class="text-xs text-sec mb-4">Кнопка стиля `[ 🎨 ▾ ]` ставится в один горизонтальный ряд справа от кнопок Импорта и сброса Демо.</p>
+
+        <!-- РЕАЛЬНЫЙ МОКАП -->
+        <div class="mockup-phone p-3.5 mx-auto mb-4 text-xs">
+          <div class="flex items-center justify-between text-[11px] font-bold pb-2 border-b border-subtle">
+            <span class="px-1.5 py-0.5 rounded bg-black text-white text-[10px]">v13.17.0</span>
+            <span class="truncate ml-1 text-sec">UX-концепт аналитики</span>
+          </div>
+          
+          <div class="flex items-stretch justify-between gap-1.5 py-2.5">
+            <div class="flex flex-col items-center justify-center gap-1 shrink-0">
+              <button class="w-8 h-8 rounded-xl ya-nav-btn flex items-center justify-center text-xs">🌙</button>
+              <button class="w-8 h-8 rounded-xl ya-nav-btn flex items-center justify-center text-xs">🖥️</button>
+            </div>
+
+            <div class="w-px bg-black/10 dark:bg-white/10 my-0.5"></div>
+
+            <!-- КОЛОНКА 2: 3 КНОПКИ В РЯД -->
+            <div class="flex-1 min-w-0 flex flex-col justify-center px-1 relative">
+              <span class="text-[10px] text-sec font-semibold truncate">Источник: <b class="text-emerald-500">Файл (191)</b></span>
+              <div class="flex items-center gap-1 mt-1">
+                <button class="px-1.5 py-1 rounded-lg ya-nav-btn font-semibold text-[10px] flex items-center gap-0.5"><span>Имп</span><span>▾</span></button>
+                <button class="px-1 py-1 rounded-lg ya-nav-btn text-[10px] text-rose-400 font-semibold">✕</button>
+                <button onclick="toggleMockDropdown('drop-4')" class="px-1.5 py-1 rounded-lg ya-nav-btn text-[10px] text-blue-500 font-bold flex items-center gap-0.5"><span>🎨</span><span>▾</span></button>
+              </div>
+
+              <div id="drop-4" class="hidden absolute left-4 top-10 w-36 rounded-xl ya-card shadow-2xl p-1.5 border border-subtle z-50 text-[11px] space-y-1">
+                <div class="text-[9px] uppercase font-bold text-sec px-1.5 py-0.5">Стиль</div>
+                <div onclick="pickStyle('Обычный', 'drop-4')" class="flex items-center justify-between p-1.5 rounded-lg bg-black/5 dark:bg-white/10 font-bold cursor-pointer">
+                  <span>Обычный</span><span class="text-blue-500">✓</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="w-px bg-black/10 dark:bg-white/10 my-0.5"></div>
+
+            <div class="flex items-center justify-center w-24 shrink-0">
+              <div class="text-center p-1 rounded-xl ya-nav-btn w-full">
+                <div class="text-sm">☕</div>
+                <div class="text-[9px] font-bold leading-tight">Чаевые</div>
+              </div>
+            </div>
+          </div>
+          <div class="text-center text-[10px] text-mut pt-2 border-t border-subtle">Оферта • Конфиденциальность</div>
+        </div>
+
+        <!-- ОЦЕНКА -->
+        <div class="space-y-1.5 text-xs">
+          <div class="text-emerald-600 dark:text-emerald-400 font-semibold flex items-start gap-1.5">
+            <span>+</span> <span>Все интерактивные кнопки собраны в одной визуальной горизонтали.</span>
+          </div>
+          <div class="text-rose-500 font-semibold flex items-start gap-1.5">
+            <span>−</span> <span>На узких экранах (360px) трем кнопкам тесно, приходится сокращать надписи.</span>
+          </div>
+        </div>
+      </div>
+      <button onclick="selectVariant(4)" class="w-full mt-4 py-2 rounded-xl ya-nav-btn hover:bg-blue-500 hover:text-white transition font-bold text-xs">Выбрать Вариант 4</button>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- ВАРИАНТ 5: ШАПКА ПЛАШКИ (ПРАВЫЙ УГОЛ) -->
+    <!-- ========================================================================= -->
+    <div class="variant-card ya-card rounded-2xl p-5 flex flex-col justify-between" data-cat="header-footer">
+      <div>
+        <div class="flex items-center justify-between mb-3">
+          <span class="px-2 py-0.5 rounded-md bg-blue-500/15 text-blue-600 dark:text-blue-400 font-bold text-xs">Вариант 5</span>
+          <span class="text-[11px] font-semibold text-sec">Шапка • Верхний угол</span>
+        </div>
+        <h3 class="font-bold text-base mb-1">«В верхний угол шапки»</h3>
+        <p class="text-xs text-sec mb-4">В первой строке плашки справа от версии и названия стенда: аккуратная pill-кнопка `[ 🎨 Стиль ▾ ]`.</p>
+
+        <!-- РЕАЛЬНЫЙ МОКАП -->
+        <div class="mockup-phone p-3.5 mx-auto mb-4 text-xs">
+          <div class="flex items-center justify-between text-[11px] font-bold pb-2 border-b border-subtle relative">
+            <div class="flex items-center gap-1.5">
+              <span class="px-1.5 py-0.5 rounded bg-black text-white text-[10px]">v13.17.0</span>
+              <span class="truncate text-main">UX-концепт</span>
+            </div>
+            <button onclick="toggleMockDropdown('drop-5')" class="px-2 py-0.5 rounded-lg ya-nav-btn text-[10px] text-blue-500 font-bold flex items-center gap-1">
+              <span>🎨</span><span>Стиль ▾</span>
+            </button>
+
+            <div id="drop-5" class="hidden absolute right-0 top-7 w-36 rounded-xl ya-card shadow-2xl p-1.5 border border-subtle z-50 text-[11px] space-y-1">
+              <div class="text-[9px] uppercase font-bold text-sec px-1.5 py-0.5">Стиль</div>
+              <div onclick="pickStyle('Обычный', 'drop-5')" class="flex items-center justify-between p-1.5 rounded-lg bg-black/5 dark:bg-white/10 font-bold cursor-pointer">
+                <span>Обычный</span><span class="text-blue-500">✓</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="flex items-stretch justify-between gap-1.5 py-2.5">
+            <div class="flex flex-col items-center justify-center gap-1 shrink-0">
+              <button class="w-8 h-8 rounded-xl ya-nav-btn flex items-center justify-center text-xs">🌙</button>
+              <button class="w-8 h-8 rounded-xl ya-nav-btn flex items-center justify-center text-xs">🖥️</button>
+            </div>
+            <div class="w-px bg-black/10 dark:bg-white/10 my-0.5"></div>
+            <div class="flex-1 min-w-0 flex flex-col justify-center px-1">
+              <span class="text-[10px] text-sec font-semibold">Источник: <b class="text-amber-500">Демо</b></span>
+              <div class="flex items-center gap-1 mt-1">
+                <button class="px-2 py-1 rounded-lg ya-nav-btn font-semibold text-[10px] flex items-center gap-1"><span>Импорт</span><span>▾</span></button>
+              </div>
+            </div>
+            <div class="w-px bg-black/10 dark:bg-white/10 my-0.5"></div>
+            <div class="flex items-center justify-center w-24 shrink-0">
+              <div class="text-center p-1 rounded-xl ya-nav-btn w-full">
+                <div class="text-sm">☕</div>
+                <div class="text-[9px] font-bold leading-tight">Чаевые</div>
+              </div>
+            </div>
+          </div>
+          <div class="text-center text-[10px] text-mut pt-2 border-t border-subtle">Оферта • Конфиденциальность</div>
+        </div>
+
+        <!-- ОЦЕНКА -->
+        <div class="space-y-1.5 text-xs">
+          <div class="text-emerald-600 dark:text-emerald-400 font-semibold flex items-start gap-1.5">
+            <span>+</span> <span>Использует пустующий правый угол шапки, 0 нагрузки на 3 колонки внизу.</span>
+          </div>
+          <div class="text-rose-500 font-semibold flex items-start gap-1.5">
+            <span>−</span> <span>Смешивает информационный заголовок и активный функциональный контрол.</span>
+          </div>
+        </div>
+      </div>
+      <button onclick="selectVariant(5)" class="w-full mt-4 py-2 rounded-xl ya-nav-btn hover:bg-blue-500 hover:text-white transition font-bold text-xs">Выбрать Вариант 5</button>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- ВАРИАНТ 6: В ПОДВАЛ ПЛАШКИ (INLINE К ОФЕРТЕ) -->
+    <!-- ========================================================================= -->
+    <div class="variant-card ya-card rounded-2xl p-5 flex flex-col justify-between" data-cat="header-footer">
+      <div>
+        <div class="flex items-center justify-between mb-3">
+          <span class="px-2 py-0.5 rounded-md bg-blue-500/15 text-blue-600 dark:text-blue-400 font-bold text-xs">Вариант 6</span>
+          <span class="text-[11px] font-semibold text-sec">Подвал • Инлайн</span>
+        </div>
+        <h3 class="font-bold text-base mb-1">«В подвале плашки к оферте»</h3>
+        <p class="text-xs text-sec mb-4">В нижней строке рядом со ссылками: `Оферта • Конфиденциальность • [ 🎨 Обычный ▾ ]`.</p>
+
+        <!-- РЕАЛЬНЫЙ МОКАП -->
+        <div class="mockup-phone p-3.5 mx-auto mb-4 text-xs">
+          <div class="flex items-center justify-between text-[11px] font-bold pb-2 border-b border-subtle">
+            <span class="px-1.5 py-0.5 rounded bg-black text-white text-[10px]">v13.17.0</span>
+            <span class="truncate ml-1 text-sec">UX-концепт аналитики</span>
+          </div>
+          
+          <div class="flex items-stretch justify-between gap-1.5 py-2.5">
+            <div class="flex flex-col items-center justify-center gap-1 shrink-0">
+              <button class="w-8 h-8 rounded-xl ya-nav-btn flex items-center justify-center text-xs">🌙</button>
+              <button class="w-8 h-8 rounded-xl ya-nav-btn flex items-center justify-center text-xs">🖥️</button>
+            </div>
+            <div class="w-px bg-black/10 dark:bg-white/10 my-0.5"></div>
+            <div class="flex-1 min-w-0 flex flex-col justify-center px-1">
+              <span class="text-[10px] text-sec font-semibold">Источник: <b class="text-amber-500">Демо</b></span>
+              <div class="flex items-center gap-1 mt-1">
+                <button class="px-2 py-1 rounded-lg ya-nav-btn font-semibold text-[10px] flex items-center gap-1"><span>Импорт</span><span>▾</span></button>
+              </div>
+            </div>
+            <div class="w-px bg-black/10 dark:bg-white/10 my-0.5"></div>
+            <div class="flex items-center justify-center w-24 shrink-0">
+              <div class="text-center p-1 rounded-xl ya-nav-btn w-full">
+                <div class="text-sm">☕</div>
+                <div class="text-[9px] font-bold leading-tight">Чаевые</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ФУТЕР С КНОПКОЙ СТИЛЯ -->
+          <div class="flex items-center justify-center gap-2 text-[10px] text-sec pt-2 border-t border-subtle relative">
+            <span class="text-mut hover:underline cursor-pointer">Оферта</span>
+            <span class="text-mut">•</span>
+            <span class="text-mut hover:underline cursor-pointer">Конфиденциальность</span>
+            <span class="text-mut">•</span>
+            <button onclick="toggleMockDropdown('drop-6')" class="text-blue-500 font-bold hover:underline flex items-center gap-0.5">
+              <span>🎨 Стиль</span><span>▾</span>
+            </button>
+
+            <div id="drop-6" class="hidden absolute bottom-7 right-4 w-36 rounded-xl ya-card shadow-2xl p-1.5 border border-subtle z-50 text-[11px] space-y-1">
+              <div class="text-[9px] uppercase font-bold text-sec px-1.5 py-0.5">Стиль</div>
+              <div onclick="pickStyle('Обычный', 'drop-6')" class="flex items-center justify-between p-1.5 rounded-lg bg-black/5 dark:bg-white/10 font-bold cursor-pointer">
+                <span>Обычный</span><span class="text-blue-500">✓</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ОЦЕНКА -->
+        <div class="space-y-1.5 text-xs">
+          <div class="text-emerald-600 dark:text-emerald-400 font-semibold flex items-start gap-1.5">
+            <span>+</span> <span>Очень деликатно и ненавязчиво; стили выбираются редко, поэтому не перегружают основной блок.</span>
+          </div>
+          <div class="text-rose-500 font-semibold flex items-start gap-1.5">
+            <span>−</span> <span>В самом низу плашки пользователи могут не сразу заметить возможность смены стиля.</span>
+          </div>
+        </div>
+      </div>
+      <button onclick="selectVariant(6)" class="w-full mt-4 py-2 rounded-xl ya-nav-btn hover:bg-blue-500 hover:text-white transition font-bold text-xs">Выбрать Вариант 6</button>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- ВАРИАНТ 7: СПЛИТ-КНОПКА ТЕМЫ И СТИЛЯ -->
+    <!-- ========================================================================= -->
+    <div class="variant-card ya-card rounded-2xl p-5 flex flex-col justify-between" data-cat="col1">
+      <div>
+        <div class="flex items-center justify-between mb-3">
+          <span class="px-2 py-0.5 rounded-md bg-blue-500/15 text-blue-600 dark:text-blue-400 font-bold text-xs">Вариант 7</span>
+          <span class="text-[11px] font-semibold text-sec">Колонка 1 • Pro Split</span>
+        </div>
+        <h3 class="font-bold text-base mb-1">«Комбо-сплит темы и стиля»</h3>
+        <p class="text-xs text-sec mb-4">Кнопка темы превращается в сплит-кнопку: клик слева переключает тему, стрелочка справа открывает стили.</p>
+
+        <!-- РЕАЛЬНЫЙ МОКАП -->
+        <div class="mockup-phone p-3.5 mx-auto mb-4 text-xs">
+          <div class="flex items-center justify-between text-[11px] font-bold pb-2 border-b border-subtle">
+            <span class="px-1.5 py-0.5 rounded bg-black text-white text-[10px]">v13.17.0</span>
+            <span class="truncate ml-1 text-sec">UX-концепт аналитики</span>
+          </div>
+          
+          <div class="flex items-stretch justify-between gap-1.5 py-2.5">
+            <!-- КОЛОНКА 1: СПЛИТ -->
+            <div class="flex flex-col items-center justify-center gap-1 shrink-0 relative">
+              <div class="flex items-center rounded-xl ya-nav-btn h-8 overflow-hidden">
+                <button class="px-2 h-full flex items-center justify-center text-xs hover:bg-black/5 dark:hover:bg-white/10">🌙</button>
+                <div class="w-px h-3 bg-black/10 dark:bg-white/10"></div>
+                <button onclick="toggleMockDropdown('drop-7')" class="px-1.5 h-full flex items-center justify-center text-[10px] text-blue-500 hover:bg-black/5 dark:hover:bg-white/10">🎨</button>
+              </div>
+              <button class="w-full h-7 rounded-xl ya-nav-btn flex items-center justify-center text-xs">🖥️</button>
+
+              <div id="drop-7" class="hidden absolute left-full top-0 ml-2 w-36 rounded-xl ya-card shadow-2xl p-1.5 border border-subtle z-50 text-[11px] space-y-1">
+                <div class="text-[9px] uppercase font-bold text-sec px-1.5 py-0.5">Стиль</div>
+                <div onclick="pickStyle('Обычный', 'drop-7')" class="flex items-center justify-between p-1.5 rounded-lg bg-black/5 dark:bg-white/10 font-bold cursor-pointer">
+                  <span>Обычный</span><span class="text-blue-500">✓</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="w-px bg-black/10 dark:bg-white/10 my-0.5"></div>
+
+            <div class="flex-1 min-w-0 flex flex-col justify-center px-1">
+              <span class="text-[10px] text-sec font-semibold">Источник: <b class="text-amber-500">Демо</b></span>
+              <div class="flex items-center gap-1 mt-1">
+                <button class="px-2 py-1 rounded-lg ya-nav-btn font-semibold text-[10px] flex items-center gap-1"><span>Импорт</span><span>▾</span></button>
+              </div>
+            </div>
+
+            <div class="w-px bg-black/10 dark:bg-white/10 my-0.5"></div>
+
+            <div class="flex items-center justify-center w-24 shrink-0">
+              <div class="text-center p-1 rounded-xl ya-nav-btn w-full">
+                <div class="text-sm">☕</div>
+                <div class="text-[9px] font-bold leading-tight">Чаевые</div>
+              </div>
+            </div>
+          </div>
+          <div class="text-center text-[10px] text-mut pt-2 border-t border-subtle">Оферта • Конфиденциальность</div>
+        </div>
+
+        <!-- ОЦЕНКА -->
+        <div class="space-y-1.5 text-xs">
+          <div class="text-emerald-600 dark:text-emerald-400 font-semibold flex items-start gap-1.5">
+            <span>+</span> <span>Логически связывает визуальные настройки (Тема + Стиль) в один комбинированный контрол.</span>
+          </div>
+          <div class="text-rose-500 font-semibold flex items-start gap-1.5">
+            <span>−</span> <span>Уменьшенная площадь тапа для каждой части сплит-кнопки на пальцевом экране.</span>
+          </div>
+        </div>
+      </div>
+      <button onclick="selectVariant(7)" class="w-full mt-4 py-2 rounded-xl ya-nav-btn hover:bg-blue-500 hover:text-white transition font-bold text-xs">Выбрать Вариант 7</button>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- ВАРИАНТ 8: МЕНЮ "⋯ ЕЩЁ" В КОЛОНКЕ 1 -->
+    <!-- ========================================================================= -->
+    <div class="variant-card ya-card rounded-2xl p-5 flex flex-col justify-between" data-cat="col1">
+      <div>
+        <div class="flex items-center justify-between mb-3">
+          <span class="px-2 py-0.5 rounded-md bg-blue-500/15 text-blue-600 dark:text-blue-400 font-bold text-xs">Вариант 8</span>
+          <span class="text-[11px] font-semibold text-sec">Колонка 1 • Kebab Меню</span>
+        </div>
+        <h3 class="font-bold text-base mb-1">«Меню опций "⋯ Ещё"»</h3>
+        <p class="text-xs text-sec mb-4">Вместо отдельной кнопки стиля в колонку 1 добавляется кнопка с троеточием `[ ⋯ ]`, открывающая системное меню.</p>
+
+        <!-- РЕАЛЬНЫЙ МОКАП -->
+        <div class="mockup-phone p-3.5 mx-auto mb-4 text-xs">
+          <div class="flex items-center justify-between text-[11px] font-bold pb-2 border-b border-subtle">
+            <span class="px-1.5 py-0.5 rounded bg-black text-white text-[10px]">v13.17.0</span>
+            <span class="truncate ml-1 text-sec">UX-концепт аналитики</span>
+          </div>
+          
+          <div class="flex items-stretch justify-between gap-1.5 py-2.5">
+            <!-- КОЛОНКА 1: 3 КНОПКИ, ТРЕТЬЯ ТРОЕТОЧИЕ -->
+            <div class="flex flex-col items-center justify-center gap-1 shrink-0 relative">
+              <button class="w-8 h-8 rounded-xl ya-nav-btn flex items-center justify-center text-xs">🌙</button>
+              <button class="w-8 h-8 rounded-xl ya-nav-btn flex items-center justify-center text-xs">🖥️</button>
+              <button onclick="toggleMockDropdown('drop-8')" class="w-8 h-8 rounded-xl ya-nav-btn flex items-center justify-center text-xs font-bold" title="Ещё опции">⋯</button>
+
+              <div id="drop-8" class="hidden absolute left-full top-8 ml-2 w-44 rounded-xl ya-card shadow-2xl p-1.5 border border-subtle z-50 text-[11px] space-y-1">
+                <div class="text-[9px] uppercase font-bold text-sec px-1.5 py-0.5">Опции стенда</div>
+                <div onclick="pickStyle('Обычный', 'drop-8')" class="flex items-center justify-between p-1.5 rounded-lg bg-black/5 dark:bg-white/10 font-bold cursor-pointer">
+                  <span>🎨 Стиль: Обычный</span><span class="text-blue-500">✓</span>
+                </div>
+                <div onclick="showToast('Справка открыта'); toggleMockDropdown('drop-8');" class="p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer text-sec">
+                  📖 Инструкция
+                </div>
+              </div>
+            </div>
+
+            <div class="w-px bg-black/10 dark:bg-white/10 my-0.5"></div>
+
+            <div class="flex-1 min-w-0 flex flex-col justify-center px-1">
+              <span class="text-[10px] text-sec font-semibold">Источник: <b class="text-amber-500">Демо</b></span>
+              <div class="flex items-center gap-1 mt-1">
+                <button class="px-2 py-1 rounded-lg ya-nav-btn font-semibold text-[10px] flex items-center gap-1"><span>Импорт</span><span>▾</span></button>
+              </div>
+            </div>
+
+            <div class="w-px bg-black/10 dark:bg-white/10 my-0.5"></div>
+
+            <div class="flex items-center justify-center w-24 shrink-0">
+              <div class="text-center p-1 rounded-xl ya-nav-btn w-full">
+                <div class="text-sm">☕</div>
+                <div class="text-[9px] font-bold leading-tight">Чаевые</div>
+              </div>
+            </div>
+          </div>
+          <div class="text-center text-[10px] text-mut pt-2 border-t border-subtle">Оферта • Конфиденциальность</div>
+        </div>
+
+        <!-- ОЦЕНКА -->
+        <div class="space-y-1.5 text-xs">
+          <div class="text-emerald-600 dark:text-emerald-400 font-semibold flex items-start gap-1.5">
+            <span>+</span> <span>Идеальная масштабируемость: в меню «Ещё» можно добавлять любые будущие настройки без загромождения экрана.</span>
+          </div>
+          <div class="text-rose-500 font-semibold flex items-start gap-1.5">
+            <span>−</span> <span>Смена стиля требует 2 кликов вместо 1.</span>
+          </div>
+        </div>
+      </div>
+      <button onclick="selectVariant(8)" class="w-full mt-4 py-2 rounded-xl ya-nav-btn hover:bg-blue-500 hover:text-white transition font-bold text-xs">Выбрать Вариант 8</button>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- ВАРИАНТ 9: ОТДЕЛЬНЫЙ СЕГМЕНТИРОВАННЫЙ ТУЛБАР -->
+    <!-- ========================================================================= -->
+    <div class="variant-card ya-card rounded-2xl p-5 flex flex-col justify-between" data-cat="header-footer">
+      <div>
+        <div class="flex items-center justify-between mb-3">
+          <span class="px-2 py-0.5 rounded-md bg-blue-500/15 text-blue-600 dark:text-blue-400 font-bold text-xs">Вариант 9</span>
+          <span class="text-[11px] font-semibold text-sec">Полоса • Segmented</span>
+        </div>
+        <h3 class="font-bold text-base mb-1">«Быстрая полоса-тулбар»</h3>
+        <p class="text-xs text-sec mb-4">Над 3-мя колонками появляется тонкая плашка быстрого выбора стиля в один клик без выпадающих списков.</p>
+
+        <!-- РЕАЛЬНЫЙ МОКАП -->
+        <div class="mockup-phone p-3.5 mx-auto mb-4 text-xs">
+          <div class="flex items-center justify-between text-[11px] font-bold pb-2 border-b border-subtle">
+            <span class="px-1.5 py-0.5 rounded bg-black text-white text-[10px]">v13.17.0</span>
+            <span class="truncate ml-1 text-sec">UX-концепт аналитики</span>
+          </div>
+
+          <!-- БЫСТРЫЙ ТУЛБАР СТИЛЕЙ -->
+          <div class="my-2 p-1 rounded-xl ya-nav-btn flex items-center justify-between text-[10px]">
+            <span class="text-sec font-bold ml-1">🎨 Стиль:</span>
+            <div class="flex items-center gap-1">
+              <span class="px-2 py-0.5 rounded-lg bg-blue-500 text-white font-bold">Обычный</span>
+              <span class="px-2 py-0.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 text-sec font-medium cursor-pointer">+ Стили</span>
+            </div>
+          </div>
+          
+          <div class="flex items-stretch justify-between gap-1.5 py-1">
+            <div class="flex flex-col items-center justify-center gap-1 shrink-0">
+              <button class="w-8 h-8 rounded-xl ya-nav-btn flex items-center justify-center text-xs">🌙</button>
+              <button class="w-8 h-8 rounded-xl ya-nav-btn flex items-center justify-center text-xs">🖥️</button>
+            </div>
+            <div class="w-px bg-black/10 dark:bg-white/10 my-0.5"></div>
+            <div class="flex-1 min-w-0 flex flex-col justify-center px-1">
+              <span class="text-[10px] text-sec font-semibold">Источник: <b class="text-amber-500">Демо</b></span>
+              <div class="flex items-center gap-1 mt-1">
+                <button class="px-2 py-1 rounded-lg ya-nav-btn font-semibold text-[10px] flex items-center gap-1"><span>Импорт</span><span>▾</span></button>
+              </div>
+            </div>
+            <div class="w-px bg-black/10 dark:bg-white/10 my-0.5"></div>
+            <div class="flex items-center justify-center w-24 shrink-0">
+              <div class="text-center p-1 rounded-xl ya-nav-btn w-full">
+                <div class="text-sm">☕</div>
+                <div class="text-[9px] font-bold leading-tight">Чаевые</div>
+              </div>
+            </div>
+          </div>
+          <div class="text-center text-[10px] text-mut pt-2 border-t border-subtle">Оферта • Конфиденциальность</div>
+        </div>
+
+        <!-- ОЦЕНКА -->
+        <div class="space-y-1.5 text-xs">
+          <div class="text-emerald-600 dark:text-emerald-400 font-semibold flex items-start gap-1.5">
+            <span>+</span> <span>Максимальная наглядность; переключение стиля в один тап без раскрывающихся списков.</span>
+          </div>
+          <div class="text-rose-500 font-semibold flex items-start gap-1.5">
+            <span>−</span> <span>Увеличивает общую высоту плашки стенда на 28px.</span>
+          </div>
+        </div>
+      </div>
+      <button onclick="selectVariant(9)" class="w-full mt-4 py-2 rounded-xl ya-nav-btn hover:bg-blue-500 hover:text-white transition font-bold text-xs">Выбрать Вариант 9</button>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- ВАРИАНТ 10: ВНУТРИ ВЫПАДАЮЩЕГО СПИСКА ИМПОРТА -->
+    <!-- ========================================================================= -->
+    <div class="variant-card ya-card rounded-2xl p-5 flex flex-col justify-between" data-cat="novel">
+      <div>
+        <div class="flex items-center justify-between mb-3">
+          <span class="px-2 py-0.5 rounded-md bg-blue-500/15 text-blue-600 dark:text-blue-400 font-bold text-xs">Вариант 10</span>
+          <span class="text-[11px] font-semibold text-sec">Подменю • Zero-Space</span>
+        </div>
+        <h3 class="font-bold text-base mb-1">«Внутри меню "Импорт"»</h3>
+        <p class="text-xs text-sec mb-4">Ноль новых кнопок в интерфейсе: в выпадающее меню импорта добавляется блок «Стиль оформления».</p>
+
+        <!-- РЕАЛЬНЫЙ МОКАП -->
+        <div class="mockup-phone p-3.5 mx-auto mb-4 text-xs">
+          <div class="flex items-center justify-between text-[11px] font-bold pb-2 border-b border-subtle">
+            <span class="px-1.5 py-0.5 rounded bg-black text-white text-[10px]">v13.17.0</span>
+            <span class="truncate ml-1 text-sec">UX-концепт аналитики</span>
+          </div>
+          
+          <div class="flex items-stretch justify-between gap-1.5 py-2.5">
+            <div class="flex flex-col items-center justify-center gap-1 shrink-0">
+              <button class="w-8 h-8 rounded-xl ya-nav-btn flex items-center justify-center text-xs">🌙</button>
+              <button class="w-8 h-8 rounded-xl ya-nav-btn flex items-center justify-center text-xs">🖥️</button>
+            </div>
+            <div class="w-px bg-black/10 dark:bg-white/10 my-0.5"></div>
+            
+            <!-- КОЛОНКА 2 С МЕНЮ -->
+            <div class="flex-1 min-w-0 flex flex-col justify-center px-1 relative">
+              <span class="text-[10px] text-sec font-semibold">Источник: <b class="text-amber-500">Демо</b></span>
+              <div class="flex items-center gap-1 mt-1">
+                <button onclick="toggleMockDropdown('drop-10')" class="px-2 py-1 rounded-lg ya-nav-btn font-semibold text-[10px] flex items-center gap-1">
+                  <span>Импорт</span><span class="text-blue-500">▾</span>
+                </button>
+              </div>
+
+              <!-- РАСКРЫТОЕ МЕНЮ ИМПОРТА СО СТИЛЯМИ -->
+              <div id="drop-10" class="hidden absolute left-0 top-11 w-48 rounded-xl ya-card shadow-2xl p-2 border border-subtle z-50 text-[11px] space-y-1.5">
+                <div class="text-[9px] uppercase font-bold text-sec">Импорт данных</div>
+                <div class="p-1 rounded hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer">📁 Загрузить файл...</div>
+                <div class="p-1 rounded hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer text-emerald-600">📊 Скачать шаблон</div>
+                <div class="h-px bg-black/10 dark:bg-white/10 my-1"></div>
+                <div class="text-[9px] uppercase font-bold text-sec">Стиль оформления</div>
+                <div onclick="pickStyle('Обычный', 'drop-10')" class="flex items-center justify-between p-1 rounded bg-black/5 dark:bg-white/10 font-bold cursor-pointer">
+                  <span>🎨 Обычный</span><span class="text-blue-500">✓</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="w-px bg-black/10 dark:bg-white/10 my-0.5"></div>
+            <div class="flex items-center justify-center w-24 shrink-0">
+              <div class="text-center p-1 rounded-xl ya-nav-btn w-full">
+                <div class="text-sm">☕</div>
+                <div class="text-[9px] font-bold leading-tight">Чаевые</div>
+              </div>
+            </div>
+          </div>
+          <div class="text-center text-[10px] text-mut pt-2 border-t border-subtle">Оферта • Конфиденциальность</div>
+        </div>
+
+        <!-- ОЦЕНКА -->
+        <div class="space-y-1.5 text-xs">
+          <div class="text-emerald-600 dark:text-emerald-400 font-semibold flex items-start gap-1.5">
+            <span>+</span> <span>0 пикселей лишнего места! Внешний вид плашки полностью сохраняется в текущем виде.</span>
+          </div>
+          <div class="text-rose-500 font-semibold flex items-start gap-1.5">
+            <span>−</span> <span>Стили логически не являются частью функционала импорта таблиц.</span>
+          </div>
+        </div>
+      </div>
+      <button onclick="selectVariant(10)" class="w-full mt-4 py-2 rounded-xl ya-nav-btn hover:bg-blue-500 hover:text-white transition font-bold text-xs">Выбрать Вариант 10</button>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- ВАРИАНТ 11: ПЛАВАЮЩИЙ ВИДЖЕТ (FAB) В УГЛУ ЭКРАНА -->
+    <!-- ========================================================================= -->
+    <div class="variant-card ya-card rounded-2xl p-5 flex flex-col justify-between" data-cat="novel">
+      <div>
+        <div class="flex items-center justify-between mb-3">
+          <span class="px-2 py-0.5 rounded-md bg-blue-500/15 text-blue-600 dark:text-blue-400 font-bold text-xs">Вариант 11</span>
+          <span class="text-[11px] font-semibold text-sec">Экран • FAB виджет</span>
+        </div>
+        <h3 class="font-bold text-base mb-1">«Плавающий FAB-виджет»</h3>
+        <p class="text-xs text-sec mb-4">Круглая полупрозрачная кнопка с эффектом Glassmorphism закреплена в углу экрана (всегда под рукой при скролле).</p>
+
+        <!-- РЕАЛЬНЫЙ МОКАП С FAB -->
+        <div class="mockup-phone p-3.5 mx-auto mb-4 text-xs relative h-48 flex flex-col justify-between">
+          <div class="flex items-center justify-between text-[11px] font-bold pb-2 border-b border-subtle">
+            <span class="px-1.5 py-0.5 rounded bg-black text-white text-[10px]">v13.17.0</span>
+            <span class="truncate ml-1 text-sec">UX-концепт аналитики</span>
+          </div>
+          
+          <div class="text-center text-[10px] text-mut py-4">
+            [ Контент экрана приложения курьера... ]
+          </div>
+
+          <!-- ПЛАВАЮЩИЙ FAB В ПРАВОМ НИЖНЕМ УГЛУ -->
+          <button onclick="toggleMockDropdown('drop-11')" class="absolute bottom-3 right-3 w-10 h-10 rounded-full ya-card shadow-2xl border border-blue-500/40 text-blue-500 font-bold flex items-center justify-center text-base hover:scale-110 active:scale-95 transition z-40" title="Сменить стиль">
+            🎨
+          </button>
+
+          <!-- DROPDOWN ДЛЯ FAB -->
+          <div id="drop-11" class="hidden absolute bottom-14 right-3 w-36 rounded-xl ya-card shadow-2xl p-1.5 border border-subtle z-50 text-[11px] space-y-1">
+            <div class="text-[9px] uppercase font-bold text-sec px-1.5 py-0.5">Стиль интерфейса</div>
+            <div onclick="pickStyle('Обычный', 'drop-11')" class="flex items-center justify-between p-1.5 rounded-lg bg-black/5 dark:bg-white/10 font-bold cursor-pointer">
+              <span>Обычный</span><span class="text-blue-500">✓</span>
+            </div>
+          </div>
+
+          <div class="text-center text-[10px] text-mut pt-2 border-t border-subtle">Оферта • Конфиденциальность</div>
+        </div>
+
+        <!-- ОЦЕНКА -->
+        <div class="space-y-1.5 text-xs">
+          <div class="text-emerald-600 dark:text-emerald-400 font-semibold flex items-start gap-1.5">
+            <span>+</span> <span>Доступен из любой части страницы при скролле длинного отчета доходности.</span>
+          </div>
+          <div class="text-rose-500 font-semibold flex items-start gap-1.5">
+            <span>−</span> <span>Перекрывает правый угол карточек, не всем нравится плавающий элемент поверх интерфейса.</span>
+          </div>
+        </div>
+      </div>
+      <button onclick="selectVariant(11)" class="w-full mt-4 py-2 rounded-xl ya-nav-btn hover:bg-blue-500 hover:text-white transition font-bold text-xs">Выбрать Вариант 11</button>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- ВАРИАНТ 12: В МОБИЛЬНУЮ ШАПКУ САМОГО ПРИЛОЖЕНИЯ -->
+    <!-- ========================================================================= -->
+    <div class="variant-card ya-card rounded-2xl p-5 flex flex-col justify-between" data-cat="novel">
+      <div>
+        <div class="flex items-center justify-between mb-3">
+          <span class="px-2 py-0.5 rounded-md bg-blue-500/15 text-blue-600 dark:text-blue-400 font-bold text-xs">Вариант 12</span>
+          <span class="text-[11px] font-semibold text-sec">Приложение • Header Bar</span>
+        </div>
+        <h3 class="font-bold text-base mb-1">«В мобильную шапку приложения»</h3>
+        <p class="text-xs text-sec mb-4">Кнопка размещается внутри самого приложения в хедере: `[ < Назад ] Аналитика [ 🎨 ▾ ]`.</p>
+
+        <!-- РЕАЛЬНЫЙ МОКАП ЭКРАНА ПРИЛОЖЕНИЯ -->
+        <div class="mockup-phone p-3.5 mx-auto mb-4 text-xs">
+          <div class="text-[9px] uppercase font-bold text-mut mb-1">[ Экран приложения курьера ]</div>
+          <!-- ХЕДЕР ПРИЛОЖЕНИЯ -->
+          <div class="flex items-center justify-between py-2 px-2.5 rounded-xl ya-nav-btn relative">
+            <button class="text-xs font-bold flex items-center gap-1">← Доход</button>
+            <span class="font-bold text-xs">Аналитика</span>
+            <button onclick="toggleMockDropdown('drop-12')" class="px-1.5 py-0.5 rounded-lg bg-blue-500/15 text-blue-600 dark:text-blue-400 font-bold flex items-center gap-0.5">
+              <span>🎨</span><span>▾</span>
+            </button>
+
+            <div id="drop-12" class="hidden absolute right-2 top-9 w-36 rounded-xl ya-card shadow-2xl p-1.5 border border-subtle z-50 text-[11px] space-y-1">
+              <div class="text-[9px] uppercase font-bold text-sec px-1.5 py-0.5">Стиль</div>
+              <div onclick="pickStyle('Обычный', 'drop-12')" class="flex items-center justify-between p-1.5 rounded-lg bg-black/5 dark:bg-white/10 font-bold cursor-pointer">
+                <span>Обычный</span><span class="text-blue-500">✓</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="py-4 text-center text-[10px] text-sec">
+            Карточки показателей и графики...
+          </div>
+        </div>
+
+        <!-- ОЦЕНКА -->
+        <div class="space-y-1.5 text-xs">
+          <div class="text-emerald-600 dark:text-emerald-400 font-semibold flex items-start gap-1.5">
+            <span>+</span> <span>Нативный паттерн мобильных приложений (action-бар), плашка стенда остается нетронутой.</span>
+          </div>
+          <div class="text-rose-500 font-semibold flex items-start gap-1.5">
+            <span>−</span> <span>Смешивает сервисную настройку стенда с внутренним интерфейсом курьерского приложения.</span>
+          </div>
+        </div>
+      </div>
+      <button onclick="selectVariant(12)" class="w-full mt-4 py-2 rounded-xl ya-nav-btn hover:bg-blue-500 hover:text-white transition font-bold text-xs">Выбрать Вариант 12</button>
+    </div>
+
+  </main>
+
+  <footer class="max-w-7xl mx-auto mt-12 pt-6 border-t border-subtle text-center text-xs text-sec">
+    Независимая UX-лаборатория концепта • 12 интерактивных прототипов кнопки стиля оформления • v13.17.0
+  </footer>
+
+  <!-- СКРИПТ ВИТРИНЫ -->
+  <script>
+    function toggleShowcaseTheme() {
+      const isLight = document.body.classList.contains('light-mode');
+      if (isLight) {
+        document.body.classList.remove('light-mode');
+        document.getElementById('themeIcon').textContent = '☀️';
+        document.getElementById('themeText').textContent = 'Светлая тема';
+      } else {
+        document.body.classList.add('light-mode');
+        document.getElementById('themeIcon').textContent = '🌙';
+        document.getElementById('themeText').textContent = 'Темная тема';
+      }
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      const m = document.getElementById('toastMsg');
+      m.textContent = msg;
+      t.classList.remove('-translate-y-12', 'opacity-0', 'pointer-events-none');
+      t.classList.add('translate-y-0', 'opacity-100');
+      setTimeout(() => {
+        t.classList.add('-translate-y-12', 'opacity-0', 'pointer-events-none');
+        t.classList.remove('translate-y-0', 'opacity-100');
+      }, 2500);
+    }
+
+    function toggleMockDropdown(id) {
+      // Закрыть другие
+      document.querySelectorAll('[id^="drop-"]').forEach(el => {
+        if (el.id !== id) el.classList.add('hidden');
+      });
+      const target = document.getElementById(id);
+      if (target) {
+        target.classList.toggle('hidden');
+      }
+    }
+
+    function pickStyle(name, dropdownId) {
+      const drop = document.getElementById(dropdownId);
+      if (drop) drop.classList.add('hidden');
+      showToast('Выбран стиль: ' + name + ' (текущий)');
+    }
+
+    function selectVariant(num) {
+      showToast('Вы выбрали Вариант ' + num + '! Напишите этот номер в чат для интеграции.');
+    }
+
+    function filterCards(cat) {
+      document.querySelectorAll('.cat-pill').forEach(btn => {
+        btn.classList.remove('bg-blue-500', 'text-white');
+        btn.classList.add('ya-nav-btn');
+      });
+      event.target.classList.remove('ya-nav-btn');
+      event.target.classList.add('bg-blue-500', 'text-white');
+
+      document.querySelectorAll('.variant-card').forEach(card => {
+        if (cat === 'all' || card.dataset.cat === cat) {
+          card.classList.remove('hidden');
+        } else {
+          card.classList.add('hidden');
+        }
+      });
+    }
+
+    // Закрытие дропдаунов при клике вне
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('button') && !e.target.closest('[id^="drop-"]')) {
+        document.querySelectorAll('[id^="drop-"]').forEach(el => el.classList.add('hidden'));
+      }
+    });
+  </script>
+</body>
+</html>

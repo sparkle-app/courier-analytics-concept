@@ -1491,4 +1491,12 @@ body:not(.light-mode) #authorTipModal .tea-gb:hover {
   #btnAuthorTipDesktop {
     display: none !important;
   }
+
+  .banner-style-desktop {
+    display: none !important;
+  }
+}
+
+.banner-style-desktop {
+  display: inline-flex !important;
 }

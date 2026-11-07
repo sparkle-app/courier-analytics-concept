@@ -1,5 +1,5 @@
 // =============================================================================
-// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.16.8) — ЛОГИКА И СОСТОЯНИЕ (script.js)
+// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.17.0) — ЛОГИКА И СОСТОЯНИЕ (script.js)
 // Оптимизированная и модульная версия с гранулярным рендерингом и кэшированием
 // =============================================================================
 
@@ -4532,6 +4532,7 @@ function closeImportModal() {
  * Переключение выпадающего меню быстрых действий импорта (Вариант 2)
  */
 function toggleImportDropdown(event) {
+  closeStyleDropdown();
   if (event) {
     event.stopPropagation();
     event.preventDefault();
@@ -4661,6 +4662,10 @@ function setupImportMaster() {
     const wrapper = document.getElementById('importSplitWrapper');
     if (wrapper && !wrapper.contains(e.target)) {
       closeImportDropdown();
+    }
+    const styleWrapper = document.getElementById('styleSplitWrapper');
+    if (styleWrapper && !styleWrapper.contains(e.target)) {
+      closeStyleDropdown();
     }
   });
 }
@@ -5873,3 +5878,49 @@ const isDesktopDevice = (window.innerWidth >= 1024) &&
 applyLayoutMode(isDesktopDevice ? 'pc' : 'phone', false);
 
 renderAll();
+
+// =============================================================================
+// ВЫБОР СТИЛЯ ОФОРМЛЕНИЯ (v13.17.0)
+// =============================================================================
+let currentUiStyle = 'default';
+
+function toggleStyleDropdown(event) {
+  if (event) {
+    event.stopPropagation();
+    event.preventDefault();
+  }
+  const menu = document.getElementById('styleDropdownMenu');
+  const icon = document.getElementById('styleChevronIcon');
+  if (!menu) return;
+  const isHidden = menu.classList.contains('hidden');
+  if (isHidden) {
+    closeImportDropdown();
+    menu.classList.remove('hidden');
+    if (icon) icon.classList.add('rotate-180');
+  } else {
+    menu.classList.add('hidden');
+    if (icon) icon.classList.remove('rotate-180');
+  }
+}
+
+function closeStyleDropdown() {
+  const menu = document.getElementById('styleDropdownMenu');
+  const icon = document.getElementById('styleChevronIcon');
+  if (menu && !menu.classList.contains('hidden')) {
+    menu.classList.add('hidden');
+    if (icon) icon.classList.remove('rotate-180');
+  }
+}
+
+function selectUiStyle(styleId) {
+  currentUiStyle = styleId;
+  const check = document.getElementById('styleCheck-default');
+  if (check) {
+    if (styleId === 'default') {
+      check.classList.remove('hidden');
+    } else {
+      check.classList.add('hidden');
+    }
+  }
+  showToast('Стиль: Обычный (текущий)');
+}
