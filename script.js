@@ -1,5 +1,5 @@
 // =============================================================================
-// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.15.1) — ЛОГИКА И СОСТОЯНИЕ (script.js)
+// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.16.0) — ЛОГИКА И СОСТОЯНИЕ (script.js)
 // Оптимизированная и модульная версия с гранулярным рендерингом и кэшированием
 // =============================================================================
 
@@ -100,7 +100,9 @@ const dom = {
   layoutContainer:          $('layoutContainer'),
   screenMain:               $('screenMain'),
   screenMiddleSpec:         $('screenMiddleSpec'),
-  screenSettings:           $('screenSettings')
+  screenSettings:           $('screenSettings'),
+  authorTipModal:           $('authorTipModal'),
+  btnAuthorTip:             $('btnAuthorTip')
 };
 
 /**
@@ -2591,6 +2593,9 @@ function renderHeader() {
 function renderAll(skipSettingsSlidersRebuild = false) {
   renderHeader();
   renderBlock1();
+  if (typeof AuthorTipTeaStation !== 'undefined') {
+    AuthorTipTeaStation.resize();
+  }
   renderBlock2();
   renderBlock3();
   renderSettingsScreen(skipSettingsSlidersRebuild);
@@ -5040,7 +5045,10 @@ function showToast(msg) {
 
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
-    if (!dom.expenseInfoModal.classList.contains('hidden')) {
+    const tipModal = document.getElementById('authorTipModal');
+    if (tipModal && !tipModal.classList.contains('hidden')) {
+      closeAuthorTipModal();
+    } else if (!dom.expenseInfoModal.classList.contains('hidden')) {
       closeExpenseInfoModal();
     } else if (!dom.realMapModal.classList.contains('hidden')) {
       cancelRealMapModal();
@@ -5055,10 +5063,708 @@ window.addEventListener('keydown', (e) => {
 });
 
 // -----------------------------------------------------------------------------
+
+// =============================================================================
+// ИНТЕРАКТИВНАЯ ЧАЙНАЯ СТАНЦИЯ И МОДАЛЬНОЕ ОКНО "НА ЧАЙ АВТОРУ" (v13.16.0)
+// =============================================================================
+
+const AuthorTipTeaStation = (function() {
+  let initialized = false;
+  let running = false;
+  let animId = null;
+
+  const SCALE = 0.85;
+  const TIERS = [
+    { n: 6, d: 2000, s: 10.5 * SCALE, t: 'Пакетик-другой', c: '#3A8DFF' },
+    { n: 14, d: 2800, s: 7.8 * SCALE, t: 'На целый чайник', c: '#FFD60A' },
+    { n: 40, d: 4200, s: 5.6 * SCALE, t: 'Чайная церемония', c: '#FF3FA0' }
+  ];
+  const TCOL = { 6: '#3A8DFF', 14: '#FFD60A', 40: '#FF3FA0' };
+
+  let cv, x;
+  const G = 2000, SUB = 8, MU = 0.6, CR = 13, II = 1 / 508, NW = 30, A0 = 13800;
+  const LC = [[-12, -17], [12, -17], [-12, 0], [12, 0], [-12, 17], [12, 17]];
+  let W, H, FL, cx, rimY, dpr;
+  let floor = '#CBD1DE', edge = 'rgba(60,80,115,.45)';
+  let SEG = [], B = [], dust = [], drops = [], pud = [], steam = [], drag = null;
+  let ptr = { x: 0, y: 0 }, count = 0;
+  let lv = 0, Aw = A0, tea = 0;
+  const hs = new Float32Array(NW), vs = new Float32Array(NW);
+  const R = Math.random;
+
+  const hw = y => 58 + 18 * ((FL - 14 - y) / 196) - 3;
+
+  function resize() {
+    if (!cv || !cv.parentNode) return;
+    const r = cv.parentNode.getBoundingClientRect();
+    if (!r.width) return;
+    dpr = window.devicePixelRatio || 1;
+    const H_css = 330;
+    cv.style.height = H_css + 'px';
+    cv.width = r.width * dpr;
+    cv.height = H_css * dpr;
+
+    x.setTransform(dpr * SCALE, 0, 0, dpr * SCALE, 0, 0);
+
+    W = r.width / SCALE;
+    H = H_css / SCALE;
+    FL = H - 26;
+    cx = W / 2 - 18;
+    rimY = FL - 210;
+
+    const isDark = !document.body.classList.contains('light-mode');
+    floor = isDark ? '#2D3748' : '#CBD1DE';
+    edge = isDark ? 'rgba(148,163,184,.3)' : 'rgba(60,80,115,.45)';
+
+    const y0 = FL - 98, y1 = FL - 12, P0 = [cx + hw(y0 + 6) + 6, y0 + 6], C1 = [cx + 122, y0 - 4], C2 = [cx + 124, y1 - 4], P3 = [cx + hw(y1 - 10) + 6, y1 - 10];
+    const bz = t => {
+      const a = (1 - t) ** 3, b = 3 * t * (1 - t) ** 2, c = 3 * t * t * (1 - t), d = t ** 3;
+      return [a * P0[0] + b * C1[0] + c * C2[0] + d * P3[0], a * P0[1] + b * C1[1] + c * C2[1] + d * P3[1]];
+    };
+    const hp = [0, .25, .5, .75, 1].map(bz);
+    SEG = [
+      [cx - 76, rimY, cx - 58, FL - 14],
+      [cx + 76, rimY, cx + 58, FL - 14],
+      [cx - 58, FL - 14, cx + 58, FL - 14],
+      [cx - 72, FL - 8, cx - 72, FL],
+      [cx + 72, FL - 8, cx + 72, FL]
+    ];
+    for (let i = 0; i < 4; i++) SEG.push([...hp[i], ...hp[i + 1]]);
+    lv = FL - 14 - Aw / 128;
+  }
+
+  const wp = (b, l) => [b.x + l[0] * b.cs - l[1] * b.sn, b.y + l[0] * b.sn + l[1] * b.cs];
+  const pp = (b, l) => [b.px + l[0] * b.pc - l[1] * b.ps, b.py + l[0] * b.ps + l[1] * b.pc];
+  function con(A, pA, C, pC, nx, ny, d, la, lc) {
+    const tx = -ny, ty = nx, ax = pA[0] - A.x, ay = pA[1] - A.y;
+    let bx = 0, by = 0;
+    let wn = 1 + II * (ax * ny - ay * nx) ** 2, wt = 1 + II * (ax * ty - ay * tx) ** 2;
+    if (C) {
+      bx = pC[0] - C.x; by = pC[1] - C.y;
+      wn += 1 + II * (bx * ny - by * nx) ** 2;
+      wt += 1 + II * (bx * ty - by * tx) ** 2;
+    }
+    const l = d / wn;
+    A.x -= nx * l; A.y -= ny * l; A.a -= II * (ax * ny - ay * nx) * l;
+    if (C) { C.x += nx * l; C.y += ny * l; C.a += II * (bx * ny - by * nx) * l; }
+    const cA = pp(A, la), cC = C ? pp(C, lc) : [pC[0], pC[1]];
+    const fA = wp(A, la), fC = C ? wp(C, lc) : [pA[0], pA[1]];
+    const vt = ((fA[0] - cA[0]) - (fC[0] - cC[0])) * tx + ((fA[1] - cA[1]) - (fC[1] - cC[1])) * ty;
+    const lt = Math.max(-MU * Math.abs(l), Math.min(MU * Math.abs(l), -vt / wt));
+    A.x += tx * lt; A.y += ty * lt; A.a += II * (ax * ty - ay * tx) * lt;
+    if (C) { C.x -= tx * lt; C.y -= ty * lt; C.a += II * (bx * ty - by * tx) * lt; }
+  }
+
+  function puddle(px) {
+    for (const p of pud) if (Math.abs(p.x - px) < 24) { p.a += 1; return; }
+    pud.push({ x: px, a: 1, w: 10 });
+  }
+
+  function splash(px, k = 1) {
+    const i = Math.max(0, Math.min(NW - 1, ((px - (cx - 76)) / 152 * NW) | 0));
+    vs[i] += 4.5 * k;
+    for (let j = 0; j < 3 * k; j++) {
+      drops.push({
+        x: px + (R() - .5) * 12,
+        y: surfY(px) - 2,
+        vx: (R() - .5) * 110,
+        vy: -70 - R() * 90 * k,
+        in: 1
+      });
+    }
+  }
+
+  function step(dt) {
+    const sdt = dt / SUB, g = G * sdt * sdt;
+    for (let s = 0; s < SUB; s++) {
+      for (const b of B) {
+        if (drag && drag.b === b) {
+          b.px = b.x; b.py = b.y; b.pa = b.a; b.pc = b.cs; b.ps = b.sn;
+          const tx = ptr.x - (drag.lx * b.cs - drag.ly * b.sn), ty = ptr.y - (drag.lx * b.sn + drag.ly * b.cs);
+          b.vx = (tx - b.x) / sdt; b.vy = (ty - b.y) / sdt;
+          b.x = tx; b.y = ty;
+          continue;
+        }
+        b.px = b.x; b.py = b.y; b.pa = b.a; b.pc = b.cs; b.ps = b.sn;
+        const bG = g * (1 - 1.25 * b.f);
+        b.vx *= (1 - .15 * sdt) * (b.f > 0 ? (1 - .85 * b.f) : 1);
+        b.vy = b.vy * (1 - .15 * sdt) * (b.f > 0 ? (1 - .85 * b.f) : 1) + bG;
+        b.w *= (1 - .25 * sdt) * (b.f > 0 ? (1 - .85 * b.f) : 1);
+        b.x += b.vx * sdt; b.y += b.vy * sdt; b.a += b.w * sdt;
+        b.cs = Math.cos(b.a); b.sn = Math.sin(b.a);
+      }
+      for (let i = 0; i < B.length; i++) {
+        const A = B[i];
+        for (let j = i + 1; j < B.length; j++) {
+          const C = B[j];
+          if ((A.x - C.x) ** 2 + (A.y - C.y) ** 2 > 3600) continue;
+          for (const la of LC) {
+            const pa = wp(A, la);
+            for (const lc of LC) {
+              const pc = wp(C, lc);
+              const dx = pc[0] - pa[0], dy = pc[1] - pa[1], d2 = dx * dx + dy * dy;
+              if (d2 < 4 * CR * CR && d2 > .001) {
+                const d = Math.sqrt(d2);
+                con(A, pa, C, pc, dx / d, dy / d, 2 * CR - d, la, lc);
+              }
+            }
+          }
+        }
+        for (const la of LC) {
+          const p = wp(A, la);
+          if (p[1] > FL - CR) con(A, p, null, [p[0], FL], 0, -1, p[1] - (FL - CR), la, null);
+          for (const [x1, y1, x2, y2] of SEG) {
+            const ex = x2 - x1, ey = y2 - y1, el = Math.hypot(ex, ey);
+            const u = Math.max(0, Math.min(1, ((p[0] - x1) * ex + (p[1] - y1) * ey) / (el * el)));
+            const qx = x1 + u * ex, qy = y1 + u * ey;
+            const dx = p[0] - qx, dy = p[1] - qy, d2 = dx * dx + dy * dy;
+            if (d2 < CR * CR && d2 > .0001) {
+              const d = Math.sqrt(d2);
+              con(A, p, null, [qx, qy], dx / d, dy / d, CR - d, la, null);
+            }
+          }
+        }
+      }
+      for (const b of B) {
+        b.cs = Math.cos(b.a); b.sn = Math.sin(b.a);
+        b.vx = (b.x - b.px) / sdt; b.vy = (b.y - b.py) / sdt;
+        b.w = (b.a - b.pa) / sdt;
+      }
+    }
+  }
+
+  function surfY(px) {
+    const u = Math.max(0, Math.min(1, (px - (cx - 76)) / 152));
+    const idx = Math.max(0, Math.min(NW - 2, (u * (NW - 1)) | 0));
+    const fr = u * (NW - 1) - idx;
+    return lv + hs[idx] * (1 - fr) + hs[idx + 1] * fr;
+  }
+
+  function water(dt) {
+    const f = dt * 60;
+    let wet = 0, disp = 0;
+    for (const b of B) {
+      let ins = 0;
+      for (const l of LC) {
+        const p = wp(b, l);
+        if (p[0] > cx - 74 && p[0] < cx + 74 && p[1] > rimY && p[1] < FL - 14) {
+          const s = surfY(p[0]);
+          if (p[1] > s) ins++;
+        }
+      }
+      b.f = ins / 6;
+      if (b.f > 0) {
+        disp += b.f * 520;
+        wet += b.f;
+        b.wt = Math.min(1, b.wt + dt * .2);
+        if (!b.sub && b.vy > 40) {
+          splash(b.x, Math.min(2.5, b.vy / 180));
+          b.sub = true;
+        }
+        if (b.t0 <= 0 && b.wt > .2 && Math.hypot(b.vx, b.vy) > 15) {
+          dust.push({ x: b.x + (R() - .5) * 16, y: b.y + (R() - .5) * 16, vx: (R() - .5) * 20, vy: (R() - .5) * 10, l: 1 });
+          b.t0 = .04;
+        }
+      } else {
+        if (b.sub && b.y < rimY) b.sub = false;
+      }
+    }
+    tea = Math.min(.92, tea + wet * dt * .03);
+    let L = FL - 14 - (Aw + disp) / 128;
+    if (L < rimY + 4) {
+      if ((rimY + 4 - L) * 128 > 40 && R() < .5) {
+        const sd = R() < .5 ? -1 : 1;
+        Aw -= 60;
+        drops.push({ x: cx + sd * 80, y: rimY - 2, vx: sd * (50 + R() * 90), vy: -40 - R() * 60, in: 0 });
+      }
+      L = rimY + 4;
+    }
+    lv += (L - lv) * Math.min(1, dt * 6);
+    for (let i = 0; i < NW; i++) vs[i] += (-.035 * hs[i] - .025 * vs[i]) * f;
+    for (let i = 0; i < NW; i++) hs[i] = Math.max(-30, Math.min(26, hs[i] + vs[i] * f));
+    for (let p = 0; p < 3; p++) {
+      const ld = [], rd = [];
+      for (let i = 0; i < NW; i++) {
+        ld[i] = i ? .25 * (hs[i] - hs[i - 1]) : 0;
+        rd[i] = i < NW - 1 ? .25 * (hs[i] - hs[i + 1]) : 0;
+      }
+      for (let i = 0; i < NW; i++) {
+        if (i) { vs[i - 1] += ld[i]; hs[i - 1] += ld[i]; }
+        if (i < NW - 1) { vs[i + 1] += rd[i]; hs[i + 1] += rd[i]; }
+      }
+    }
+    for (let i = drops.length - 1; i >= 0; i--) {
+      const d = drops[i]; d.vy += G * dt; d.x += d.vx * dt; d.y += d.vy * dt;
+      if (d.in && d.y > rimY) {
+        const w = hw(d.y);
+        if (Math.abs(d.x - cx) > w) { d.x = cx + Math.sign(d.x - cx) * w; d.vx *= -.35; }
+      }
+      if (d.y > FL - 3) { puddle(d.x); drops.splice(i, 1); }
+      else if (d.in && d.vy > 0 && d.y > rimY && d.y > surfY(d.x)) { splash(d.x, 1.2); drops.splice(i, 1); }
+    }
+    for (const p of pud) p.w += (Math.min(70, 10 + Math.sqrt(p.a) * 2.6) - p.w) * Math.min(1, dt * 1.5);
+    if (tea > .12 && R() < .25) steam.push({ x: cx + (R() - .5) * hw(lv) * 1.5, y: lv - 4, l: 0, s: 10 + R() * 9, ph: R() * 6.3 });
+    for (let i = steam.length - 1; i >= 0; i--) {
+      const s = steam[i]; s.l += dt * .5; s.y -= 26 * dt; s.x += Math.sin(s.l * 9 + s.ph) * 8 * dt;
+      if (s.l > 1) steam.splice(i, 1);
+    }
+  }
+
+  function spawn(s, y) {
+    const a = (R() - .5) * 1.2, px = R() < .5 ? cx + (R() - .5) * 90 : W * .1 + R() * W * .8;
+    const yy = y ?? -60, ax = px + 26 * Math.sin(a), ay = yy - 26 * Math.cos(a), rp = d => ({ x: ax, y: ay + d, px: ax, py: ay + d });
+    B.push({ x: px, y: yy, a, vx: (R() - .5) * 60, vy: R() * 100, w: (R() - .5) * 3, px: 0, py: 0, pa: a, cs: Math.cos(a), sn: Math.sin(a), pc: 1, ps: 0, t: s, t0: 0, f: 0, wt: 0, sub: false, r1: rp(10), r2: rp(24) });
+    count++; ui();
+    if (B.length > 160) B.shift();
+  }
+
+  function rope(dt) {
+    const g = G * dt * dt;
+    for (const b of B) {
+      const ax = b.x + 26 * b.sn, ay = b.y - 26 * b.cs, dm = b.f > 0 ? .9 : .972;
+      for (const p of [b.r1, b.r2]) {
+        const vx = (p.x - p.px) * dm, vy = (p.y - p.py) * dm;
+        p.px = p.x; p.py = p.y; p.x += vx; p.y += vy + g * (1 - 1.3 * b.f);
+      }
+      for (let k = 0; k < 3; k++) {
+        let dx = b.r1.x - ax, dy = b.r1.y - ay, d = Math.hypot(dx, dy) || 1, s = (d - 14) / d;
+        b.r1.x -= dx * s; b.r1.y -= dy * s;
+        dx = b.r2.x - b.r1.x; dy = b.r2.y - b.r1.y; d = Math.hypot(dx, dy) || 1; s = (d - 17) / d * .5;
+        b.r1.x += dx * s; b.r1.y += dy * s; b.r2.x -= dx * s; b.r2.y -= dy * s;
+      }
+      if (b.r1.y > FL - 3) b.r1.y = FL - 3;
+      if (b.r2.y > FL - 4) b.r2.y = FL - 4;
+    }
+  }
+
+  function sim(dt) {
+    water(dt); step(dt); rope(dt);
+    for (const b of B) b.t0 -= dt;
+    for (let i = dust.length - 1; i >= 0; i--) {
+      const d = dust[i]; d.vy += 500 * dt; d.x += d.vx * dt; d.y += d.vy * dt; d.l -= dt * 2;
+      if (d.l <= 0) dust.splice(i, 1);
+    }
+  }
+
+  function tip(T) {
+    const n = T.n, s = n, pl = n % 10 == 1 && n % 100 != 11 ? 'пакетик' : n % 10 > 1 && n % 10 < 5 && (n % 100 < 12 || n % 100 > 14) ? 'пакетика' : 'пакетиков';
+    for (let i = 0; i < n; i++) setTimeout(() => spawn(s), i * T.d / n + R() * 90);
+    const t = document.getElementById('teaToast');
+    if (t) {
+      t.textContent = `+${n} ${pl}. Спасибо! 💛`;
+      t.classList.remove('on');
+      void t.offsetWidth;
+      t.classList.add('on');
+    }
+  }
+
+  function ui() {
+    const b = document.getElementById('teaTotal');
+    const tn = document.getElementById('teaNoun');
+    if (b) {
+      b.textContent = count;
+      b.classList.remove('bump');
+      void b.offsetWidth;
+      b.classList.add('bump');
+    }
+    if (tn) {
+      const a = count % 10, c = count % 100;
+      tn.textContent = a == 1 && c != 11 ? 'пакетик' : a > 1 && a < 5 && (c < 12 || c > 14) ? 'пакетика' : 'пакетиков';
+    }
+  }
+
+  const wc = (k, a) => `rgba(${(170 + 26 * tea) * k | 0},${(215 - 105 * tea) * k | 0},${(235 - 195 * tea) * k | 0},${a})`;
+
+  function bag(b) {
+    x.save();
+    x.translate(b.x, b.y);
+    x.rotate(b.a);
+    const Wb = 24, Hb = 34, r = 7;
+    x.beginPath();
+    x.moveTo(-Wb + r, -Hb); x.lineTo(Wb - r, -Hb);
+    x.arcTo(Wb, -Hb, Wb, -Hb + r, r); x.lineTo(Wb, Hb - r);
+    x.arcTo(Wb, Hb, Wb - r, Hb, r); x.lineTo(-Wb + r, Hb);
+    x.arcTo(-Wb, Hb, -Wb, Hb - r, r); x.lineTo(-Wb, -Hb + r);
+    x.arcTo(-Wb, -Hb, -Wb + r, -Hb, r);
+    x.closePath();
+    const g = x.createLinearGradient(-Wb, -Hb, Wb, Hb);
+    const w = b.wt || 0;
+    const colA = `rgb(${252 - 120 * w | 0},${247 - 145 * w | 0},${234 - 170 * w | 0})`;
+    const colB = `rgb(${227 - 120 * w | 0},${214 - 140 * w | 0},${188 - 145 * w | 0})`;
+    g.addColorStop(0, colA); g.addColorStop(1, colB);
+    x.fillStyle = g; x.fill();
+    x.strokeStyle = `rgba(130,105,75,${.35 + .4 * w})`; x.lineWidth = 1.2; x.stroke();
+
+    x.strokeStyle = `rgba(100,75,50,${.5 + .3 * w})`; x.lineWidth = 1.2; x.setLineDash([2.5, 2.5]);
+    x.beginPath(); x.moveTo(-Wb + 3, -Hb + 8); x.lineTo(Wb - 3, -Hb + 8); x.stroke();
+    x.setLineDash([]);
+    x.fillStyle = `rgba(180,185,195,${.8 - .2 * w})`;
+    x.fillRect(-3, -Hb + 7, 6, 2.2);
+
+    x.fillStyle = `rgba(80,55,30,${.16 + .22 * w})`;
+    for (let i = 0; i < 9; i++) {
+      const rx = (i % 3 - 1) * 11 + (i > 4 ? 3 : -3), ry = ((i / 3 | 0) - 1) * 13;
+      x.beginPath(); x.arc(rx, ry + 4, 1.8, 0, 6.3); x.fill();
+    }
+    x.restore();
+
+    const ax = b.x + 26 * b.sn, ay = b.y - 26 * b.cs;
+    x.strokeStyle = 'rgba(230,225,215,.85)'; x.lineWidth = 1.3;
+    x.beginPath(); x.moveTo(ax, ay); x.lineTo(b.r1.x, b.r1.y); x.lineTo(b.r2.x, b.r2.y); x.stroke();
+
+    x.save();
+    x.translate(b.r2.x, b.r2.y);
+    const ra = Math.atan2(b.r2.y - b.r1.y, b.r2.x - b.r1.x) - Math.PI / 2;
+    x.rotate(ra);
+    x.fillStyle = TCOL[b.t] || '#3A8DFF';
+    x.beginPath(); x.roundRect(-11, -3, 22, 28, 4); x.fill();
+    x.strokeStyle = 'rgba(0,0,0,.22)'; x.lineWidth = 1; x.stroke();
+    x.fillStyle = '#fff'; x.beginPath(); x.arc(0, 11, 4.5, 0, 6.3); x.fill();
+    x.fillStyle = 'rgba(0,0,0,.15)'; x.beginPath(); x.arc(0, 3, 2, 0, 6.3); x.fill();
+    x.restore();
+  }
+
+  function drawWater() {
+    x.save();
+    x.beginPath();
+    const y0 = FL - 98, y1 = FL - 12;
+    x.moveTo(cx - 76, rimY);
+    x.bezierCurveTo(cx - 76, rimY + 60, cx - hw(y0), y0, cx - hw(y0 + 6), y0 + 6);
+    x.lineTo(cx - hw(y1 - 10), y1 - 10);
+    x.bezierCurveTo(cx - hw(y1), y1, cx - 58, FL - 14, cx - 58, FL - 14);
+    x.lineTo(cx + 58, FL - 14);
+    x.bezierCurveTo(cx + 58, FL - 14, cx + hw(y1), y1, cx + hw(y1 - 10), y1 - 10);
+    x.lineTo(cx + hw(y0 + 6), y0 + 6);
+    x.bezierCurveTo(cx + hw(y0), y0, cx + 76, rimY + 60, cx + 76, rimY);
+    x.closePath();
+    x.clip();
+
+    x.beginPath();
+    x.moveTo(cx - 76, surfY(cx - 76));
+    for (let i = 1; i < NW; i++) {
+      const px = cx - 76 + i * (152 / (NW - 1));
+      x.lineTo(px, surfY(px));
+    }
+    x.lineTo(cx + 76, FL); x.lineTo(cx - 76, FL); x.closePath();
+
+    const gw = x.createLinearGradient(0, lv, 0, FL);
+    gw.addColorStop(0, wc(1.05, .32 + .38 * tea));
+    gw.addColorStop(.6, wc(.85, .55 + .35 * tea));
+    gw.addColorStop(1, wc(.55, .78 + .18 * tea));
+    x.fillStyle = gw; x.fill();
+
+    for (const d of dust) {
+      x.fillStyle = `rgba(${120 + 30 * tea | 0},${60 - 20 * tea | 0},20,${d.l * (.4 + .4 * tea)})`;
+      x.beginPath(); x.arc(d.x, d.y, 1.5 + (1 - d.l) * 4, 0, 6.3); x.fill();
+    }
+    for (const s of steam) {
+      x.fillStyle = `rgba(255,255,255,${(1 - s.l) * .22 * tea})`;
+      x.beginPath(); x.arc(s.x, s.y, s.s * (.5 + s.l), 0, 6.3); x.fill();
+    }
+
+    x.strokeStyle = wc(1.2, .85); x.lineWidth = 2.4;
+    x.beginPath(); x.moveTo(cx - 76, surfY(cx - 76));
+    for (let i = 1; i < NW; i++) {
+      const px = cx - 76 + i * (152 / (NW - 1));
+      x.lineTo(px, surfY(px));
+    }
+    x.stroke();
+    x.restore();
+  }
+
+  function holder() {
+    const y0 = FL - 98, y1 = FL - 12;
+    const gg = x.createLinearGradient(cx - 86, 0, cx + 86, 0);
+    gg.addColorStop(0, '#B38728'); gg.addColorStop(.25, '#FBF5B7'); gg.addColorStop(.5, '#DAA520'); gg.addColorStop(.75, '#FBF5B7'); gg.addColorStop(1, '#AA771C');
+
+    x.save();
+    x.beginPath();
+    x.moveTo(cx + hw(y0 + 6) + 6, y0 + 6);
+    x.bezierCurveTo(cx + 122, y0 - 4, cx + 124, y1 - 4, cx + hw(y1 - 10) + 6, y1 - 10);
+    x.bezierCurveTo(cx + 110, y1 + 6, cx + 108, y0 + 6, cx + hw(y0 + 6) + 6, y0 + 6);
+    x.closePath();
+    x.fillStyle = gg; x.fill();
+    x.strokeStyle = '#6E4D12'; x.lineWidth = 1.4; x.stroke();
+    x.restore();
+
+    x.save();
+    x.beginPath();
+    x.moveTo(cx - hw(y0), y0);
+    x.lineTo(cx - hw(y1), y1);
+    x.bezierCurveTo(cx - 40, FL - 6, cx + 40, FL - 6, cx + hw(y1), y1);
+    x.lineTo(cx + hw(y0), y0);
+    x.bezierCurveTo(cx + 40, y0 + 10, cx - 40, y0 + 10, cx - hw(y0), y0);
+    x.closePath();
+    x.clip();
+
+    x.strokeStyle = gg; x.lineWidth = 3.6;
+    for (let i = -8; i <= 8; i++) {
+      x.beginPath(); x.moveTo(cx + i * 22 - 60, y0 - 10); x.lineTo(cx + i * 22 + 60, y1 + 10); x.stroke();
+      x.beginPath(); x.moveTo(cx + i * 22 + 60, y0 - 10); x.lineTo(cx + i * 22 - 60, y1 + 10); x.stroke();
+    }
+    x.restore();
+
+    x.strokeStyle = gg; x.lineWidth = 5;
+    x.beginPath(); x.ellipse(cx, y0 + 4, hw(y0) + 2, 6, 0, 0, 6.3); x.stroke();
+    x.beginPath(); x.ellipse(cx, y1 + 2, hw(y1) + 2, 5, 0, 0, 6.3); x.stroke();
+
+    x.fillStyle = gg;
+    x.beginPath();
+    x.moveTo(cx - hw(y1) - 4, y1 + 2);
+    x.lineTo(cx - 72, FL);
+    x.lineTo(cx + 72, FL);
+    x.lineTo(cx + hw(y1) + 4, y1 + 2);
+    x.closePath();
+    x.fill();
+    x.strokeStyle = '#6E4D12'; x.lineWidth = 1.5; x.stroke();
+  }
+
+  function glass() {
+    x.save();
+    x.beginPath();
+    x.ellipse(cx, rimY, 76, 9, 0, 0, 6.3);
+    const gl = x.createLinearGradient(cx - 76, 0, cx + 76, 0);
+    gl.addColorStop(0, 'rgba(255,255,255,.65)'); gl.addColorStop(.1, 'rgba(255,255,255,.15)');
+    gl.addColorStop(.5, 'rgba(255,255,255,.02)'); gl.addColorStop(.9, 'rgba(255,255,255,.2)');
+    gl.addColorStop(1, 'rgba(255,255,255,.7)');
+    x.fillStyle = gl; x.fill();
+    x.strokeStyle = 'rgba(255,255,255,.85)'; x.lineWidth = 2.2; x.stroke();
+
+    x.strokeStyle = 'rgba(255,255,255,.5)'; x.lineWidth = 2.2;
+    x.beginPath();
+    x.moveTo(cx - 76, rimY);
+    x.bezierCurveTo(cx - 76, rimY + 60, cx - hw(FL - 98), FL - 98, cx - hw(FL - 12), FL - 12);
+    x.stroke();
+
+    x.beginPath();
+    x.moveTo(cx + 76, rimY);
+    x.bezierCurveTo(cx + 76, rimY + 60, cx + hw(FL - 98), FL - 98, cx + hw(FL - 12), FL - 12);
+    x.stroke();
+
+    x.strokeStyle = 'rgba(255,255,255,.55)'; x.lineWidth = 3.6;
+    x.beginPath();
+    x.moveTo(cx - 66, rimY + 14);
+    x.bezierCurveTo(cx - 64, rimY + 70, cx - hw(FL - 98) + 8, FL - 90, cx - hw(FL - 12) + 6, FL - 20);
+    x.stroke();
+    x.restore();
+    holder();
+  }
+
+  function draw() {
+    x.clearRect(0, 0, W, H);
+    x.fillStyle = 'rgba(60,60,80,.14)';
+    for (const b of B) {
+      x.beginPath(); x.ellipse(b.x, FL + 3, 24, 4, 0, 0, 6.3); x.fill();
+    }
+    x.fillStyle = 'rgba(60,60,80,.18)';
+    x.beginPath(); x.ellipse(cx + 10, FL + 4, 96, 7, 0, 0, 6.3); x.fill();
+
+    x.strokeStyle = edge; x.lineWidth = 2;
+    x.beginPath(); x.ellipse(cx, rimY, 76, 9, 0, Math.PI, 2 * Math.PI); x.stroke();
+
+    for (const b of B) bag(b);
+    drawWater();
+    glass();
+
+    for (const d of dust) {
+      x.fillStyle = `rgba(150,100,50,${d.l * .6})`;
+      x.beginPath(); x.arc(d.x, d.y, 2 + (1 - d.l) * 3, 0, 6.3); x.fill();
+    }
+
+    x.fillStyle = floor; x.fillRect(0, FL, W, H - FL);
+    x.fillStyle = 'rgba(0,0,0,.14)'; x.fillRect(0, FL, W, 2);
+    x.fillStyle = 'rgba(0,0,0,.06)';
+    for (let i = 70; i < W; i += 90) x.fillRect(i, FL + 2, 1.5, H - FL);
+
+    x.fillStyle = wc(1, .22 * tea);
+    x.beginPath(); x.ellipse(cx + 64, FL + 6, 66, 5, 0, 0, 6.3); x.fill();
+
+    for (const p of pud) {
+      const ry = 2 + Math.min(5, p.w * .07);
+      const g = x.createLinearGradient(0, FL + 5 - ry, 0, FL + 5 + ry);
+      g.addColorStop(0, wc(1.05, .7)); g.addColorStop(1, wc(.8, .85));
+      x.fillStyle = g;
+      x.beginPath(); x.ellipse(p.x, FL + 5, p.w / 2, ry, 0, 0, 6.3); x.fill();
+      x.strokeStyle = 'rgba(255,255,255,.45)'; x.lineWidth = 1;
+      x.beginPath(); x.ellipse(p.x, FL + 4, p.w / 2 - 3, ry - 1, 0, 3.6, 5.8); x.stroke();
+    }
+  }
+
+  let lastTime = 0;
+  function loop(now) {
+    if (!running) return;
+    const dt = Math.min((now - lastTime) / 1000, .033);
+    lastTime = now;
+    sim(dt);
+    draw();
+    animId = requestAnimationFrame(loop);
+  }
+
+  const pt = e => {
+    const r = cv.getBoundingClientRect();
+    return { x: (e.clientX - r.left) / SCALE, y: (e.clientY - r.top) / SCALE };
+  };
+
+  function init() {
+    if (initialized) return;
+    cv = document.getElementById('teaCanvas');
+    if (!cv) return;
+    x = cv.getContext('2d');
+
+    const pyr = n => {
+      let k = 1;
+      while (k * (k + 1) / 2 < n) k++;
+      const r = [];
+      for (; n > 0; k--) {
+        const m = Math.min(k, n);
+        r.push(m);
+        n -= m;
+      }
+      return r;
+    };
+
+    const chipsEl = document.getElementById('tipChips');
+    if (chipsEl) {
+      chipsEl.innerHTML = TIERS.map((T, i) =>
+        `<button class="tea-chip" style="--t:${T.c};--s:${T.s}px" data-i="${i}" aria-label="${T.n} пакетиков: ${T.t}" type="button">` +
+        `<div class="tea-pile">${pyr(T.n).map((m, r) => `<div style="--r:${r}">${'<i></i>'.repeat(m)}</div>`).join('')}</div>` +
+        `<small>${T.t}</small>` +
+        `</button>`
+      ).join('');
+
+      chipsEl.querySelectorAll('.tea-chip').forEach(b => {
+        b.onclick = () => {
+          tip(TIERS[+b.dataset.i]);
+          b.classList.remove('pop');
+          void b.offsetWidth;
+          b.classList.add('pop');
+        };
+      });
+    }
+
+    const shakeBtn = document.getElementById('teaShakeBtn');
+    if (shakeBtn) {
+      shakeBtn.onclick = () => {
+        for (const b of B) {
+          b.vy -= 500 + R() * 600;
+          b.vx += (R() - .5) * 500;
+          b.w += (R() - .5) * 8;
+        }
+        for (let i = 0; i < NW; i++) vs[i] += (R() - .5) * 8;
+      };
+    }
+
+    const sweepBtn = document.getElementById('teaSweepBtn');
+    if (sweepBtn) {
+      sweepBtn.onclick = () => {
+        B = []; dust = []; drops = []; pud = []; steam = []; drag = null;
+        Aw = A0; tea = 0; hs.fill(0); vs.fill(0);
+        count = 0; ui();
+      };
+    }
+
+    cv.onpointerdown = e => {
+      ptr = pt(e);
+      for (let i = B.length - 1; i >= 0; i--) {
+        const b = B[i], dx = ptr.x - b.x, dy = ptr.y - b.y, lx = dx * b.cs + dy * b.sn, ly = -dx * b.sn + dy * b.cs;
+        if (Math.abs(lx) < 30 && Math.abs(ly) < 35) {
+          drag = { b, lx, ly };
+          cv.setPointerCapture(e.pointerId);
+          break;
+        }
+      }
+    };
+    cv.onpointermove = e => {
+      const n = pt(e);
+      if (!drag && Math.abs(n.x - cx) < hw(lv) && Math.abs(n.y - lv) < 28) {
+        splash(n.x, Math.min(Math.hypot(n.x - ptr.x, n.y - ptr.y) * .1, 5));
+      }
+      ptr = n;
+    };
+    cv.onpointerup = cv.onpointercancel = () => { drag = null; };
+
+    window.addEventListener('resize', () => { if (running) resize(); });
+    initialized = true;
+  }
+
+  function start() {
+    init();
+    running = true;
+    requestAnimationFrame(() => {
+      resize();
+      lastTime = performance.now();
+      if (animId) cancelAnimationFrame(animId);
+      animId = requestAnimationFrame(loop);
+    });
+  }
+
+  function pause() {
+    running = false;
+    if (animId) {
+      cancelAnimationFrame(animId);
+      animId = null;
+    }
+  }
+
+  return { init, start, pause, resize };
+})();
+
+/**
+ * Открытие модального окна "На чай автору"
+ */
+function openAuthorTipModal() {
+  const modal = document.getElementById('authorTipModal');
+  if (modal) {
+    modal.classList.remove('hidden');
+    document.body.classList.add('overflow-hidden');
+    AuthorTipTeaStation.start();
+  }
+}
+
+/**
+ * Закрытие модального окна "На чай автору"
+ */
+function closeAuthorTipModal() {
+  const modal = document.getElementById('authorTipModal');
+  if (modal) {
+    modal.classList.add('hidden');
+    document.body.classList.remove('overflow-hidden');
+    AuthorTipTeaStation.pause();
+  }
+}
+
+/**
+ * Клик по кнопке перехода к оплате (заглушка для Ozon Банка)
+ */
+function handleTipPaymentClick() {
+  showToast('Переход к оплате через Ozon Банк (демо-режим) ☕');
+}
+
+/**
+ * Копирование ссылки на оплату
+ */
+function copyTipPaymentLink() {
+  const sampleLink = 'https://bank.ozon.ru/pay/tips/courier-analytics';
+  if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(sampleLink).then(() => {
+      showToast('Ссылка на перевод скопирована в буфер обмена! 📋');
+    }).catch(() => {
+      showToast('Ссылка на перевод: bank.ozon.ru/pay 📋');
+    });
+  } else {
+    showToast('Ссылка на перевод: bank.ozon.ru/pay 📋');
+  }
+}
+
+// -----------------------------------------------------------------------------
 // 10. ЭКСПОРТ В GLOBAL SCOPE ДЛЯ INLINE HTML ONCLICK HANDLERS
 // -----------------------------------------------------------------------------
 
 Object.assign(window, {
+  openAuthorTipModal,
+  closeAuthorTipModal,
+  handleTipPaymentClick,
+  copyTipPaymentLink,
   toggleLayoutMode,
   triggerUserDataFileInput,
   handleUserDataFileUpload,

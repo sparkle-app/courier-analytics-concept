@@ -514,7 +514,7 @@ body.light-mode .table-sticky-footer td.table-col-gross {
   display: block;
 }
 
-#topBannerContainer {
+#leftSidebar {
   grid-column: 1;
   justify-self: end;
   width: 100%;
@@ -524,6 +524,12 @@ body.light-mode .table-sticky-footer td.table-col-gross {
   top: 12px;
   align-self: flex-start;
   z-index: 30;
+  box-sizing: border-box;
+  margin: 0 !important;
+}
+
+#topBannerContainer {
+  width: 100%;
   box-sizing: border-box;
   margin: 0 !important;
 }
@@ -549,7 +555,7 @@ body:not(.desktop-mode) #layoutContainer {
   .app-root-wrapper::after {
     display: none !important;
   }
-  #topBannerContainer {
+  #leftSidebar, #topBannerContainer {
     width: 100% !important;
     max-width: 430px !important;
     min-width: 0 !important;
@@ -570,7 +576,7 @@ body.desktop-mode .app-root-wrapper {
   column-gap: 1.25rem !important;
 }
 
-body.desktop-mode #topBannerContainer {
+body.desktop-mode #leftSidebar {
   grid-column: 1 !important;
   justify-self: end !important;
   width: 100% !important;
@@ -601,6 +607,7 @@ body.desktop-mode #layoutContainer {
   body.desktop-mode .app-root-wrapper::after {
     display: none !important;
   }
+  body.desktop-mode #leftSidebar,
   body.desktop-mode #topBannerContainer {
     width: 100% !important;
     max-width: 100% !important;
@@ -1072,4 +1079,243 @@ body.is-dragging-scroll {
 }
 body.is-dragging-scroll * {
   user-select: none !important;
+}
+
+/* =========================================================================
+   МОДАЛЬНОЕ ОКНО: НА ЧАЙ АВТОРУ & ИНТЕРАКТИВНАЯ ЧАЙНАЯ СТАНЦИЯ (v13.16.0)
+   ========================================================================= */
+#authorTipModal .tea-chips {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+#authorTipModal .tea-chip {
+  --t: #3A8DFF;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-card);
+  border-radius: 16px;
+  padding: 8px 6px 9px;
+  display: grid;
+  justify-items: center;
+  transition: transform .15s, box-shadow .25s;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.5), 0 8.5px 18px -14px rgba(20,22,30,.35);
+  cursor: pointer;
+}
+#authorTipModal .tea-chip::before {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; top: 0;
+  height: 2.5px;
+  background: var(--t);
+  opacity: .85;
+}
+#authorTipModal .tea-chip::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -24px;
+  width: 96px;
+  height: 75px;
+  margin-left: -48px;
+  background: radial-gradient(circle, var(--t) 0%, transparent 72%);
+  opacity: .07;
+  transition: opacity .3s;
+  pointer-events: none;
+}
+#authorTipModal .tea-chip:hover::after,
+#authorTipModal .tea-chip.pop::after {
+  opacity: .16;
+}
+#authorTipModal .tea-chip:active {
+  transform: scale(.96);
+}
+#authorTipModal .tea-chip.pop {
+  animation: tea-pp .5s cubic-bezier(.3,1.6,.5,1);
+}
+#authorTipModal .tea-pile {
+  height: 48px;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: 1.5px;
+  margin-top: 2px;
+}
+#authorTipModal .tea-pile div {
+  display: flex;
+  gap: 1.5px;
+}
+#authorTipModal .tea-pile i {
+  width: var(--s);
+  height: calc(var(--s) * 1.2);
+  border-radius: 2px;
+  background: linear-gradient(#FCF7EA, #E3D6BC);
+  border-top: 1.5px solid var(--t);
+  display: inline-block;
+}
+#authorTipModal .tea-chip.pop .tea-pile i {
+  animation: tea-jg .5s calc(var(--r)*45ms) cubic-bezier(.3,1.8,.5,1);
+}
+@keyframes tea-jg { 40% { transform: translateY(-5px); } }
+@keyframes tea-pp { 40% { transform: scale(1.05); } }
+
+#authorTipModal .tea-chip small {
+  font-size: 10px;
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.15;
+  margin-top: 5px;
+  white-space: nowrap;
+  display: block;
+  letter-spacing: -.01em;
+  color: var(--text-main);
+}
+
+#authorTipModal .tea-stage {
+  position: relative;
+  border-radius: 20px;
+  overflow: hidden;
+  background: linear-gradient(#E7ECF6, #F8F9FC);
+  border: 1px solid var(--border-subtle);
+  height: 330px;
+}
+body:not(.light-mode) #authorTipModal .tea-stage {
+  background: linear-gradient(#1A202C, #121620);
+}
+#authorTipModal .tea-stage canvas {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: 330px;
+  touch-action: none;
+  cursor: grab;
+}
+#authorTipModal .tea-stage canvas:active {
+  cursor: grabbing;
+}
+
+#authorTipModal .tea-gp {
+  position: absolute;
+  z-index: 3;
+  left: 8px;
+  right: 8px;
+  top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 6px 5px 10px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.7), rgba(255,255,255,0.25));
+  border: 1px solid rgba(0,0,0,0.1);
+  backdrop-filter: blur(20px) saturate(1.8) brightness(1.04);
+  -webkit-backdrop-filter: blur(20px) saturate(1.8) brightness(1.04);
+  box-shadow: 0 10px 24px -12px rgba(10,14,30,.25), inset 0 1px 0 rgba(255,255,255,.6);
+}
+body:not(.light-mode) #authorTipModal .tea-gp {
+  background: linear-gradient(135deg, rgba(30,41,59,0.75), rgba(30,41,59,0.3));
+  border-color: rgba(255,255,255,0.12);
+  box-shadow: 0 10px 24px -12px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.1);
+}
+
+#authorTipModal .tea-cnt {
+  display: grid;
+  line-height: 1;
+  min-width: 44px;
+}
+#authorTipModal .tea-cnt b {
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: -.05em;
+  display: inline-block;
+  transform-origin: left bottom;
+  color: var(--text-main);
+}
+#authorTipModal .tea-cnt span {
+  font-size: 8px;
+  font-weight: 600;
+  color: var(--text-sec);
+  margin-top: 2px;
+}
+#authorTipModal .tea-cnt b.bump {
+  animation: tea-bm .35s cubic-bezier(.3,1.7,.5,1);
+}
+@keyframes tea-bm { 40% { transform: scale(1.28); } }
+
+#authorTipModal .tea-gb {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid rgba(0,0,0,0.1);
+  background: rgba(255,255,255,0.7);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.5);
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 10px;
+  line-height: 1;
+  white-space: nowrap;
+  transition: transform .12s, background .2s;
+  cursor: pointer;
+  color: var(--text-main);
+}
+body:not(.light-mode) #authorTipModal .tea-gb {
+  background: rgba(30,41,59,0.7);
+  border-color: rgba(255,255,255,0.1);
+  color: #F8FAFC;
+}
+#authorTipModal .tea-gb:hover {
+  background: rgba(255,255,255,0.95);
+}
+body:not(.light-mode) #authorTipModal .tea-gb:hover {
+  background: rgba(51,65,85,0.95);
+}
+#authorTipModal .tea-gb:active {
+  transform: scale(.94);
+}
+#authorTipModal .tea-gb svg {
+  flex: none;
+}
+#authorTipModal .tea-gb .lbl {
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+#authorTipModal .tea-gp-info {
+  display: flex;
+  align-items: center;
+  gap: 3.5px;
+  font-size: 8px;
+  font-weight: 500;
+  color: var(--text-sec);
+  opacity: .85;
+  line-height: 1.2;
+}
+
+#authorTipModal .tea-ts {
+  position: absolute;
+  z-index: 4;
+  left: 50%;
+  top: 65px;
+  transform: translate(-50%,0);
+  background: var(--text-main);
+  color: var(--bg-card);
+  font-weight: 700;
+  font-size: 11px;
+  padding: 5px 11px;
+  border-radius: 99px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+}
+#authorTipModal .tea-ts.on {
+  animation: tea-tt 2.4s ease both;
+}
+@keyframes tea-tt {
+  0% { opacity: 0; transform: translate(-50%, 10px); }
+  12%, 80% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, -8px); }
 }
