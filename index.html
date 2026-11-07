@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="Независимый исследовательский UI/UX-концепт аналитики дохода для курьеров доставки (версия 13.16.1)" />
   <meta name="theme-color" content="#F4F5F7" />
-  <title>Концепт аналитики дохода курьера (v13.16.4) — Неофициальный UX-прототип</title>
+  <title>Концепт аналитики дохода курьера (v13.16.5) — Неофициальный UX-прототип</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <script src="https://cdn.tailwindcss.com"></script>
@@ -14,7 +14,7 @@
   <!-- Leaflet для интерактивной карты районов -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <link rel="stylesheet" href="style.css?v=13.16.4" />
+  <link rel="stylesheet" href="style.css?v=13.16.5" />
 </head>
 <body class="light-mode min-h-screen flex flex-col items-center py-3 px-2 sm:px-4">
 
@@ -24,26 +24,26 @@
     <!-- ЛЕВАЯ БОКОВАЯ ПАНЕЛЬ СТЕНДА (СЛЕВА ОТ ПРИЛОЖЕНИЯ) -->
     <aside id="leftSidebar" class="left-sidebar shrink-0 flex flex-col gap-2 select-none">
       <!-- БОКОВАЯ СЕРВИСНАЯ ПЛАШКА СТЕНДА -->
-      <div id="topBannerContainer" class="px-3.5 py-2.5 rounded-2xl ya-card text-xs space-y-1.5 transition-all duration-200 w-full shrink-0 select-none">
+      <div id="topBannerContainer" class="px-3.5 py-2.5 rounded-2xl ya-card text-xs flex flex-col transition-all duration-200 w-full shrink-0 select-none">
     <!-- Скрытый инпут для выбора файла через системное окно проводника Windows -->
     <input type="file" id="userDataFileInput" accept=".xlsx,.xls,.csv,.tsv,.txt" class="hidden" onchange="handleUserDataFileUpload(event)" />
 
     <!-- 1. ВЕРСИЯ И ЗАГОЛОВОК -->
     <div class="flex items-center gap-2">
-      <span class="version-badge px-2 py-0.5 rounded-md font-extrabold text-[11px] leading-tight shadow-sm">v13.16.4</span>
+      <span class="version-badge px-2 py-0.5 rounded-md font-extrabold text-[11px] leading-tight shadow-sm">v13.16.5</span>
       <span class="font-semibold text-main">UX-концепт аналитики курьера</span>
     </div>
 
     <!-- 2. ОГОВОРКА О НЕЗАВИСИМОСТИ -->
-    <div class="text-[10px] leading-snug text-mut">
+    <div class="text-[10px] leading-snug text-mut mt-1.5">
       Независимый некоммерческий UI/UX-концепт (исследовательский прототип). Не является официальным продуктом сервисов доставки. Все данные вымышленные.
     </div>
 
-    <!-- 3. РАЗДЕЛИТЕЛЬ -->
-    <div class="border-t border-subtle pt-1"></div>
+    <!-- РАЗДЕЛИТЕЛЬ 1 (МЕЖДУ ОПИСАНИЕМ И БЛОКОМ УПРАВЛЕНИЯ) -->
+    <div class="sidebar-divider sidebar-divider-1"></div>
 
     <!-- 4. БЛОК УПРАВЛЕНИЯ (АДАПТИВНЫЙ КЛАСТЕР: ПК И МОБИЛЬНЫЙ РЕЖИМЫ) -->
-    <div class="banner-controls-cluster flex flex-col gap-1.5 w-full">
+    <div class="banner-controls-cluster">
       
       <!-- КОЛОНКА 1 (МОБ) / СЕКЦИЯ 1 (ПК): ТЕМА И ПК/МОБ -->
       <div class="banner-cluster-theme-layout flex items-center gap-1.5 shrink-0">
@@ -57,20 +57,20 @@
         </button>
 
         <!-- ПЕРЕКЛЮЧАТЕЛЬ РЕЖИМА ТЕЛЕФОН / ПК -->
-        <button type="button" onclick="toggleLayoutMode()" id="btnLayoutMode" title="Переключить на версию для ПК" class="px-2.5 py-1.5 rounded-xl ya-nav-btn font-medium transition flex items-center gap-1.5 text-xs shrink-0">
+        <button type="button" onclick="toggleLayoutMode()" id="btnLayoutMode" title="Переключить на версию для ПК" aria-label="Переключить режим ПК / мобильный" class="w-8 h-8 rounded-xl ya-nav-btn flex items-center justify-center transition shrink-0">
           <span id="lblLayoutIcon" class="flex items-center justify-center">
             <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+              <rect x="2" y="3" width="20" height="14" rx="2"></rect>
               <line x1="8" y1="21" x2="16" y2="21"></line>
               <line x1="12" y1="17" x2="12" y2="21"></line>
             </svg>
           </span>
-          <span id="lblLayoutMode">ПК</span>
+          <span id="lblLayoutMode" class="sr-only">ПК</span>
         </button>
       </div>
 
       <!-- РАЗДЕЛИТЕЛЬ 1 (НА ПК ГОРИЗОНТАЛЬНЫЙ, НА МОБИЛЬНОМ ВЕРТИКАЛЬНЫЙ) -->
-      <div class="banner-cluster-divider-1 w-full border-t border-subtle my-0.5 shrink-0"></div>
+      <div class="sidebar-divider banner-cluster-divider-1"></div>
 
       <!-- КОЛОНКА 2 (МОБ) / СЕКЦИЯ 2 (ПК): ИСТОЧНИК И ИМПОРТ -->
       <div class="banner-cluster-source-import flex flex-col items-start gap-1.5 w-full min-w-0">
@@ -142,8 +142,11 @@
 
     </div>
 
+    <!-- РАЗДЕЛИТЕЛЬ 3 (МЕЖДУ БЛОКОМ УПРАВЛЕНИЯ И ЮРИДИЧЕСКИМИ ДОКУМЕНТАМИ) -->
+    <div class="sidebar-divider sidebar-divider-bottom"></div>
+
     <!-- 5. ЮРИДИЧЕСКИЕ ДОКУМЕНТЫ -->
-    <div class="pt-1 border-t border-subtle flex items-center justify-center gap-2 text-[10px] leading-snug text-mut">
+    <div class="sidebar-legal flex items-center justify-center gap-2 text-[10px] leading-snug text-mut">
       <button type="button" onclick="openLegalModal('terms')" class="hover:underline hover:text-sec transition">Оферта</button>
       <span class="opacity-40">•</span>
       <button type="button" onclick="openLegalModal('privacy')" class="hover:underline hover:text-sec transition">Конфиденциальность</button>
@@ -769,7 +772,7 @@
     </div>
   </div>
 
-  <!-- МОДАЛЬНОЕ ОКНО: НА ЧАЙ АВТОРУ & ИНТЕРАКТИВНАЯ ЧАЙНАЯ СТАНЦИЯ (v13.16.4) -->
+  <!-- МОДАЛЬНОЕ ОКНО: НА ЧАЙ АВТОРУ & ИНТЕРАКТИВНАЯ ЧАЙНАЯ СТАНЦИЯ (v13.16.5) -->
   <div id="authorTipModal" onclick="if(event.target===this) closeAuthorTipModal()" class="fixed inset-0 z-50 hidden bg-black/75 flex items-center justify-center p-2 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="authorTipModalTitle">
     <div class="app-shell w-full max-w-4xl max-h-[92vh] rounded-[28px] overflow-hidden flex flex-col shadow-2xl border border-white/15">
       <!-- Шапка -->
@@ -965,6 +968,6 @@
   </div>
 
   <!-- Подключение скрипта приложения -->
-  <script src="script.js?v=13.16.4"></script>
+  <script src="script.js?v=13.16.5"></script>
 </body>
 </html>

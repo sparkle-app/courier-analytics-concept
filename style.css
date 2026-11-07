@@ -1328,10 +1328,20 @@ body:not(.light-mode) #authorTipModal .tea-gb:hover {
 /* =========================================================================
    РЕОРГАНИЗОВАННЫЙ КЛАСТЕР КНОПОК ПЛАШКИ (ПК И МОБИЛЬНЫЙ РЕЖИМЫ, v13.16.2)
    ========================================================================= */
+.sidebar-divider {
+  width: 100% !important;
+  height: 1px !important;
+  background-color: var(--border-subtle) !important;
+  border: none !important;
+  margin: 8px 0 !important;
+  flex-shrink: 0 !important;
+  display: block !important;
+}
+
 .banner-controls-cluster {
   display: flex !important;
   flex-direction: column !important;
-  gap: 0.375rem !important;
+  gap: 0 !important;
   width: 100% !important;
 }
 
@@ -1347,8 +1357,8 @@ body:not(.light-mode) #authorTipModal .tea-gb:hover {
   width: 100% !important;
   height: 1px !important;
   background-color: var(--border-subtle) !important;
-  border-top: 1px solid var(--border-subtle) !important;
-  margin: 0.25rem 0 !important;
+  border: none !important;
+  margin: 8px 0 !important;
   display: block !important;
 }
 
