@@ -16,7 +16,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 h1{margin:0;font-size:24px;line-height:1.05;font-weight:800;letter-spacing:-.035em}
 .sub{margin:4px 0 0;color:var(--mute);font-size:11.5px}.sub small{display:block;margin-top:2px;font-size:10px}
 .chips{display:grid;grid-template-columns:repeat(3,1fr);gap:8.5px}
-.chip{--t:#3B82F6;position:relative;overflow:hidden;border:1px solid var(--line);background:var(--card);border-radius:17px;padding:8px 6px 9px;display:grid;justify-items:center;transition:transform .15s,box-shadow .25s;box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 8.5px 18px -14px rgba(20,22,30,.55)}
+.chip{--t:#3A8DFF;position:relative;overflow:hidden;border:1px solid var(--line);background:var(--card);border-radius:17px;padding:8px 6px 9px;display:grid;justify-items:center;transition:transform .15s,box-shadow .25s;box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 8.5px 18px -14px rgba(20,22,30,.55)}
 .chip::before{content:"";position:absolute;left:0;right:0;top:0;height:2.5px;background:var(--t);opacity:.85}
 .chip::after{content:"";position:absolute;left:50%;top:-24px;width:96px;height:75px;margin-left:-48px;background:radial-gradient(circle,var(--t) 0%,transparent 72%);opacity:.07;transition:opacity .3s;pointer-events:none}
 .chip:hover::after,.chip.pop::after{opacity:.16}
@@ -94,10 +94,10 @@ const SCALE = 0.85;
 
 // Пирамидки пакетиков в кнопках масштабированы строго на 0.85
 const TIERS=[
-  {n:6, d:2000, s:10.5*SCALE, t:'Пакетик-другой', c:'#3B82F6'},
-  {n:14, d:2800, s:7.8*SCALE, t:'На целый чайник', c:'#E59819'},
-  {n:40, d:4200, s:5.6*SCALE, t:'Чайная церемония', c:'#E2477B'}
-], TCOL={6:'#3B82F6', 14:'#E59819', 40:'#E2477B'};
+  {n:6, d:2000, s:10.5*SCALE, t:'Пакетик-другой', c:'#3A8DFF'},
+  {n:14, d:2800, s:7.8*SCALE, t:'На целый чайник', c:'#FFD60A'},
+  {n:40, d:4200, s:5.6*SCALE, t:'Чайная церемония', c:'#FF3FA0'}
+], TCOL={6:'#3A8DFF', 14:'#FFD60A', 40:'#FF3FA0'};
 
 // Физика PBD и геометрия
 const G=2000,SUB=8,MU=.6,CR=13,II=1/508,NW=30,A0=13800,LC=[[-12,-17],[12,-17],[-12,0],[12,0],[-12,17],[12,17]];
