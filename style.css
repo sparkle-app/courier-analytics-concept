@@ -1504,14 +1504,20 @@ body:not(.light-mode) #authorTipModal .tea-gb:hover {
     display: none !important;
   }
 
-  .banner-theme-style-mobile {
-    display: flex !important;
-    width: 100% !important;
+  .banner-layout-desktop {
+    display: none !important;
   }
 
-  #btnLayoutMode {
+  #themeLayoutSplitMobile {
+    display: flex !important;
     width: 100% !important;
-    min-width: 54px !important;
+    min-width: 58px !important;
+  }
+
+  #styleMobileWrapper {
+    display: block !important;
+    width: 100% !important;
+    min-width: 58px !important;
   }
 }
 
@@ -1522,13 +1528,21 @@ body:not(.light-mode) #authorTipModal .tea-gb:hover {
 
   .banner-theme-desktop {
     display: flex !important;
+    width: 32px !important;
+    height: 32px !important;
   }
 
-  .banner-theme-style-mobile {
+  .banner-layout-desktop {
+    display: flex !important;
+    width: 32px !important;
+    height: 32px !important;
+  }
+
+  #themeLayoutSplitMobile {
     display: none !important;
   }
 
-  #btnLayoutMode {
-    width: 32px !important;
+  #styleMobileWrapper {
+    display: none !important;
   }
 }

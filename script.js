@@ -1,5 +1,5 @@
 // =============================================================================
-// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.17.2) — ЛОГИКА И СОСТОЯНИЕ (script.js)
+// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.17.3) — ЛОГИКА И СОСТОЯНИЕ (script.js)
 // Оптимизированная и модульная версия с гранулярным рендерингом и кэшированием
 // =============================================================================
 
@@ -1913,6 +1913,10 @@ function applyLayoutMode(mode, showNotification = false) {
       ? '<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>'
       : '<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>';
   }
+    const svgLayout = isPc
+      ? '<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>'
+      : '<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>';
+    document.querySelectorAll('#lblLayoutIcon, #lblLayoutIconMobile').forEach(el => { el.innerHTML = svgLayout; });
   if (dom.btnLayoutMode) {
     dom.btnLayoutMode.title = isPc ? 'Переключить на мобильную версию' : 'Переключить на версию для ПК';
   }
@@ -4664,7 +4668,7 @@ function setupImportMaster() {
       closeImportDropdown();
     }
     const styleWrapper = document.getElementById('styleSplitWrapper');
-    const mobileStyleWrapper = document.getElementById('themeStyleSplitMobile');
+    const mobileStyleWrapper = document.getElementById('styleMobileWrapper');
     const clickedInside = (styleWrapper && styleWrapper.contains(e.target)) ||
                           (mobileStyleWrapper && mobileStyleWrapper.contains(e.target));
     if (!clickedInside) {
@@ -5882,7 +5886,7 @@ applyLayoutMode(isDesktopDevice ? 'pc' : 'phone', false);
 renderAll();
 
 // =============================================================================
-// ВЫБОР СТИЛЯ ОФОРМЛЕНИЯ (v13.17.2)
+// ВЫБОР СТИЛЯ ОФОРМЛЕНИЯ (v13.17.3)
 // =============================================================================
 let currentUiStyle = 'default';
 
