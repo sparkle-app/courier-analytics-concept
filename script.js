@@ -1,5 +1,5 @@
 // =============================================================================
-// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.16.0) — ЛОГИКА И СОСТОЯНИЕ (script.js)
+// КОНЦЕПТ АНАЛИТИКИ ДОХОДА КУРЬЕРА (v13.16.1) — ЛОГИКА И СОСТОЯНИЕ (script.js)
 // Оптимизированная и модульная версия с гранулярным рендерингом и кэшированием
 // =============================================================================
 
@@ -102,7 +102,8 @@ const dom = {
   screenMiddleSpec:         $('screenMiddleSpec'),
   screenSettings:           $('screenSettings'),
   authorTipModal:           $('authorTipModal'),
-  btnAuthorTip:             $('btnAuthorTip')
+  btnAuthorTipDesktop:      $('btnAuthorTipDesktop'),
+  btnAuthorTipMobile:       $('btnAuthorTipMobile')
 };
 
 /**
