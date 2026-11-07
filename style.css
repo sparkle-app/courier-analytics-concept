@@ -1448,7 +1448,11 @@ body:not(.light-mode) #authorTipModal .tea-gb:hover {
     gap: 0.25rem !important;
   }
 
-  #btnResetData {
+  #btnResetData.hidden {
+    display: none !important;
+  }
+
+  #btnResetData:not(.hidden) {
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
