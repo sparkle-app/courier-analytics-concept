@@ -23,7 +23,7 @@ h1{margin:0;font-size:24px;line-height:1.05;font-weight:800;letter-spacing:-.035
 .pile{height:56px;display:flex;flex-direction:column-reverse;align-items:center;gap:1.5px;margin-top:3.5px}
 .pile div{display:flex;gap:1.5px}
 .pile i{width:var(--s);height:calc(var(--s)*1.2);border-radius:2px;background:linear-gradient(#FCF7EA,#E3D6BC);border-top:2px solid var(--t)}
-.chip small{font-size:10px;font-weight:600;text-align:center;line-height:1.2;margin-top:6px}
+.chip small{font-size:9.5px;font-weight:600;text-align:center;line-height:1.15;margin-top:6px;white-space:nowrap;display:block}
 .chip:active{transform:scale(.96)}.chip.pop{animation:pp .5s cubic-bezier(.3,1.6,.5,1)}
 .chip.pop .pile i{animation:jg .5s calc(var(--r)*45ms) cubic-bezier(.3,1.8,.5,1)}
 @keyframes jg{40%{transform:translateY(-5px)}}
@@ -63,16 +63,16 @@ button:focus-visible{outline:2px solid #3B82F6;outline-offset:2px}
     <div class="gp-btns">
      <button class="gb" id="sk" aria-label="Встряхнуть стол">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-       <path d="M2 12c2.5-3.8 5.5-3.8 8 0s5.5 3.8 8 0 3.5-2.8 4-1.8"/>
+       <path d="M2 12c1.1-4 2.2-4 3.3 0s2.2 4 3.3 0 2.2-4 3.3 0 2.2 4 3.3 0 2.2-4 3.3 0 2.2 4 3.3 0"/>
       </svg>
       <span class="lbl">Встряхнуть стол</span>
      </button>
      <button class="gb" id="rs" aria-label="Подмести">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-       <path d="M18 4l-6.5 6.5"/>
-       <path d="M8.5 13.5l3 3"/>
-       <path d="M7 15l-3.5 5.5c-.2.4 0 .9.5.9h4.5l3.5-3.5"/>
-       <path d="M6 18.5h4"/>
+       <path d="M13.5 10.5 22 2"/>
+       <path d="M14.734 13.841a2 2 0 0 0-.314-2.42L12.58 9.58a2 2 0 0 0-2.421-.314l-7.657 4.461A1 1 0 0 0 2.3 15.3l6.403 6.403a1 1 0 0 0 1.571-.204z"/>
+       <path d="m5 18 2-2"/>
+       <path d="m7.699 10.7 5.602 5.601"/>
       </svg>
       <span class="lbl">Подмести</span>
      </button>
