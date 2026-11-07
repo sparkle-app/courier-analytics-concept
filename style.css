@@ -531,8 +531,8 @@ body.light-mode .table-sticky-footer td.table-col-gross {
 #leftSidebar {
   grid-column: 1;
   justify-self: end;
-  width: 100%;
-  min-width: 180px;
+  width: 220px;
+  min-width: 220px;
   max-width: 240px;
   position: sticky;
   top: 12px;
@@ -593,9 +593,9 @@ body.desktop-mode .app-root-wrapper {
 body.desktop-mode #leftSidebar {
   grid-column: 1 !important;
   justify-self: end !important;
-  width: 100% !important;
-  min-width: 180px !important;
-  max-width: 230px !important;
+  width: 220px !important;
+  min-width: 220px !important;
+  max-width: 240px !important;
   position: sticky !important;
   top: 12px !important;
   align-self: flex-start !important;
@@ -1434,19 +1434,33 @@ body:not(.light-mode) #authorTipModal .tea-gb:hover {
     align-items: flex-start !important;
     justify-content: center !important;
     gap: 0.375rem !important;
-    flex: 1 1 0% !important;
+    flex: 0 0 auto !important;
+    max-width: 58% !important;
     min-width: 0 !important;
     width: auto !important;
   }
 
   .banner-cluster-source-import .flex.items-center {
-    flex-wrap: wrap !important;
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
     gap: 0.25rem !important;
   }
 
   #btnResetData {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
     padding: 0.25rem 0.375rem !important;
     font-size: 11px !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+  }
+
+  #importSplitWrapper {
+    flex-shrink: 0 !important;
   }
 
   .banner-cluster-divider-2 {
@@ -1465,7 +1479,13 @@ body:not(.light-mode) #authorTipModal .tea-gb:hover {
     align-items: center !important;
     justify-content: center !important;
     flex: 1 1 0% !important;
-    min-width: 120px !important;
+    min-width: 0 !important;
+  }
+
+  #btnAuthorTipMobile {
+    padding: 0.25rem 0.375rem !important;
+    gap: 0.25rem !important;
+    width: 100% !important;
   }
 
   #btnAuthorTipDesktop {
