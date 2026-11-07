@@ -1,3 +1,17 @@
+#dataStatusBadge {
+  display: block;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  line-height: 1.25;
+}
+
+#dataStatusBadge b {
+  display: inline;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 :root {
@@ -1420,9 +1434,19 @@ body:not(.light-mode) #authorTipModal .tea-gb:hover {
     align-items: flex-start !important;
     justify-content: center !important;
     gap: 0.375rem !important;
-    flex: 0 0 auto !important;
+    flex: 1 1 0% !important;
     min-width: 0 !important;
     width: auto !important;
+  }
+
+  .banner-cluster-source-import .flex.items-center {
+    flex-wrap: wrap !important;
+    gap: 0.25rem !important;
+  }
+
+  #btnResetData {
+    padding: 0.25rem 0.375rem !important;
+    font-size: 11px !important;
   }
 
   .banner-cluster-divider-2 {
@@ -1440,8 +1464,8 @@ body:not(.light-mode) #authorTipModal .tea-gb:hover {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    flex: 1 !important;
-    min-width: 0 !important;
+    flex: 1 1 0% !important;
+    min-width: 120px !important;
   }
 
   #btnAuthorTipDesktop {
