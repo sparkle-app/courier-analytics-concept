@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="Независимый исследовательский UI/UX-концепт аналитики дохода для курьеров доставки (версия 13.16.1)" />
   <meta name="theme-color" content="#F4F5F7" />
-  <title>Концепт аналитики дохода курьера (v13.16.3) — Неофициальный UX-прототип</title>
+  <title>Концепт аналитики дохода курьера (v13.16.4) — Неофициальный UX-прототип</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <script src="https://cdn.tailwindcss.com"></script>
@@ -14,7 +14,7 @@
   <!-- Leaflet для интерактивной карты районов -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <link rel="stylesheet" href="style.css?v=13.16.3" />
+  <link rel="stylesheet" href="style.css?v=13.16.4" />
 </head>
 <body class="light-mode min-h-screen flex flex-col items-center py-3 px-2 sm:px-4">
 
@@ -30,7 +30,7 @@
 
     <!-- 1. ВЕРСИЯ И ЗАГОЛОВОК -->
     <div class="flex items-center gap-2">
-      <span class="version-badge px-2 py-0.5 rounded-md font-extrabold text-[11px] leading-tight shadow-sm">v13.16.3</span>
+      <span class="version-badge px-2 py-0.5 rounded-md font-extrabold text-[11px] leading-tight shadow-sm">v13.16.4</span>
       <span class="font-semibold text-main">UX-концепт аналитики курьера</span>
     </div>
 
@@ -123,9 +123,9 @@
 
       <!-- КОЛОНКА 3: КНОПКА ЧАЕВЫХ (НА МОБИЛЬНОМ ВНУТРИ ПЛАШКИ, НА ПК СКРЫТА) -->
       <div class="banner-cluster-tip hidden">
-        <button type="button" onclick="openAuthorTipModal()" id="btnAuthorTipMobile" title="Поддержать автора чаевыми (СБП / Карты РФ)" class="h-full w-full px-2.5 py-1.5 rounded-xl ya-card border border-subtle hover:border-amber-400/60 shadow-sm transition-all duration-150 flex items-center justify-center gap-2 text-left active:scale-95 group cursor-pointer">
-          <span class="w-7 h-7 rounded-lg bg-amber-400/15 text-amber-500 dark:text-amber-400 flex items-center justify-center shrink-0 group-hover:rotate-12 transition-transform duration-200">
-            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <button type="button" onclick="openAuthorTipModal()" id="btnAuthorTipMobile" title="Поддержать автора чаевыми & интерактивная чайная станция" class="h-full w-full px-2 py-1.5 rounded-xl ya-card border border-subtle hover:border-amber-400/60 shadow-sm transition-all duration-150 flex items-center justify-center gap-1.5 text-left active:scale-95 group cursor-pointer">
+          <span class="w-6 h-6 rounded-lg bg-amber-400/15 text-amber-500 dark:text-amber-400 flex items-center justify-center shrink-0 group-hover:rotate-12 transition-transform duration-200">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M18 8h1a4 4 0 0 1 0 8h-1"></path>
               <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path>
               <line x1="6" y1="1" x2="6" y2="4"></line>
@@ -135,7 +135,7 @@
           </span>
           <span class="leading-tight min-w-0">
             <span class="block text-[11px] font-bold text-main group-hover:text-amber-500 transition-colors whitespace-nowrap">Оставить чаевые</span>
-            <span class="block text-[9.5px] font-normal text-sec whitespace-nowrap">СБП • Карты РФ</span>
+            <span class="block text-[8.5px] leading-tight font-normal text-sec">& интерактивная чайная станция</span>
           </span>
         </button>
       </div>
@@ -151,7 +151,7 @@
   </div>
 
       <!-- КНОПКА: ОСТАВИТЬ ЧАЕВЫЕ (НА ПК ПОД ЛЕВОЙ ПЛАШКОЙ) -->
-      <button type="button" onclick="openAuthorTipModal()" id="btnAuthorTipDesktop" title="Поддержать автора чаевыми (СБП / Карты РФ)" class="w-full px-2.5 py-2.5 rounded-2xl ya-card border border-subtle hover:border-amber-400/60 shadow-sm transition-all duration-150 flex items-center gap-2 text-xs font-bold text-main active:scale-98 group cursor-pointer">
+      <button type="button" onclick="openAuthorTipModal()" id="btnAuthorTipDesktop" title="Поддержать автора чаевыми & интерактивная чайная станция" class="w-full px-2.5 py-2.5 rounded-2xl ya-card border border-subtle hover:border-amber-400/60 shadow-sm transition-all duration-150 flex items-center gap-2 text-xs font-bold text-main active:scale-98 group cursor-pointer">
         <span class="w-7 h-7 rounded-xl bg-amber-400/15 text-amber-500 dark:text-amber-400 flex items-center justify-center shrink-0 group-hover:rotate-12 transition-transform duration-200">
           <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M18 8h1a4 4 0 0 1 0 8h-1"></path>
@@ -163,7 +163,7 @@
         </span>
         <span class="text-left leading-tight min-w-0">
           <span class="block text-[11px] font-bold text-main group-hover:text-amber-500 transition-colors whitespace-nowrap">Оставить чаевые</span>
-          <span class="block text-[9.5px] font-normal text-sec">СБП • Карты РФ</span>
+          <span class="block text-[9px] leading-tight font-normal text-sec">& интерактивная чайная станция</span>
         </span>
       </button>
     </aside>
@@ -769,7 +769,7 @@
     </div>
   </div>
 
-  <!-- МОДАЛЬНОЕ ОКНО: НА ЧАЙ АВТОРУ & ИНТЕРАКТИВНАЯ ЧАЙНАЯ СТАНЦИЯ (v13.16.3) -->
+  <!-- МОДАЛЬНОЕ ОКНО: НА ЧАЙ АВТОРУ & ИНТЕРАКТИВНАЯ ЧАЙНАЯ СТАНЦИЯ (v13.16.4) -->
   <div id="authorTipModal" onclick="if(event.target===this) closeAuthorTipModal()" class="fixed inset-0 z-50 hidden bg-black/75 flex items-center justify-center p-2 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="authorTipModalTitle">
     <div class="app-shell w-full max-w-4xl max-h-[92vh] rounded-[28px] overflow-hidden flex flex-col shadow-2xl border border-white/15">
       <!-- Шапка -->
@@ -788,7 +788,7 @@
             <h3 id="authorTipModalTitle" class="text-sm font-extrabold truncate text-main flex items-center gap-1.5">
               На чай автору
             </h3>
-            <p class="text-[11px] text-sec truncate">Интерактивная чайная станция курьера & поддержка разработчика</p>
+            <p class="text-[11px] text-sec truncate">Интерактивная чайная станция & поддержка разработчика</p>
           </div>
         </div>
         <button type="button" onclick="closeAuthorTipModal()" aria-label="Закрыть" class="ya-nav-btn w-8 h-8 flex items-center justify-center text-sm font-bold shrink-0">✕</button>
@@ -846,16 +846,8 @@
             <div class="space-y-3">
               <!-- Заголовок блока оплаты -->
               <div class="flex items-center justify-between">
-                <div>
-                  <div class="font-extrabold text-sm text-main flex items-center gap-1.5">
-                    <span>Перевод через СБП</span>
-                  </div>
-                </div>
-                <div class="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center font-bold text-xs shrink-0">
-                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="2" y="5" width="20" height="14" rx="2"></rect>
-                    <line x1="2" y1="10" x2="22" y2="10"></line>
-                  </svg>
+                <div class="font-extrabold text-sm text-main flex items-center gap-1.5">
+                  <span>Перевод через СБП</span>
                 </div>
               </div>
 
@@ -945,25 +937,18 @@
               </div>
             </div>
 
-            <!-- Информация о поддержке (без строк про банк и комиссию) -->
-            <div class="p-3 rounded-xl bg-elevated/40 border border-subtle text-[11px] mt-2">
-              <div class="text-[10.5px] text-sec leading-relaxed">
-                Донат автору помогает развивать проект, поддерживать сервер и сохранять аналитику бесплатной для всех курьеров.
-              </div>
-            </div>
+
           </div>
 
         </div>
       </div>
 
       <!-- Футер модального окна -->
-      <div class="p-3 border-t border-subtle bg-card flex items-center justify-between shrink-0">
-        <div class="text-[10px] text-mut flex items-center gap-1.5">
-          <span>🔒 100% локально в РФ</span>
-          <span>•</span>
-          <span>СБП • Карты РФ</span>
+      <div class="p-3 sm:p-3.5 border-t border-subtle bg-card flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4 shrink-0">
+        <div class="text-[11px] text-sec leading-relaxed max-w-xl">
+          Донат автору помогает развивать проект, поддерживать сервер и сохранять аналитику бесплатной для всех курьеров.
         </div>
-        <button type="button" onclick="closeAuthorTipModal()" class="py-1.5 px-4 rounded-xl text-xs font-bold active:scale-95 transition btn-primary cursor-pointer">Закрыть</button>
+        <button type="button" onclick="closeAuthorTipModal()" class="py-1.5 px-4 rounded-xl text-xs font-bold active:scale-95 transition btn-primary cursor-pointer shrink-0 self-end sm:self-auto">Закрыть</button>
       </div>
     </div>
   </div>
@@ -980,6 +965,6 @@
   </div>
 
   <!-- Подключение скрипта приложения -->
-  <script src="script.js?v=13.16.3"></script>
+  <script src="script.js?v=13.16.4"></script>
 </body>
 </html>
