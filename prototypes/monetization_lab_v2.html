@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="ru" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Лаборатория монетизации v2: Ozon Банк, QR и Ссылки | 10 Концептов</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            ozon: {
+              DEFAULT: '#005BFF',
+              dark: '#0048E5',
+              hover: '#003dbd',
+              light: '#E6EFFF',
+              cyan: '#00C8FF',
+              pink: '#F91155',
+            },
+            ya: {
+              yellow: '#FCE000',
+              black: '#21201F',
+              cardDark: '#1E293B',
+              bgDark: '#0F172A',
+              borderDark: '#334155'
+            }
+          },
+          keyframes: {
+            'pulse-glow': {
+              '0%, 100%': { transform: 'scale(1)', opacity: '0.9', boxShadow: '0 0 0 0 rgba(0, 91, 255, 0.6)' },
+              '50%': { transform: 'scale(1.04)', opacity: '1', boxShadow: '0 0 25px 8px rgba(0, 200, 255, 0.4)' },
+            },
+            'radar-pulse': {
+              '0%': { transform: 'scale(0.95)', opacity: '0.8' },
+              '100%': { transform: 'scale(1.6)', opacity: '0' },
+            },
+            'shimmer': {
+              '0%': { transform: 'translateX(-100%)' },
+              '100%': { transform: 'translateX(200%)' }
+            },
+            'float-slow': {
+              '0%, 100%': { transform: 'translateY(0)' },
+              '50%': { transform: 'translateY(-6px)' }
+            }
+          },
+          animation: {
+            'pulse-glow': 'pulse-glow 3s infinite ease-in-out',
+            'radar': 'radar-pulse 2s infinite cubic-bezier(0, 0, 0.2, 1)',
+            'shimmer': 'shimmer 2.5s infinite',
+            'float': 'float-slow 4s ease-in-out infinite',
+          }
+        }
+      }
+    }
+  </script>
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    /* 3D Flip Card Effect */
+    .perspective-1000 {
+      perspective: 1000px;
+    }
+    .transform-style-preserve-3d {
+      transform-style: preserve-3d;
+    }
+    .backface-hidden {
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+    }
+    .rotate-y-180 {
+      transform: rotateY(180deg);
+    }
+    .card-flipped {
+      transform: rotateY(180deg);
+    }
+
+    /* Ozon Gradient border */
+    .ozon-gradient-border {
+      position: relative;
+      border-radius: 1rem;
+      background: linear-gradient(135deg, rgba(0,91,255,0.4), rgba(0,200,255,0.2), rgba(249,17,85,0.3));
+      padding: 1px;
+    }
+
+    /* Custom Glassmorphism */
+    .ozon-glass {
+      background: rgba(30, 41, 59, 0.75);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+    }
+    .light .ozon-glass {
+      background: rgba(255, 255, 255, 0.88);
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(0,0,0,0.05);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(0,91,255,0.4);
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen transition-colors duration-300 font-sans selection:bg-ozon selection:text-white">
+
+  <!-- ==================== ВЕРХНЯЯ ШАПКА ЛАБОРАТОРИИ ==================== -->
+  <header class="sticky top-0 z-40 bg-slate-900/90 dark:bg-slate-950/90 backdrop-blur-md border-b border-slate-800 px-4 py-3">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-ozon to-ozon-cyan flex items-center justify-center shadow-lg shadow-ozon/30 text-white font-bold text-xl">
+          ⚡
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+              Лаборатория монетизации v2
+              <span class="text-xs px-2 py-0.5 rounded-full bg-ozon/20 text-ozon-cyan border border-ozon/40 font-mono font-semibold">Ozon Банк • СБП</span>
+            </h1>
+          </div>
+          <p class="text-xs text-slate-400">10 интерактивных концептов: дизайн, эффекты, плейсмент и UX-сценарии</p>
+        </div>
+      </div>
+
+      <!-- Контролы лаборатории -->
+      <div class="flex items-center gap-3">
+        <!-- Фильтр по типам -->
+        <div class="hidden sm:flex bg-slate-800 p-1 rounded-xl text-xs font-medium border border-slate-700">
+          <button onclick="filterConcepts('all')" class="filter-btn active px-3 py-1.5 rounded-lg bg-ozon text-white transition-all" data-filter="all">Все (10)</button>
+          <button onclick="filterConcepts('floating')" class="filter-btn px-3 py-1.5 rounded-lg text-slate-300 hover:text-white transition-all" data-filter="floating">Плавающие & FAB</button>
+          <button onclick="filterConcepts('embedded')" class="filter-btn px-3 py-1.5 rounded-lg text-slate-300 hover:text-white transition-all" data-filter="embedded">В контенте</button>
+          <button onclick="filterConcepts('header')" class="filter-btn px-3 py-1.5 rounded-lg text-slate-300 hover:text-white transition-all" data-filter="header">Шапка & Плашка</button>
+        </div>
+
+        <!-- Переключатель темы -->
+        <button id="themeToggle" class="p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 hover:text-white hover:border-ozon/50 transition-all flex items-center gap-2 text-xs font-semibold" title="Переключить тему">
+          <i data-lucide="sun" class="w-4 h-4 hidden dark:block text-amber-400"></i>
+          <i data-lucide="moon" class="w-4 h-4 block dark:hidden text-slate-700"></i>
+          <span class="hidden md:inline">Тема</span>
+        </button>
+
+        <!-- Тестовая кнопка вызова полной модалки -->
+        <button onclick="openOzonModal('general')" class="px-3.5 py-2 rounded-xl bg-gradient-to-r from-ozon to-ozon-dark hover:from-ozon-hover hover:to-ozon text-white font-semibold text-xs shadow-md shadow-ozon/30 flex items-center gap-1.5 transition-all active:scale-95">
+          <i data-lucide="qr-code" class="w-3.5 h-3.5"></i>
+          <span>Тест модалки</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==================== ИНФО-БАР КОНТЕКСТА OZON БАНКА ==================== -->
+  <section class="max-w-7xl mx-auto px-4 pt-6 pb-2">
+    <div class="bg-gradient-to-r from-ozon/15 via-ozon-cyan/10 to-transparent border border-ozon/30 rounded-2xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="p-2.5 rounded-xl bg-ozon/20 border border-ozon/40 text-ozon-cyan">
+          <i data-lucide="shield-check" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h2 class="text-sm font-bold text-white flex items-center gap-2">
+            Сбор через Ozon Банк (СБП 0% без комиссии)
+            <span class="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-md border border-emerald-500/30">100% Легально в РФ</span>
+          </h2>
+          <p class="text-xs text-slate-300 mt-0.5">
+            Два бесшовных канала: <strong class="text-white">QR-код</strong> (для ПК через камеру смартфона) и <strong class="text-white">прямая ссылка СБП</strong> (для перехода из мобильного браузера или Telegram).
+          </p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 self-end md:self-auto text-xs">
+        <span class="text-slate-400">Быстрый тест ссылки:</span>
+        <button onclick="copyOzonLink()" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-ozon-cyan font-mono rounded-lg border border-slate-700 flex items-center gap-1 transition-all">
+          <i data-lucide="copy" class="w-3 h-3"></i>
+          <span>Скопировать URL</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== СЕТКА 10 ИНТЕРАКТИВНЫХ КОНЦЕПТОВ ==================== -->
+  <main class="max-w-7xl mx-auto px-4 py-6">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+      <!-- ========================================================
+           КОНЦЕПТ 1: Neo-FAB Ozon (Эволюция решения Аргона)
+           ======================================================== -->
+      <div class="concept-card bg-slate-900 border border-slate-800 hover:border-ozon/50 rounded-2xl p-5 shadow-xl transition-all duration-300 flex flex-col justify-between" data-category="floating">
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-bold font-mono text-ozon-cyan bg-ozon/10 border border-ozon/30 px-2.5 py-1 rounded-lg">#01 • ПЛАВАЮЩИЙ FAB (NEO-АРГОН)</span>
+            <span class="text-xs text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">Высокий CTR • Топ UX</span>
+          </div>
+          <h3 class="text-base font-bold text-white mb-1">Ozon Neo-FAB с пульсирующей аурой и микро-чипом СБП</h3>
+          <p class="text-xs text-slate-400 mb-4">
+            Плавающая кнопка в правом нижнем углу с неоновым градиентом Ozon, пульсирующим радиолокатором и выдвижным тултипом при наведении.
+          </p>
+
+          <!-- Интерактивная зона концепта -->
+          <div class="bg-slate-950 rounded-xl p-6 border border-slate-800/80 flex items-center justify-center min-h-[160px] relative overflow-hidden">
+            <!-- Демонстрационная плавающая кнопка Neo-FAB -->
+            <div class="relative group">
+              <!-- Пульсирующая внешняя волна (радар) -->
+              <span class="absolute -inset-1 rounded-full bg-ozon/40 animate-radar pointer-events-none"></span>
+              
+              <!-- Основная кнопка -->
+              <button onclick="openOzonModal('neo-fab')" class="relative flex items-center gap-2.5 bg-gradient-to-r from-ozon via-ozon-dark to-[#003dbd] text-white px-5 py-3.5 rounded-full font-semibold text-sm shadow-xl shadow-ozon/40 hover:shadow-ozon/70 hover:scale-105 active:scale-95 transition-all duration-300 border border-white/20">
+                <span class="text-base">☕</span>
+                <span>Поддержать проект</span>
+                <span class="bg-white/20 text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full backdrop-blur-sm border border-white/30">СБП</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-4 pt-3 border-t border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
+          <span>🎯 <strong>Плейсмент:</strong> Фиксирован в `bottom: 24px; right: 24px`</span>
+          <span class="text-ozon-cyan cursor-pointer hover:underline" onclick="openOzonModal('neo-fab')">Открыть модалку &rarr;</span>
+        </div>
+      </div>
+
+
+      <!-- ========================================================
+           КОНЦЕПТ 2: Glassmorphic Hero Banner в топе аналитики
+           ======================================================== -->
+      <div class="concept-card bg-slate-900 border border-slate-800 hover:border-ozon/50 rounded-2xl p-5 shadow-xl transition-all duration-300 flex flex-col justify-between" data-category="embedded">
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-bold font-mono text-ozon-cyan bg-ozon/10 border border-ozon/30 px-2.5 py-1 rounded-lg">#02 • HERO BANNER В КОНТЕНТЕ</span>
+            <span class="text-xs text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded border border-sky-500/20">Максимальная солидарность</span>
+          </div>
+          <h3 class="text-base font-bold text-white mb-1">Стеклянная карточка курьерской взаимовыручки</h3>
+          <p class="text-xs text-slate-400 mb-4">
+            Органично встраивается над сводкой KPI. Содержит миниатюру QR-кода с эффектом зума и кнопку прямого перевода через Ozon Банк.
+          </p>
+
+          <!-- Интерактивная зона концепта -->
+          <div class="bg-slate-950 rounded-xl p-4 border border-slate-800/80 min-h-[160px] flex items-center justify-center">
+            <div class="w-full ozon-gradient-border shadow-lg">
+              <div class="ozon-glass rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div class="flex items-center gap-3 text-left">
+                  <div class="w-12 h-12 rounded-xl bg-ozon/20 border border-ozon/40 flex items-center justify-center text-ozon-cyan text-xl flex-shrink-0">
+                    🤝
+                  </div>
+                  <div>
+                    <h4 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                      Курьерская солидарность
+                      <span class="text-[9px] bg-ozon/30 text-white px-1.5 py-0.2 rounded">Ozon Pay</span>
+                    </h4>
+                    <p class="text-xs text-slate-300 mt-0.5">Сервис бесплатен и без рекламы. Угостите автора чаем!</p>
+                  </div>
+                </div>
+
+                <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+                  <!-- Мини-QR с зумом при ховере -->
+                  <div class="relative group cursor-pointer" onclick="openOzonModal('hero-qr')">
+                    <div class="w-10 h-10 rounded-lg bg-white p-1 border border-slate-300 shadow group-hover:scale-125 transition-transform origin-bottom-right">
+                      <svg viewBox="0 0 24 24" class="w-full h-full text-slate-900" fill="currentColor">
+                        <path d="M3 3h6v6H3V3zm2 2v2h2V5H5zm8-2h6v6h-6V3zm2 2v2h2V5h-2zM3 13h6v6H3v-6zm2 2v2h2v-2H5zm13-2h3v3h-3v-3zm-5 0h3v3h-3v-3zm0 5h3v3h-3v-3zm5 0h3v3h-3v-3zM9 9h2v2H9V9zm4 0h2v2h-2V9zm0 4h2v2h-2v-2zm-4 4h2v2H9v-2z"/>
+                      </svg>
+                    </div>
+                  </div>
+
+                  <!-- Кнопка перехода -->
+                  <button onclick="openOzonModal('hero-banner')" class="px-3.5 py-2 rounded-xl bg-ozon hover:bg-ozon-dark text-white font-semibold text-xs shadow-md shadow-ozon/30 transition-all flex items-center gap-1.5 flex-shrink-0">
+                    <span>☕ 100 ₽</span>
+                    <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-4 pt-3 border-t border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
+          <span>🎯 <strong>Плейсмент:</strong> Между фильтром дат и KPI-карточками</span>
+          <span class="text-ozon-cyan cursor-pointer hover:underline" onclick="openOzonModal('hero-banner')">Проверить &rarr;</span>
+        </div>
+      </div>
+
+
+      <!-- ========================================================
+           КОНЦЕПТ 3: Split-Pill с мгновенным Popover в шапке
+           ======================================================== -->
+      <div class="concept-card bg-slate-900 border border-slate-800 hover:border-ozon/50 rounded-2xl p-5 shadow-xl transition-all duration-300 flex flex-col justify-between" data-category="header">
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-bold font-mono text-ozon-cyan bg-ozon/10 border border-ozon/30 px-2.5 py-1 rounded-lg">#03 • SPLIT-PILL В СЕРВИСНОЙ ПЛАШКЕ</span>
+            <span class="text-xs text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/20">Pro UI • 0 перекрытия экрана</span>
+          </div>
+          <h3 class="text-base font-bold text-white mb-1">Сплит-кнопка с выпадающим дропдауном QR СБП</h3>
+          <p class="text-xs text-slate-400 mb-4">
+            Располагается прямо в верхней плашке рядом с номером версии. Не открывает полноэкранных модалок, а показывает изящный выпадающий мини-виджет.
+          </p>
+
+          <!-- Интерактивная зона концепта -->
+          <div class="bg-slate-950 rounded-xl p-4 border border-slate-800/80 min-h-[160px] flex flex-col items-center justify-center relative">
+            <!-- Имитация сервисной плашки -->
+            <div class="w-full max-w-md bg-slate-900/90 border border-slate-800 rounded-xl px-4 py-2 flex items-center justify-between">
+              <span class="text-xs font-mono text-slate-400">v13.15.1 • Stable</span>
+
+              <!-- Двусоставная сплит-кнопка -->
+              <div class="relative inline-flex items-center rounded-lg shadow-sm">
+                <button onclick="openOzonModal('split-pill')" class="px-2.5 py-1 bg-ozon hover:bg-ozon-dark text-white text-xs font-medium rounded-l-lg border-r border-ozon-dark/50 flex items-center gap-1.5 transition-colors">
+                  <span>☕ Чаевые</span>
+                </button>
+                <button id="splitPopoverTrigger" onclick="toggleSplitPopover()" class="px-2 py-1 bg-ozon hover:bg-ozon-dark text-white text-xs font-medium rounded-r-lg transition-colors flex items-center justify-center" title="Показать QR Ozon">
+                  <i data-lucide="qr-code" class="w-3.5 h-3.5"></i>
+                </button>
+
+                <!-- Выпадающий Popover (скрыт по умолчанию) -->
+                <div id="splitPopover" class="hidden absolute top-full right-0 mt-2 w-64 bg-slate-900 border border-ozon/40 rounded-xl p-3 shadow-2xl z-30 text-center animate-in fade-in zoom-in-95 duration-200">
+                  <div class="flex items-center justify-between mb-2">
+                    <span class="text-[11px] font-bold text-ozon-cyan uppercase tracking-wider flex items-center gap-1">
+                      <span class="w-2 h-2 rounded-full bg-ozon animate-ping"></span>
+                      Ozon Банк • СБП
+                    </span>
+                    <button onclick="toggleSplitPopover()" class="text-slate-400 hover:text-white text-xs">&times;</button>
+                  </div>
+                  <!-- Мини SVG QR -->
+                  <div class="bg-white p-2 rounded-lg inline-block shadow-inner mb-2">
+                    <svg viewBox="0 0 24 24" class="w-24 h-24 text-slate-900" fill="currentColor">
+                      <path d="M2 2h8v8H2V2zm2 2v4h4V4H4zm10-2h8v8h-8V2zm2 2v4h4V4h-4zM2 14h8v8H2v-8zm2 2v4h4v-4H4zm12-2h2v2h-2v-2zm4 0h2v2h-2v-2zm-4 4h2v2h-2v-2zm4 0h2v2h-2v-2zm-8-6h2v2h-2v-2zm4 0h2v2h-2v-2zm0 4h2v2h-2v-2zM6 6h2v2H6V6zm12 0h2v2h-2V6zM6 18h2v2H6v-2z"/>
+                    </svg>
+                  </div>
+                  <p class="text-[10px] text-slate-300 mb-2">Наведите камеру любого банка РФ</p>
+                  <a href="https://ozon.ru" target="_blank" class="block w-full py-1 bg-ozon hover:bg-ozon-dark text-white rounded text-xs font-semibold">
+                    Перейти по ссылке &rarr;
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-4 pt-3 border-t border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
+          <span>🎯 <strong>Плейсмент:</strong> В верхнем правом углу плашки стенда</span>
+          <span class="text-ozon-cyan cursor-pointer hover:underline" onclick="toggleSplitPopover()">Клик для дропдауна &rarr;</span>
+        </div>
+      </div>
+
+
+      <!-- ========================================================
+           КОНЦЕПТ 4: Slide-Over Drawer (Боковая шторка)
+           ======================================================== -->
+      <div class="concept-card bg-slate-900 border border-slate-800 hover:border-ozon/50 rounded-2xl p-5 shadow-xl transition-all duration-300 flex flex-col justify-between" data-category="floating">
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-bold font-mono text-ozon-cyan bg-ozon/10 border border-ozon/30 px-2.5 py-1 rounded-lg">#04 • SLIDE-OVER DRAWER (ШТОРКА)</span>
+            <span class="text-xs text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">Премиум SaaS формат</span>
+          </div>
+          <h3 class="text-base font-bold text-white mb-1">Выдвижная боковая шторка Ozon Pay</h3>
+          <p class="text-xs text-slate-400 mb-4">
+            Вертикальный боковой бейдж на краю экрана. При клике плавно выезжает информативная панель с выбором банка, СБП и отчетом о сервере.
+          </p>
+
+          <!-- Интерактивная зона концепта -->
+          <div class="bg-slate-950 rounded-xl p-4 border border-slate-800/80 min-h-[160px] flex items-center justify-center relative overflow-hidden">
+            <div class="text-center">
+              <p class="text-xs text-slate-400 mb-3">Нажмите на интерактивный ярлычок:</p>
+              
+              <!-- Имитация бокового ярлыка -->
+              <button onclick="toggleDrawer(true)" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-ozon to-ozon-dark hover:from-ozon-hover hover:to-ozon text-white font-semibold text-xs shadow-lg shadow-ozon/40 border border-white/20 transition-all hover:scale-105">
+                <i data-lucide="panel-right-open" class="w-4 h-4 text-ozon-cyan"></i>
+                <span>Открыть шторку поддержки (Drawer)</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-4 pt-3 border-t border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
+          <span>🎯 <strong>Плейсмент:</strong> Правый край экрана (Sticky Tab)</span>
+          <span class="text-ozon-cyan cursor-pointer hover:underline" onclick="toggleDrawer(true)">Открыть шторку &rarr;</span>
+        </div>
+      </div>
+
+
+      <!-- ========================================================
+           КОНЦЕПТ 5: 3D Flipping Card (QR ⇄ Ссылка с переворотом)
+           ======================================================== -->
+      <div class="concept-card bg-slate-900 border border-slate-800 hover:border-ozon/50 rounded-2xl p-5 shadow-xl transition-all duration-300 flex flex-col justify-between" data-category="embedded">
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-bold font-mono text-ozon-cyan bg-ozon/10 border border-ozon/30 px-2.5 py-1 rounded-lg">#05 • 3D FLIP-CARD (ПЕРЕВОРОТ)</span>
+            <span class="text-xs text-pink-400 bg-pink-500/10 px-2 py-0.5 rounded border border-pink-500/20">Инновационный Wow-эффект</span>
+          </div>
+          <h3 class="text-base font-bold text-white mb-1">Интерактивная 3D-карточка с переворотом сторон</h3>
+          <p class="text-xs text-slate-400 mb-4">
+            Одна карточка объединяет два сценария: на лицевой стороне — QR-код для ПК, на обороте — прямая ссылка Ozon СБП для смартфона.
+          </p>
+
+          <!-- Интерактивная зона концепта -->
+          <div class="bg-slate-950 rounded-xl p-4 border border-slate-800/80 min-h-[160px] flex items-center justify-center">
+            <div class="w-full max-w-xs perspective-1000">
+              <div id="flipCard" class="relative w-full h-44 rounded-2xl transform-style-preserve-3d transition-transform duration-500 shadow-xl cursor-pointer" onclick="toggleCardFlip()">
+                
+                <!-- Лицевая сторона: QR-код -->
+                <div class="absolute inset-0 bg-gradient-to-br from-slate-900 to-slate-800 border border-ozon/40 rounded-2xl p-4 backface-hidden flex items-center justify-between">
+                  <div class="text-left pr-2">
+                    <span class="text-[10px] uppercase font-bold text-ozon-cyan bg-ozon/20 px-2 py-0.5 rounded">Лицевая: ПК</span>
+                    <h5 class="text-xs font-bold text-white mt-1">Сканируй QR</h5>
+                    <p class="text-[11px] text-slate-300 mt-0.5">Камерой смартфона в приложении Ozon</p>
+                    <span class="inline-block mt-2 text-[10px] text-ozon-cyan font-semibold">Нажмите для ссылки ↺</span>
+                  </div>
+                  <div class="w-20 h-20 bg-white p-1 rounded-xl shadow-md flex-shrink-0 flex items-center justify-center">
+                    <svg viewBox="0 0 24 24" class="w-full h-full text-slate-950" fill="currentColor">
+                      <path d="M2 2h8v8H2V2zm2 2v4h4V4H4zm10-2h8v8h-8V2zm2 2v4h4V4h-4zM2 14h8v8H2v-8zm2 2v4h4v-4H4zm12-2h2v2h-2v-2zm4 0h2v2h-2v-2zm-4 4h2v2h-2v-2zm4 0h2v2h-2v-2zm-8-6h2v2h-2v-2zm4 0h2v2h-2v-2zm0 4h2v2h-2v-2zM6 6h2v2H6V6zm12 0h2v2h-2V6zM6 18h2v2H6v-2z"/>
+                    </svg>
+                  </div>
+                </div>
+
+                <!-- Обратная сторона: Ссылка СБП -->
+                <div class="absolute inset-0 bg-gradient-to-br from-ozon to-ozon-dark border border-white/30 rounded-2xl p-4 backface-hidden rotate-y-180 flex flex-col justify-between text-white text-left">
+                  <div>
+                    <div class="flex items-center justify-between">
+                      <span class="text-[10px] uppercase font-bold bg-white/20 px-2 py-0.5 rounded">Оборот: Телефон</span>
+                      <span class="text-[10px] font-semibold text-ozon-cyan">↺ Нажмите для QR</span>
+                    </div>
+                    <h5 class="text-xs font-bold mt-2">Прямая ссылка Ozon Pay</h5>
+                    <p class="text-[11px] text-white/80">Один тап — открывает приложение банка</p>
+                  </div>
+                  <button onclick="event.stopPropagation(); openOzonModal('flip-link')" class="w-full py-2 bg-white text-ozon font-bold rounded-xl text-xs hover:bg-slate-100 transition-colors shadow">
+                    Перейти к оплате &rarr;
+                  </button>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-4 pt-3 border-t border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
+          <span>🎯 <strong>Плейсмент:</strong> Боковая панель или карточка дня</span>
+          <span class="text-ozon-cyan cursor-pointer hover:underline" onclick="toggleCardFlip()">Перевернуть карточку ↺</span>
+        </div>
+      </div>
+
+
+      <!-- ========================================================
+           КОНЦЕПТ 6: Smart Toast после импорта отчета
+           ======================================================== -->
+      <div class="concept-card bg-slate-900 border border-slate-800 hover:border-ozon/50 rounded-2xl p-5 shadow-xl transition-all duration-300 flex flex-col justify-between" data-category="floating">
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-bold font-mono text-ozon-cyan bg-ozon/10 border border-ozon/30 px-2.5 py-1 rounded-lg">#06 • SMART TOAST (AFTER-IMPORT)</span>
+            <span class="text-xs text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">Момент максимальной ценности</span>
+          </div>
+          <h3 class="text-base font-bold text-white mb-1">Всплывающее спасибо сразу после импорта файла</h3>
+          <p class="text-xs text-slate-400 mb-4">
+            Появляется ровно тогда, когда курьер получил пользу (отчет моментально рассчитан). Не мозолит глаза во время работы с цифрами.
+          </p>
+
+          <!-- Интерактивная зона концепта -->
+          <div class="bg-slate-950 rounded-xl p-4 border border-slate-800/80 min-h-[160px] flex flex-col items-center justify-center">
+            <button onclick="triggerSampleToast()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-ozon-cyan border border-slate-700 rounded-xl text-xs font-semibold flex items-center gap-2 mb-3 transition-colors">
+              <i data-lucide="play" class="w-3.5 h-3.5"></i>
+              <span>Смоделировать завершение импорта</span>
+            </button>
+
+            <!-- Пример тоста в миниатюре -->
+            <div id="sampleToastBox" class="w-full max-w-sm bg-slate-900 border border-ozon/50 rounded-xl p-3 shadow-xl flex items-center justify-between gap-3 relative overflow-hidden">
+              <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm">
+                  ✓
+                </div>
+                <div class="text-left">
+                  <div class="text-xs font-semibold text-white">Импорт успешен (34 смены)</div>
+                  <div class="text-[11px] text-slate-400">Сэкономили время? Угостить чаем ☕</div>
+                </div>
+              </div>
+              <button onclick="openOzonModal('smart-toast')" class="px-3 py-1.5 bg-ozon hover:bg-ozon-dark text-white rounded-lg text-xs font-semibold shadow flex-shrink-0">
+                100 ₽
+              </button>
+              <!-- Полоса прогресса таймера -->
+              <div class="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-800">
+                <div class="h-full bg-ozon w-3/4 animate-pulse"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-4 pt-3 border-t border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
+          <span>🎯 <strong>Плейсмент:</strong> Всплывающий тост в углу экрана на 8 секунд</span>
+          <span class="text-ozon-cyan cursor-pointer hover:underline" onclick="triggerSampleToast()">Показать тост &rarr;</span>
+        </div>
+      </div>
+
+
+      <!-- ========================================================
+           КОНЦЕПТ 7: Контекстный блок в графе «Чаевые курьера»
+           ======================================================== -->
+      <div class="concept-card bg-slate-900 border border-slate-800 hover:border-ozon/50 rounded-2xl p-5 shadow-xl transition-all duration-300 flex flex-col justify-between" data-category="embedded">
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-bold font-mono text-ozon-cyan bg-ozon/10 border border-ozon/30 px-2.5 py-1 rounded-lg">#07 • КОНТЕКСТНЫЙ БЛОК В КАРТОЧКЕ ДНЯ</span>
+            <span class="text-xs text-yellow-400 bg-yellow-500/10 px-2 py-0.5 rounded border border-yellow-500/20">100% Тематический контекст</span>
+          </div>
+          <h3 class="text-base font-bold text-white mb-1">Курьерское братство: делимся чаевыми с сервисом</h3>
+          <p class="text-xs text-slate-400 mb-4">
+            Размещается строго рядом со строкой чаевых от клиентов. Курьеры ценят чаевые лучше всех, поэтому конверсия здесь максимальна.
+          </p>
+
+          <!-- Интерактивная зона концепта -->
+          <div class="bg-slate-950 rounded-xl p-4 border border-slate-800/80 min-h-[160px] flex items-center justify-center">
+            <div class="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-xl p-3.5">
+              <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+                <span class="text-xs text-slate-400">Чаевые за день:</span>
+                <span class="text-sm font-bold text-emerald-400">+1 450 ₽</span>
+              </div>
+              <div class="mt-2.5 bg-ozon/10 border border-ozon/30 rounded-lg p-2.5 flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                  <span class="text-base">🤝</span>
+                  <div class="text-left">
+                    <div class="text-[11px] font-semibold text-white">Передать часть автору?</div>
+                    <div class="text-[10px] text-slate-400">Без комиссии через Ozon СБП</div>
+                  </div>
+                </div>
+                <button onclick="openOzonModal('courier-match')" class="px-2.5 py-1 bg-ozon hover:bg-ozon-dark text-white rounded text-[11px] font-semibold whitespace-nowrap shadow">
+                  ☕ 50 ₽
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-4 pt-3 border-t border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
+          <span>🎯 <strong>Плейсмент:</strong> Внутри финансовой карточки смены</span>
+          <span class="text-ozon-cyan cursor-pointer hover:underline" onclick="openOzonModal('courier-match')">Опробовать &rarr;</span>
+        </div>
+      </div>
+
+
+      <!-- ========================================================
+           КОНЦЕПТ 8: Sticky Mobile Bottom Bar (Безопасная зона)
+           ======================================================== -->
+      <div class="concept-card bg-slate-900 border border-slate-800 hover:border-ozon/50 rounded-2xl p-5 shadow-xl transition-all duration-300 flex flex-col justify-between" data-category="floating">
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-bold font-mono text-ozon-cyan bg-ozon/10 border border-ozon/30 px-2.5 py-1 rounded-lg">#08 • MOBILE STICKY BOTTOM RIBBON</span>
+            <span class="text-xs text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">Идеально для смартфонов</span>
+          </div>
+          <h3 class="text-base font-bold text-white mb-1">Нижняя прикрепленная лента для управления одним пальцем</h3>
+          <p class="text-xs text-slate-400 mb-4">
+            Тонкая полоса с размытием, прижатая к нижнему краю экрана смартфона. Легко нажимается на ходу, можно скрыть крестиком на 7 дней.
+          </p>
+
+          <!-- Интерактивная зона концепта -->
+          <div class="bg-slate-950 rounded-xl p-4 border border-slate-800/80 min-h-[160px] flex items-center justify-center">
+            <div class="w-full max-w-sm bg-slate-900/90 backdrop-blur-md border border-ozon/30 rounded-xl p-2.5 flex items-center justify-between shadow-2xl">
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-ozon animate-pulse"></span>
+                <span class="text-xs text-slate-300">Поддержите разработку</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <button onclick="openOzonModal('bottom-ribbon')" class="px-3 py-1 bg-ozon hover:bg-ozon-dark text-white rounded-lg text-xs font-semibold shadow flex items-center gap-1">
+                  <span>☕ Чаевые Ozon</span>
+                </button>
+                <button onclick="showToast('Лента скрыта на 7 дней')" class="text-slate-400 hover:text-white px-1.5 text-xs" title="Скрыть">&times;</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-4 pt-3 border-t border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
+          <span>🎯 <strong>Плейсмент:</strong> Фиксированный нижний край (Safe Area)</span>
+          <span class="text-ozon-cyan cursor-pointer hover:underline" onclick="openOzonModal('bottom-ribbon')">Тестировать &rarr;</span>
+        </div>
+      </div>
+
+
+      <!-- ========================================================
+           КОНЦЕПТ 9: Краудфандинг-прогресс хостинга Timeweb
+           ======================================================== -->
+      <div class="concept-card bg-slate-900 border border-slate-800 hover:border-ozon/50 rounded-2xl p-5 shadow-xl transition-all duration-300 flex flex-col justify-between" data-category="embedded">
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-bold font-mono text-ozon-cyan bg-ozon/10 border border-ozon/30 px-2.5 py-1 rounded-lg">#09 • КРАУДФАНДИНГ TIMEWEB + OZON</span>
+            <span class="text-xs text-teal-400 bg-teal-500/10 px-2 py-0.5 rounded border border-teal-500/20">Прозрачная цель</span>
+          </div>
+          <h3 class="text-base font-bold text-white mb-1">Живой сбор на продление серверов Timeweb</h3>
+          <p class="text-xs text-slate-400 mb-4">
+            Пользователи охотнее донатят на конкретные понятные вещи. Шкала сбора за текущий месяц с переливающимся шиммер-эффектом.
+          </p>
+
+          <!-- Интерактивная зона концепта -->
+          <div class="bg-slate-950 rounded-xl p-4 border border-slate-800/80 min-h-[160px] flex items-center justify-center">
+            <div class="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-xl p-3.5">
+              <div class="flex items-center justify-between mb-1.5">
+                <span class="text-xs font-semibold text-white flex items-center gap-1.5">
+                  <i data-lucide="server" class="w-3.5 h-3.5 text-ozon-cyan"></i>
+                  Хостинг Timeweb на ноябрь
+                </span>
+                <span class="text-xs font-bold text-ozon-cyan">850 / 1 200 ₽</span>
+              </div>
+              
+              <!-- Прогресс-бар с анимацией -->
+              <div class="relative w-full h-3 bg-slate-800 rounded-full overflow-hidden mb-3">
+                <div class="h-full bg-gradient-to-r from-ozon via-ozon-cyan to-ozon rounded-full w-[71%] relative">
+                  <!-- Шиммер-эффект -->
+                  <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer"></div>
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] text-slate-400">Осталось собрать: 350 ₽</span>
+                <button onclick="openOzonModal('crowdfund')" class="px-3 py-1 bg-ozon hover:bg-ozon-dark text-white rounded-lg text-xs font-semibold shadow">
+                  Внести 50 ₽ &rarr;
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-4 pt-3 border-t border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
+          <span>🎯 <strong>Плейсмент:</strong> В окне настроек или в подвале сайта</span>
+          <span class="text-ozon-cyan cursor-pointer hover:underline" onclick="openOzonModal('crowdfund')">Внести донат &rarr;</span>
+        </div>
+      </div>
+
+
+      <!-- ========================================================
+           КОНЦЕПТ 10: Минималистичная иконка в шапке с Popover
+           ======================================================== -->
+      <div class="concept-card bg-slate-900 border border-slate-800 hover:border-ozon/50 rounded-2xl p-5 shadow-xl transition-all duration-300 flex flex-col justify-between" data-category="header">
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-bold font-mono text-ozon-cyan bg-ozon/10 border border-ozon/30 px-2.5 py-1 rounded-lg">#10 • МИНИМАЛИЗМ В ШАПКЕ (ACTION ICON)</span>
+            <span class="text-xs text-slate-400 bg-slate-500/10 px-2 py-0.5 rounded border border-slate-500/20">0% Навязчивости</span>
+          </div>
+          <h3 class="text-base font-bold text-white mb-1">Иконка в основном хедере рядом с настройками</h3>
+          <p class="text-xs text-slate-400 mb-4">
+            Не бросается в глаза, гармонично сидит рядом с системными иконками. Имеет микро-точку онлайна и быстрый тултип.
+          </p>
+
+          <!-- Интерактивная зона концепта -->
+          <div class="bg-slate-950 rounded-xl p-4 border border-slate-800/80 min-h-[160px] flex items-center justify-center">
+            <!-- Демонстрационная мини-шапка -->
+            <div class="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 flex items-center justify-between">
+              <span class="text-xs font-bold text-white">Курьерская аналитика</span>
+              
+              <div class="flex items-center gap-2">
+                <!-- Обычная кнопка настроек -->
+                <button class="w-8 h-8 rounded-lg bg-slate-800 text-slate-400 flex items-center justify-center hover:text-white">
+                  <i data-lucide="settings" class="w-4 h-4"></i>
+                </button>
+
+                <!-- Интерактивная иконка доната с точкой -->
+                <button onclick="openOzonModal('header-icon')" class="relative w-8 h-8 rounded-lg bg-ozon/20 hover:bg-ozon/30 text-ozon-cyan border border-ozon/40 flex items-center justify-center transition-all hover:scale-105" title="Поддержать проект">
+                  <i data-lucide="coffee" class="w-4 h-4"></i>
+                  <!-- Пульсирующая точка онлайна -->
+                  <span class="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-ozon border-2 border-slate-900 animate-pulse"></span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-4 pt-3 border-t border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
+          <span>🎯 <strong>Плейсмент:</strong> В основном Header справа</span>
+          <span class="text-ozon-cyan cursor-pointer hover:underline" onclick="openOzonModal('header-icon')">Открыть &rarr;</span>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+
+  <!-- ========================================================
+       УНИВЕРСАЛЬНОЕ МОДАЛЬНОЕ ОКНО ПОДДЕРЖКИ (OZON BANK EDITION)
+       (Усовершенствованная версия модалки Аргона с SVG QR и табами)
+       ======================================================== -->
+  <div id="ozonModalOverlay" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 opacity-0 pointer-events-none transition-all duration-300">
+    <div id="ozonModalCard" class="relative w-full max-w-md bg-slate-900 border border-slate-700/80 rounded-3xl p-6 shadow-2xl text-center transform scale-95 transition-all duration-300">
+      
+      <!-- Крестик закрытия -->
+      <button onclick="closeOzonModal()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+
+      <!-- Хедер модалки с логотипом Ozon Банка -->
+      <div class="flex items-center justify-center gap-2 mb-2">
+        <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-ozon to-ozon-cyan flex items-center justify-center text-white font-bold text-base shadow-md">
+          ☕
+        </div>
+        <span class="text-xs font-bold font-mono tracking-wider text-ozon-cyan uppercase bg-ozon/10 border border-ozon/30 px-2 py-0.5 rounded-md">
+          Ozon Банк • СБП
+        </span>
+      </div>
+
+      <h3 class="text-xl font-bold text-white mb-1">Угостить автора кофе</h3>
+      <p class="text-xs text-slate-300 mb-4 leading-relaxed">
+        Сервис работает бесплатно и без рекламы. Ваша поддержка помогает оплачивать сервер Timeweb и делать обновления для курьеров!
+      </p>
+
+      <!-- Быстрый выбор сумм -->
+      <div class="flex items-center justify-center gap-2 mb-4">
+        <button onclick="selectAmount(50)" class="amount-btn px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition-all active:scale-95" data-amt="50">50 ₽</button>
+        <button onclick="selectAmount(100)" class="amount-btn active px-3.5 py-1.5 rounded-xl bg-ozon text-white text-xs font-bold border border-ozon shadow-md shadow-ozon/30 transition-all active:scale-95" data-amt="100">100 ₽</button>
+        <button onclick="selectAmount(250)" class="amount-btn px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition-all active:scale-95" data-amt="250">250 ₽</button>
+        <button onclick="selectAmount(500)" class="amount-btn px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition-all active:scale-95" data-amt="500">500 ₽</button>
+      </div>
+
+      <!-- Вкладки: QR-код vs Прямая ссылка -->
+      <div class="bg-slate-800/80 p-1 rounded-xl flex gap-1 mb-4 border border-slate-700/60 text-xs font-semibold">
+        <button id="tabQrBtn" onclick="switchModalTab('qr')" class="flex-1 py-1.5 rounded-lg bg-ozon text-white shadow transition-all flex items-center justify-center gap-1.5">
+          <i data-lucide="qr-code" class="w-3.5 h-3.5"></i>
+          <span>QR-код (для ПК)</span>
+        </button>
+        <button id="tabLinkBtn" onclick="switchModalTab('link')" class="flex-1 py-1.5 rounded-lg text-slate-300 hover:text-white transition-all flex items-center justify-center gap-1.5">
+          <i data-lucide="smartphone" class="w-3.5 h-3.5"></i>
+          <span>Ссылка (для телефона)</span>
+        </button>
+      </div>
+
+      <!-- Контент вкладки 1: QR-код Ozon СБП -->
+      <div id="modalTabQr" class="block">
+        <div class="bg-white rounded-2xl p-4 inline-block shadow-xl border-4 border-slate-800 mb-3 relative group">
+          <!-- Реалистичный масштабируемый SVG QR-код Ozon -->
+          <svg viewBox="0 0 160 160" class="w-44 h-44 mx-auto" xmlns="http://www.w3.org/2000/svg">
+            <!-- Угловые позиционеры -->
+            <rect x="10" y="10" width="40" height="40" rx="6" fill="#005BFF"/>
+            <rect x="16" y="16" width="28" height="28" rx="4" fill="#ffffff"/>
+            <rect x="22" y="22" width="16" height="16" rx="2" fill="#005BFF"/>
+
+            <rect x="110" y="10" width="40" height="40" rx="6" fill="#005BFF"/>
+            <rect x="116" y="16" width="28" height="28" rx="4" fill="#ffffff"/>
+            <rect x="122" y="22" width="16" height="16" rx="2" fill="#005BFF"/>
+
+            <rect x="10" y="110" width="40" height="40" rx="6" fill="#005BFF"/>
+            <rect x="16" y="116" width="28" height="28" rx="4" fill="#ffffff"/>
+            <rect x="22" y="122" width="16" height="16" rx="2" fill="#005BFF"/>
+
+            <!-- Пиксели QR-кода -->
+            <g fill="#0F172A">
+              <rect x="56" y="12" width="8" height="8" rx="1.5"/>
+              <rect x="70" y="12" width="8" height="8" rx="1.5"/>
+              <rect x="84" y="12" width="8" height="8" rx="1.5"/>
+              <rect x="56" y="26" width="8" height="8" rx="1.5"/>
+              <rect x="78" y="26" width="8" height="8" rx="1.5"/>
+              <rect x="92" y="26" width="8" height="8" rx="1.5"/>
+              <rect x="56" y="40" width="8" height="8" rx="1.5"/>
+              <rect x="84" y="40" width="8" height="8" rx="1.5"/>
+              
+              <rect x="12" y="56" width="8" height="8" rx="1.5"/>
+              <rect x="26" y="56" width="8" height="8" rx="1.5"/>
+              <rect x="40" y="56" width="8" height="8" rx="1.5"/>
+              <rect x="12" y="70" width="8" height="8" rx="1.5"/>
+              <rect x="34" y="70" width="8" height="8" rx="1.5"/>
+              <rect x="12" y="84" width="8" height="8" rx="1.5"/>
+              <rect x="40" y="84" width="8" height="8" rx="1.5"/>
+
+              <rect x="112" y="56" width="8" height="8" rx="1.5"/>
+              <rect x="134" y="56" width="8" height="8" rx="1.5"/>
+              <rect x="120" y="70" width="8" height="8" rx="1.5"/>
+              <rect x="140" y="70" width="8" height="8" rx="1.5"/>
+              <rect x="112" y="84" width="8" height="8" rx="1.5"/>
+              <rect x="134" y="84" width="8" height="8" rx="1.5"/>
+
+              <rect x="56" y="112" width="8" height="8" rx="1.5"/>
+              <rect x="70" y="112" width="8" height="8" rx="1.5"/>
+              <rect x="92" y="112" width="8" height="8" rx="1.5"/>
+              <rect x="64" y="126" width="8" height="8" rx="1.5"/>
+              <rect x="84" y="126" width="8" height="8" rx="1.5"/>
+              <rect x="56" y="140" width="8" height="8" rx="1.5"/>
+              <rect x="78" y="140" width="8" height="8" rx="1.5"/>
+              <rect x="92" y="140" width="8" height="8" rx="1.5"/>
+
+              <rect x="112" y="112" width="8" height="8" rx="1.5"/>
+              <rect x="134" y="112" width="8" height="8" rx="1.5"/>
+              <rect x="120" y="126" width="8" height="8" rx="1.5"/>
+              <rect x="140" y="126" width="8" height="8" rx="1.5"/>
+              <rect x="112" y="140" width="8" height="8" rx="1.5"/>
+              <rect x="128" y="140" width="8" height="8" rx="1.5"/>
+            </g>
+
+            <!-- Центральный бейдж Ozon Банка -->
+            <rect x="54" y="54" width="52" height="52" rx="12" fill="#005BFF"/>
+            <text x="80" y="76" font-family="system-ui, sans-serif" font-weight="900" font-size="14" fill="#ffffff" text-anchor="middle">ozon</text>
+            <text x="80" y="93" font-family="system-ui, sans-serif" font-weight="700" font-size="10" fill="#00C8FF" text-anchor="middle">БАНК</text>
+          </svg>
+        </div>
+        <p class="text-xs text-slate-300 mb-3">Наведите камеру смартфона для мгновенного перевода по СБП</p>
+      </div>
+
+      <!-- Контент вкладки 2: Прямая ссылка Ozon / СБП -->
+      <div id="modalTabLink" class="hidden text-left mb-3">
+        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 mb-3">
+          <label class="text-[11px] text-slate-400 block mb-1">Прямая ссылка для пополнения (Ozon Банк):</label>
+          <div class="flex items-center gap-2">
+            <input type="text" id="ozonPayUrlInput" value="https://ozon.ru/pay/tips-courier-analytics" readonly class="bg-slate-900 text-xs font-mono text-ozon-cyan px-3 py-2 rounded-lg border border-slate-700 flex-1 focus:outline-none">
+            <button onclick="copyOzonLink()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1 border border-slate-700">
+              <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+              <span>Копия</span>
+            </button>
+          </div>
+        </div>
+        <p class="text-[11px] text-slate-400 leading-relaxed">
+          💡 При клике на телефоне откроется мобильное приложение Ozon Банка или приложение любого вашего банка через СБП.
+        </p>
+      </div>
+
+      <!-- Главная кнопка перехода -->
+      <a href="https://ozon.ru" target="_blank" rel="noopener noreferrer" class="block w-full py-3.5 px-4 bg-gradient-to-r from-ozon via-ozon-dark to-[#003dbd] hover:from-ozon-hover hover:to-ozon text-white font-bold text-sm rounded-2xl shadow-lg shadow-ozon/40 hover:shadow-ozon/60 transition-all active:scale-[0.98]">
+        Перейти к переводу (<span id="modalSelectedAmt">100</span> ₽)
+      </a>
+
+      <!-- Футер модалки -->
+      <div class="mt-4 text-[11px] text-slate-400 flex items-center justify-center gap-2">
+        <i data-lucide="lock" class="w-3 h-3 text-emerald-400"></i>
+        <span>Безопасный перевод через Ozon Банк • СБП 0%</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ========================================================
+       БОКОВАЯ ВЫДВИЖНАЯ ШТОРКА (DRAWER - КОНЦЕПТ 4)
+       ======================================================== -->
+  <div id="ozonDrawerOverlay" class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300" onclick="toggleDrawer(false)"></div>
+  <aside id="ozonDrawerAside" class="fixed top-0 right-0 bottom-0 z-50 w-full max-w-sm bg-slate-900 border-l border-slate-800 p-6 shadow-2xl flex flex-col justify-between transform translate-x-full transition-transform duration-300 ease-out">
+    <div>
+      <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-lg bg-ozon flex items-center justify-center text-white text-xs font-bold">☕</div>
+          <h4 class="text-sm font-bold text-white">Шторка поддержки</h4>
+        </div>
+        <button onclick="toggleDrawer(false)" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div class="mt-5 space-y-4 text-left">
+        <div>
+          <span class="text-[10px] uppercase font-bold text-ozon-cyan bg-ozon/10 border border-ozon/30 px-2 py-0.5 rounded">Ozon Банк • СБП</span>
+          <h5 class="text-base font-bold text-white mt-1">Поддержать автора сервиса</h5>
+          <p class="text-xs text-slate-300 mt-1 leading-relaxed">
+            «Курьерская аналитика» создана для курьеров и всегда будет бесплатной. Вы можете поддержать проект чаевыми любой суммы.
+          </p>
+        </div>
+
+        <!-- Мини QR в шторке -->
+        <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-center">
+          <div class="w-32 h-32 bg-white rounded-xl mx-auto p-2 shadow-inner mb-2 flex items-center justify-center">
+            <svg viewBox="0 0 24 24" class="w-full h-full text-slate-900" fill="currentColor">
+              <path d="M2 2h8v8H2V2zm2 2v4h4V4H4zm10-2h8v8h-8V2zm2 2v4h4V4h-4zM2 14h8v8H2v-8zm2 2v4h4v-4H4zm12-2h2v2h-2v-2zm4 0h2v2h-2v-2zm-4 4h2v2h-2v-2zm4 0h2v2h-2v-2zm-8-6h2v2h-2v-2zm4 0h2v2h-2v-2zm0 4h2v2h-2v-2zM6 6h2v2H6V6zm12 0h2v2h-2V6zM6 18h2v2H6v-2z"/>
+            </svg>
+          </div>
+          <span class="text-[11px] text-slate-400">Сканируйте приложением любого банка</span>
+        </div>
+
+        <div class="space-y-2">
+          <a href="https://ozon.ru" target="_blank" class="block w-full py-3 bg-ozon hover:bg-ozon-dark text-white text-center font-bold text-xs rounded-xl shadow-lg transition-colors">
+            Перейти по ссылке Ozon СБП &rarr;
+          </a>
+          <button onclick="copyOzonLink()" class="block w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-center font-semibold text-xs rounded-xl border border-slate-700 transition-colors">
+            Скопировать реквизиты перевода
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="pt-4 border-t border-slate-800 text-center text-[11px] text-slate-500">
+      Хостинг Timeweb Cloud • Серверы в РФ
+    </div>
+  </aside>
+
+
+  <!-- ==================== ВСПЛЫВАЮЩИЙ ТОСТ ОБРАТНОЙ СВЯЗИ ==================== -->
+  <div id="liveToast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-slate-900/95 border border-ozon/50 text-white text-xs px-4 py-2.5 rounded-2xl shadow-2xl backdrop-blur-md flex items-center gap-2 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
+    <i data-lucide="check-circle" class="w-4 h-4 text-ozon-cyan"></i>
+    <span id="liveToastMsg">Ссылка скопирована в буфер обмена!</span>
+  </div>
+
+
+  <!-- ==================== СКРИПТЫ ИНТЕРАКТИВНОСТИ ==================== -->
+  <script>
+    // Инициализация иконок Lucide
+    lucide.createIcons();
+
+    // 1. Переключение темной/светлой темы
+    const themeToggleBtn = document.getElementById('themeToggle');
+    themeToggleBtn.addEventListener('click', () => {
+      const isDark = document.documentElement.classList.toggle('dark');
+      document.documentElement.classList.toggle('light', !isDark);
+      lucide.createIcons();
+    });
+
+    // 2. Универсальная модалка Ozon
+    const modalOverlay = document.getElementById('ozonModalOverlay');
+    const modalCard = document.getElementById('ozonModalCard');
+    const modalSelectedAmtSpan = document.getElementById('modalSelectedAmt');
+
+    function openOzonModal(source) {
+      modalOverlay.classList.remove('opacity-0', 'pointer-events-none');
+      modalCard.classList.remove('scale-95');
+      modalCard.classList.add('scale-100');
+    }
+
+    function closeOzonModal() {
+      modalOverlay.classList.add('opacity-0', 'pointer-events-none');
+      modalCard.classList.remove('scale-100');
+      modalCard.classList.add('scale-95');
+    }
+
+    modalOverlay.addEventListener('click', (e) => {
+      if (e.target === modalOverlay) closeOzonModal();
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeOzonModal();
+        toggleDrawer(false);
+        closeSplitPopover();
+      }
+    });
+
+    // 3. Выбор сумм в модалке
+    function selectAmount(amt) {
+      document.querySelectorAll('.amount-btn').forEach(btn => {
+        if (parseInt(btn.getAttribute('data-amt')) === amt) {
+          btn.classList.add('active', 'bg-ozon', 'text-white', 'border-ozon', 'shadow-md');
+          btn.classList.remove('bg-slate-800', 'text-slate-200');
+        } else {
+          btn.classList.remove('active', 'bg-ozon', 'text-white', 'border-ozon', 'shadow-md');
+          btn.classList.add('bg-slate-800', 'text-slate-200');
+        }
+      });
+      modalSelectedAmtSpan.textContent = amt;
+    }
+
+    // 4. Переключение табов в модалке (QR vs Ссылка)
+    const tabQrBtn = document.getElementById('tabQrBtn');
+    const tabLinkBtn = document.getElementById('tabLinkBtn');
+    const modalTabQr = document.getElementById('modalTabQr');
+    const modalTabLink = document.getElementById('modalTabLink');
+
+    function switchModalTab(tab) {
+      if (tab === 'qr') {
+        tabQrBtn.className = "flex-1 py-1.5 rounded-lg bg-ozon text-white shadow transition-all flex items-center justify-center gap-1.5";
+        tabLinkBtn.className = "flex-1 py-1.5 rounded-lg text-slate-300 hover:text-white transition-all flex items-center justify-center gap-1.5";
+        modalTabQr.classList.remove('hidden');
+        modalTabLink.classList.add('hidden');
+      } else {
+        tabLinkBtn.className = "flex-1 py-1.5 rounded-lg bg-ozon text-white shadow transition-all flex items-center justify-center gap-1.5";
+        tabQrBtn.className = "flex-1 py-1.5 rounded-lg text-slate-300 hover:text-white transition-all flex items-center justify-center gap-1.5";
+        modalTabLink.classList.remove('hidden');
+        modalTabQr.classList.add('hidden');
+      }
+      lucide.createIcons();
+    }
+
+    // 5. Выдвижная боковая шторка (Drawer - Концепт 4)
+    const drawerOverlay = document.getElementById('ozonDrawerOverlay');
+    const drawerAside = document.getElementById('ozonDrawerAside');
+
+    function toggleDrawer(show) {
+      if (show) {
+        drawerOverlay.classList.remove('opacity-0', 'pointer-events-none');
+        drawerAside.classList.remove('translate-x-full');
+      } else {
+        drawerOverlay.classList.add('opacity-0', 'pointer-events-none');
+        drawerAside.classList.add('translate-x-full');
+      }
+    }
+
+    // 6. Split Popover (Концепт 3)
+    const splitPopover = document.getElementById('splitPopover');
+    function toggleSplitPopover() {
+      splitPopover.classList.toggle('hidden');
+    }
+    function closeSplitPopover() {
+      if (splitPopover) splitPopover.classList.add('hidden');
+    }
+
+    // 7. 3D Card Flip (Концепт 5)
+    function toggleCardFlip() {
+      const flipCard = document.getElementById('flipCard');
+      flipCard.classList.toggle('card-flipped');
+    }
+
+    // 8. Smart Toast имитация (Концепт 6)
+    function triggerSampleToast() {
+      const toastBox = document.getElementById('sampleToastBox');
+      toastBox.classList.add('ring-2', 'ring-ozon-cyan');
+      showToast('⚡ Импорт отчета завершен! Появился виджет поддержки.');
+      setTimeout(() => {
+        toastBox.classList.remove('ring-2', 'ring-ozon-cyan');
+      }, 1500);
+    }
+
+    // 9. Копирование ссылки в буфер
+    function copyOzonLink() {
+      const url = "https://ozon.ru/pay/tips-courier-analytics";
+      navigator.clipboard.writeText(url).then(() => {
+        showToast('✓ Ссылка на перевод скопирована в буфер обмена!');
+      }).catch(() => {
+        showToast('Ссылка: https://ozon.ru/pay/tips-courier-analytics');
+      });
+    }
+
+    // 10. Всплывающее уведомление (Toast)
+    function showToast(msg) {
+      const toast = document.getElementById('liveToast');
+      const toastMsg = document.getElementById('liveToastMsg');
+      toastMsg.textContent = msg;
+      toast.classList.remove('opacity-0', 'translate-y-20', 'pointer-events-none');
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-20', 'pointer-events-none');
+      }, 3000);
+    }
+
+    // 11. Фильтрация концептов
+    function filterConcepts(cat) {
+      document.querySelectorAll('.filter-btn').forEach(btn => {
+        if (btn.getAttribute('data-filter') === cat) {
+          btn.className = "filter-btn active px-3 py-1.5 rounded-lg bg-ozon text-white transition-all";
+        } else {
+          btn.className = "filter-btn px-3 py-1.5 rounded-lg text-slate-300 hover:text-white transition-all";
+        }
+      });
+
+      const cards = document.querySelectorAll('.concept-card');
+      cards.forEach(card => {
+        if (cat === 'all' || card.getAttribute('data-category') === cat) {
+          card.classList.remove('hidden');
+        } else {
+          card.classList.add('hidden');
+        }
+      });
+    }
+  </script>
+</body>
+</html>
